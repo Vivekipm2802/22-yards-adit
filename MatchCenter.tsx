@@ -16,10 +16,10 @@ import {
   ChevronRight, Smartphone, Medal, Zap as Bolt, Crosshair, Edit2, Upload,
   ArrowLeftRight, History, Coins
 } from 'lucide-react';
-import MotionButton from '../components/MotionButton';
-import { MatchState, Player, TeamID, PlayerID, BallEvent } from '../types';
-import { useAuth } from '../AuthContext';
-import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, supabase } from '../lib/supabase';
+import MotionButton from './components/MotionButton';
+import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
+import { useAuth } from './AuthContext';
+import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, supabase } from './lib/supabase';
 
 const CYBER_COLORS = {
   bg: '#050505',
