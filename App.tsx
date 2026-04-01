@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import SplashScreen from './pages/SplashScreen';
 import Login from './pages/Login';
 import Dugout from './pages/Dugout';
-import MatchCenter from './pages/MatchCenter';
+import MatchCenter from './MatchCenter';
 import Performance from './pages/Performance';
 import Arena from './pages/Arena';
 import Archive from './pages/Archive';
