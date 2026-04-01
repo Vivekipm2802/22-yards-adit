@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>22YARDS | Elite Cricket Ecosystem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700;800&family=Bebas+Neue&family=Outfit:wght@400;600;800;900&family=Teko:wght@300;400;700&family=Courier+Prime:wght@400;700&family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* T20 Night Match Palette */
+            --stadium-night: #020617;
+            --electric-cyan: #00F0FF;
+            --turf-green: #39FF14;
+            --midnight-blue: #0f172a;
+            --deep-black: #000000;
+        }
+
+        body {
+            background: var(--stadium-night);
+            color: #F8FAFC;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+        }
+
+        .font-numbers { font-family: 'Space Grotesk', sans-serif; }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 0% 0%, rgba(0, 240, 255, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, rgba(0, 240, 255, 0.1) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .mesh-texture {
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 4px 4px;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        .font-heading { font-family: 'Teko', sans-serif; text-transform: uppercase; }
+        .font-brand { font-family: 'Outfit', sans-serif; font-weight: 900; }
+        .font-mono-drs { font-family: 'Courier Prime', monospace; }
+        
+        .logo-neon {
+            background: linear-gradient(
+              to bottom right,
+              #00F0FF 0%,
+              #39FF14 50%,
+              #00F0FF 100%
+            );
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer-neon 4s linear infinite;
+        }
+
+        @keyframes shimmer-neon {
+            to { background-position: 200% center; }
+        }
+
+        .glass-luxury {
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.9);
+        }
+
+        .glass-premium {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .app-frame {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .scroll-container::-webkit-scrollbar { display: none; }
+        .scroll-container { -ms-overflow-style: none; scrollbar-width: none; overflow-y: auto; height: 100%; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* ââ LIGHT MODE THEME âââââââââââââââââââââââââââââââââââââââââââ */
+        html[data-theme="light"] body {
+            background: #f0f4f8 !important;
+            color: #0f172a !important;
+        }
+        html[data-theme="light"] body::after {
+            background:
+                radial-gradient(circle at 0% 0%, rgba(0, 180, 200, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, rgba(0, 180, 200, 0.04) 0%, transparent 40%) !important;
+        }
+        html[data-theme="light"] .mesh-texture {
+            opacity: 0.12 !important;
+            background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 1px) !important;
+        }
+        html[data-theme="light"] .glass-luxury {
+            background: #ffffff !important;
+            border: 1px solid rgba(204,16,16,0.2) !important;
+            box-shadow: 0 8px 32px rgba(15,23,42,0.1), 0 1px 4px rgba(15,23,42,0.06) !important;
+        }
+        html[data-theme="light"] .glass-premium {
+            background: #ffffff !important;
+            border: 1px solid rgba(15, 23, 42, 0.12) !important;
+            box-shadow: 0 4px 16px rgba(15,23,42,0.07), 0 1px 3px rgba(15,23,42,0.05) !important;
+        }
+
+        /* Dark backgrounds â light surfaces */
+        html[data-theme="light"] .bg-\[\#050505\],
+        html[data-theme="light"] .bg-\[\#020617\],
+        html[data-theme="light"] .bg-\[\#0D0D0D\],
+        html[data-theme="light"] .bg-\[\#020d1f\],
+        html[data-theme="light"] .bg-\[\#0a0a0a\] { background-color: #f0f4f8 !important; }
+        html[data-theme="light"] .bg-\[\#121212\] { background-color: #ffffff !important; }
+        html[data-theme="light"] .bg-\[\#1A1A1A\],
+        html[data-theme="light"] .bg-\[\#111\] { background-color: #f1f5f9 !important; }
+        html[data-theme="light"] .bg-black { background-color: #f8fafc !important; }
+        html[data-theme="light"] .bg-black\/50,
+        html[data-theme="light"] .bg-black\/80 { background-color: rgba(248,250,252,0.92) !important; }
+        html[data-theme="light"] .bg-black\/40 { background-color: rgba(248,250,252,0.75) !important; }
+        html[data-theme="light"] .bg-black\/95 { background-color: rgba(248,250,252,0.98) !important; }
+        html[data-theme="light"] .bg-black\/90 { background-color: rgba(248,250,252,0.97) !important; }
+        html[data-theme="light"] .bg-black\/60 { background-color: rgba(0,0,0,0.45) !important; }
+        html[data-theme="light"] .bg-white\/5,
+        html[data-theme="light"] .bg-white\/\[0\.02\],
+        html[data-theme="light"] .bg-white\/\[0\.03\],
+        html[data-theme="light"] .bg-white\/\[0\.04\] { background-color: rgba(15,23,42,0.04) !important; }
+
+        /* Text white â dark (boosted for legibility on white tiles) */
+        html[data-theme="light"] .text-white { color: #0f172a !important; }
+        html[data-theme="light"] .text-white\/80 { color: rgba(15,23,42,0.85) !important; }
+        html[data-theme="light"] .text-white\/60 { color: rgba(15,23,42,0.65) !important; }
+        html[data-theme="light"] .text-white\/40 { color: rgba(15,23,42,0.60) !important; }
+        html[data-theme="light"] .text-white\/30 { color: rgba(15,23,42,0.60) !important; }
+        html[data-theme="light"] .text-white\/20 { color: rgba(15,23,42,0.55) !important; }
+        html[data-theme="light"] .text-white\/10 { color: rgba(15,23,42,0.40) !important; }
+
+        /* Borders white â dark */
+        html[data-theme="light"] .border-white\/5 { border-color: rgba(15,23,42,0.09) !important; }
+        html[data-theme="light"] .border-white\/10 { border-color: rgba(15,23,42,0.13) !important; }
+        html[data-theme="light"] .border-white\/20 { border-color: rgba(15,23,42,0.2) !important; }
+        html[data-theme="light"] .border-white\/30 { border-color: rgba(15,23,42,0.28) !important; }
+
+        /* Input fields in light mode */
+        html[data-theme="light"] input,
+        html[data-theme="light"] textarea {
+            color: #0f172a !important;
+            background-color: rgba(255,255,255,0.8) !important;
+            border-color: rgba(15,23,42,0.15) !important;
+        }
+        html[data-theme="light"] input::placeholder,
+        html[data-theme="light"] textarea::placeholder { color: rgba(15,23,42,0.3) !important; }
+
+        /* Dividers/separators */
+        html[data-theme="light"] .bg-white\/10 { background-color: rgba(15,23,42,0.1) !important; }
+        html[data-theme="light"] .bg-white\/\[0\.05\] { background-color: rgba(15,23,42,0.05) !important; }
+
+        /* Gradient text stays readable */
+        html[data-theme="light"] .bg-\[\#020617\]\/5 { background-color: rgba(240,244,248,0.5) !important; }
+
+        /* ââ LIGHT MODE: CYAN â CRICKET RED ââââââââââââââââââââââââââââ */
+        /* Text */
+        html[data-theme="light"] .text-\[\#00F0FF\] { color: #CC1010 !important; }
+        html[data-theme="light"] .text-\[\#4DB6AC\] { color: #b91c1c !important; }
+        /* Backgrounds */
+        html[data-theme="light"] .bg-\[\#00F0FF\] { background-color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#4DB6AC\] { background-color: #b91c1c !important; }
+        html[data-theme="light"] .bg-\[\#00F0FF\]\/10 { background-color: rgba(204,16,16,0.1) !important; }
+        html[data-theme="light"] .bg-\[\#00F0FF\]\/20 { background-color: rgba(204,16,16,0.2) !important; }
+        html[data-theme="light"] .bg-\[\#00F0FF\]\/5 { background-color: rgba(204,16,16,0.05) !important; }
+        html[data-theme="light"] .bg-\[\#4DB6AC\]\/10 { background-color: rgba(185,28,28,0.1) !important; }
+        /* Borders */
+        html[data-theme="light"] .border-\[\#00F0FF\] { border-color: #CC1010 !important; }
+        html[data-theme="light"] .border-\[\#00F0FF\]\/20 { border-color: rgba(204,16,16,0.2) !important; }
+        html[data-theme="light"] .border-\[\#00F0FF\]\/30 { border-color: rgba(204,16,16,0.3) !important; }
+        html[data-theme="light"] .border-\[\#00F0FF\]\/40 { border-color: rgba(204,16,16,0.4) !important; }
+        html[data-theme="light"] .border-\[\#00F0FF\]\/60 { border-color: rgba(204,16,16,0.6) !important; }
+        html[data-theme="light"] .border-\[\#4DB6AC\] { border-color: #b91c1c !important; }
+        /* Focus rings */
+        html[data-theme="light"] .focus\:border-\[\#00F0FF\]\/60:focus { border-color: rgba(204,16,16,0.6) !important; }
+        html[data-theme="light"] .focus\:border-\[\#00F0FF\]\/40:focus { border-color: rgba(204,16,16,0.4) !important; }
+        /* Shadows */
+        html[data-theme="light"] .shadow-\[0_0_20px_\#00F0FF11\] { box-shadow: 0 0 20px rgba(204,16,16,0.07) !important; }
+        html[data-theme="light"] .shadow-\[0_0_20px_rgba\(0\,240\,255\,0\.4\)\] { box-shadow: 0 0 20px rgba(204,16,16,0.25) !important; }
+        /* Hover states that use cyan */
+        html[data-theme="light"] .hover\:text-\[\#00F0FF\]:hover { color: #CC1010 !important; }
+        html[data-theme="light"] .hover\:border-\[\#00F0FF\]\/40:hover { border-color: rgba(204,16,16,0.4) !important; }
+
+        /* ââ HEADING / FONT visibility in light mode ââââââââââââââââââââ */
+        html[data-theme="light"] .font-heading { color: #0f172a; }
+        html[data-theme="light"] h1, html[data-theme="light"] h2,
+        html[data-theme="light"] h3, html[data-theme="light"] h4 { color: #0f172a; }
+        /* Logo still keeps gradient */
+        html[data-theme="light"] .logo-neon { -webkit-text-fill-color: transparent; }
+
+        /* ââ CHART VISIBILITY in light mode ââââââââââââââââââââââââââââ */
+        html[data-theme="light"] .recharts-text,
+        html[data-theme="light"] .recharts-label { fill: #374151 !important; }
+        html[data-theme="light"] .recharts-cartesian-axis-tick-value { fill: #6b7280 !important; }
+        html[data-theme="light"] .recharts-cartesian-axis-line,
+        html[data-theme="light"] .recharts-cartesian-axis-tick-line { stroke: #d1d5db !important; }
+        html[data-theme="light"] .recharts-cartesian-grid line { stroke: rgba(15,23,42,0.08) !important; }
+        html[data-theme="light"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+            background-color: #ffffff !important; border: 1px solid #e5e7eb !important;
+        }
+        html[data-theme="light"] .recharts-tooltip-item { color: #374151 !important; }
+        html[data-theme="light"] .recharts-legend-item-text { color: #374151 !important; }
+
+        /* ââ GRADIENT RING / from-to overrides â red âââââââââââââââââââ */
+        html[data-theme="light"] .from-\[\#00F0FF\] {
+            --tw-gradient-from: #CC1010 !important;
+            --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(204,16,16,0)) !important;
+        }
+        html[data-theme="light"] .to-\[\#39FF14\] {
+            --tw-gradient-to: #991b1b !important;
+        }
+        html[data-theme="light"] .via-transparent {
+            --tw-gradient-stops: var(--tw-gradient-from), transparent, var(--tw-gradient-to) !important;
+        }
+        /* Also catch any from-[#4DB6AC] teal gradients */
+        html[data-theme="light"] .from-\[\#4DB6AC\] {
+            --tw-gradient-from: #b91c1c !important;
+            --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(185,28,28,0)) !important;
+        }
+
+        /* ââ FILLED CARD LOOK â subtle red accent on bordered cards ââââ */
+        /* Cards with colored left border (MetricBlock) get a red tinted bg */
+        html[data-theme="light"] .glass-premium.border-l-2 {
+            background: linear-gradient(to right, rgba(204,16,16,0.04) 0%, #ffffff 20%) !important;
+        }
+
+        /* ââ SECTION BACKGROUNDS â give sections visual depth âââââââââââ */
+        html[data-theme="light"] .bg-\[\#020617\]\/5 { background-color: rgba(204,16,16,0.03) !important; }
+        html[data-theme="light"] .bg-\[\#00F0FF\]\/\[0\.05\] { background-color: rgba(204,16,16,0.05) !important; }
+
+        /* ââ MISSING OPACITY BORDER VARIANTS âââââââââââââââââââââââââââ */
+        html[data-theme="light"] .border-\[\#00F0FF\]\/10 { border-color: rgba(204,16,16,0.1) !important; }
+
+        /* ââ TAB BAR in light mode ââââââââââââââââââââââââââââââââââââââ */
+        html[data-theme="light"] .bg-white\/5 { background-color: rgba(15,23,42,0.05) !important; }
+
+        /* ââ GLOW BLOBS â soft red tint ââââââââââââââââââââââââââââââââ */
+        html[data-theme="light"] .bg-\[\#00F0FF\]\/5 { background-color: rgba(204,16,16,0.05) !important; }
+        html[data-theme="light"] .bg-\[\#FF003C\]\/5 { background-color: rgba(220,38,38,0.05) !important; }
+        html[data-theme="light"] .blur-\[100px\] { opacity: 0.6 !important; }
+
+        /* ââ LIGHT MODE: NEON GREEN (#39FF14) â CRICKET RED ââââââââââââ */
+        html[data-theme="light"] .text-\[\#39FF14\] { color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#39FF14\] { background-color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#39FF14\]\/5  { background-color: rgba(204,16,16,0.05) !important; }
+        html[data-theme="light"] .bg-\[\#39FF14\]\/10 { background-color: rgba(204,16,16,0.1) !important; }
+        html[data-theme="light"] .bg-\[\#39FF14\]\/20 { background-color: rgba(204,16,16,0.15) !important; }
+        html[data-theme="light"] .border-\[\#39FF14\] { border-color: #CC1010 !important; }
+        html[data-theme="light"] .border-\[\#39FF14\]\/20 { border-color: rgba(204,16,16,0.2) !important; }
+        html[data-theme="light"] .border-\[\#39FF14\]\/30 { border-color: rgba(204,16,16,0.3) !important; }
+        html[data-theme="light"] .border-\[\#39FF14\]\/40 { border-color: rgba(204,16,16,0.4) !important; }
+        html[data-theme="light"] .border-\[\#39FF14\]\/50 { border-color: rgba(204,16,16,0.5) !important; }
+        html[data-theme="light"] .hover\:border-\[\#39FF14\]\/40:hover { border-color: rgba(204,16,16,0.4) !important; }
+        html[data-theme="light"] .shadow-\[0_0_8px_\#39FF14\]           { box-shadow: 0 0 8px rgba(204,16,16,0.55) !important; }
+        html[data-theme="light"] .shadow-\[0_0_20px_rgba\(57\,255\,20\,0\.08\)\]  { box-shadow: 0 0 20px rgba(204,16,16,0.08) !important; }
+        html[data-theme="light"] .shadow-\[0_15px_40px_rgba\(57\,255\,20\,0\.2\)\] { box-shadow: 0 15px 40px rgba(204,16,16,0.15) !important; }
+        html[data-theme="light"] .shadow-\[0_0_15px_rgba\(57\,255\,20\,0\.5\)\]   { box-shadow: 0 0 15px rgba(204,16,16,0.35) !important; }
+        /* Dark-green innings header bg */
+        html[data-theme="light"] .bg-\[\#064e3b\] { background-color: #7f1d1d !important; }
+        /* from/to green in gradients */
+        html[data-theme="light"] .from-\[\#39FF14\] {
+            --tw-gradient-from: #CC1010 !important;
+            --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(204,16,16,0)) !important;
+        }
+        html[data-theme="light"] .to-\[\#39FF14\] { --tw-gradient-to: #991b1b !important; }
+        /* via-[#00F0FF] mid-stop in progress bar gradient â red */
+        html[data-theme="light"] .via-\[\#00F0FF\] {
+            --tw-gradient-stops: var(--tw-gradient-from), #CC1010, var(--tw-gradient-to) !important;
+        }
+        /* to-[#00F0FF] */
+        html[data-theme="light"] .to-\[\#00F0FF\] { --tw-gradient-to: #991b1b !important; }
+
+        /* ââ LIGHT MODE: GOLD (#FFD600) â CRICKET RED ââââââââââââââââââ */
+        html[data-theme="light"] .text-\[\#FFD600\]       { color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#FFD600\]         { background-color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#FFD600\]\/20     { background-color: rgba(204,16,16,0.12) !important; }
+        html[data-theme="light"] .border-\[\#FFD600\]\/30 { border-color: rgba(204,16,16,0.3) !important; }
+        html[data-theme="light"] .from-\[\#FFD600\]\/20   {
+            --tw-gradient-from: rgba(204,16,16,0.12) !important;
+            --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(204,16,16,0)) !important;
+        }
+
+        /* ââ LIGHT MODE: PURPLE (#BC13FE) â CRICKET RED ââââââââââââââââ */
+        html[data-theme="light"] .text-\[\#BC13FE\]   { color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#BC13FE\]     { background-color: #CC1010 !important; }
+        html[data-theme="light"] .border-\[\#BC13FE\] { border-color: #CC1010 !important; }
+
+        /* ââ LIGHT MODE: ORANGE (#FF6D00) â CRICKET RED ââââââââââââââââ */
+        html[data-theme="light"] .text-\[\#FF6D00\]   { color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#FF6D00\]     { background-color: #CC1010 !important; }
+        html[data-theme="light"] .border-\[\#FF6D00\] { border-color: #CC1010 !important; }
+
+        /* ââ LIGHT MODE: NEON RED (#FF003C) â SOLID CRICKET RED âââââââ */
+        /* Soften neon red to solid cricket red on white backgrounds */
+        html[data-theme="light"] .text-\[\#FF003C\]       { color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#FF003C\]         { background-color: #CC1010 !important; }
+        html[data-theme="light"] .bg-\[\#FF003C\]\/10     { background-color: rgba(204,16,16,0.1) !important; }
+        html[data-theme="light"] .border-\[\#FF003C\]     { border-color: #CC1010 !important; }
+        html[data-theme="light"] .border-\[\#FF003C\]\/40 { border-color: rgba(204,16,16,0.4) !important; }
+
+        /* ââ LIGHT MODE: LOGO NEON â RED GRADIENT ââââââââââââââââââââââ */
+        html[data-theme="light"] .logo-neon {
+            background: linear-gradient(to bottom right, #CC1010 0%, #991b1b 50%, #CC1010 100%) !important;
+            background-size: 200% auto !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
+        /* ââ LIGHT MODE: BOTTOM TAB BAR â stays dark for visibility ââââ */
+        html[data-theme="light"] .bottom-tab-bar {
+            background-color: #1a1f2e !important;
+            border-top-color: rgba(255,255,255,0.1) !important;
+        }
+        /* Inactive buttons: white text on dark bar */
+        html[data-theme="light"] .bottom-tab-bar button {
+            color: rgba(255,255,255,0.55) !important;
+        }
+        /* Active button: cricket red, fully opaque */
+        html[data-theme="light"] .bottom-tab-bar .text-\[\#00F0FF\] {
+            color: #CC1010 !important;
+        }
+        /* Label text opacity: don't let opacity-40 make it invisible */
+        html[data-theme="light"] .bottom-tab-bar .opacity-40 {
+            opacity: 0.85 !important;
+        }
+        html[data-theme="light"] .bottom-tab-bar .group-hover\:opacity-60:hover {
+            opacity: 1 !important;
+        }
+        /* Active bg pill */
+        html[data-theme="light"] .bottom-tab-bar .bg-\[\#00F0FF\]\/10 {
+            background-color: rgba(204,16,16,0.15) !important;
+        }
+        html[data-theme="light"] .bottom-tab-bar .shadow-\[0_0_15px_rgba\(0\,240\,255\,0\.2\)\] {
+            box-shadow: 0 0 15px rgba(204,16,16,0.25) !important;
+        }
+
+        /* ââ LIGHT MODE: OPACITY CLASSES on white tiles â prevent invisible text ââ */
+        /* opacity-40 on dark text in light mode can make it vanish â boost it globally */
+        html[data-theme="light"] .opacity-40 { opacity: 0.72 !important; }
+        html[data-theme="light"] .opacity-30 { opacity: 0.62 !important; }
+        /* Bottom tab bar overrides its own .opacity-40 back to a value that works on dark bg */
+        html[data-theme="light"] .bottom-tab-bar .opacity-40 { opacity: 0.85 !important; }
+        html[data-theme="light"] .bottom-tab-bar .opacity-30 { opacity: 0.70 !important; }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react/": "https://esm.sh/react@19.0.0/",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "recharts": "https://esm.sh/recharts@2.15.0?external=react",
+        "lucide-react": "https://esm.sh/lucide-react@0.475.0?external=react",
+        "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react"
+      }
+    }
+    </script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div class="mesh-texture"></div>
+    <div id="root" class="app-frame"></div>
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
