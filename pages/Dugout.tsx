@@ -18,7 +18,7 @@ interface DugoutProps {
 }
 
 const LIVE_FEEDS = [
-  { id: '1', teamA: 'Avengers XI', teamB: 'Warriors CC', status: 'Inning 1 â¢ 14.2 Overs', detail: '142/3 (RR: 9.9)', trend: '+0.4', color: '#00F0FF' },
+  { id: '1', teamA: 'Avengers XI', teamB: 'Warriors CC', status: 'Inning 1  •  14.2 Overs', detail: '142/3 (RR: 9.9)', trend: '+0.4', color: '#00F0FF' },
   { id: '2', teamA: 'Tech Giants', teamB: 'Sales Force', status: 'Match Suspended', detail: 'Weather Delay', trend: '0.0', color: '#39FF14' },
 ];
 
@@ -78,7 +78,7 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
         if (idx >= 0) {
           setCloudRank(`#${idx + 1}`);
         } else {
-          setCloudRank(careerStats.totalRuns > 0 ? '#â' : 'UNRANKED');
+          setCloudRank(careerStats.totalRuns > 0 ? '#-' : 'UNRANKED');
         }
       })
       .catch(() => {
@@ -145,7 +145,7 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
                   <h3 className="font-heading text-4xl text-white uppercase tracking-tight">Avengers XI <span className="text-white/20">vs</span> Thunder CC</h3>
                   <div className="flex items-center space-x-4 text-white/40 text-[10px] font-black uppercase tracking-widest">
                     <span className="flex items-center"><MapPin size={12} className="mr-1" /> Palika Stadium</span>
-                    <span className="flex items-center"><Calendar size={12} className="mr-1" /> Tomorrow â¢ 07:00 PM</span>
+                    <span className="flex items-center"><Calendar size={12} className="mr-1" /> Tomorrow  •  07:00 PM</span>
                   </div>
                 </div>
                 <MotionButton onClick={() => onNavigate('MATCH_CENTER')} className="bg-[#00F0FF] text-black !rounded-xl !py-4 !px-8 text-[11px] font-black tracking-widest shadow-[0_0_20px_rgba(0,240,255,0.4)]">
@@ -246,11 +246,11 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
         <div className="flex whitespace-nowrap animate-marquee">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="flex space-x-12 px-6">
-              <span className="text-[9px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">â¡ NEW TOURNAMENT: Kanpur Monsoon Bash registration closing in 48h</span>
+              <span className="text-[9px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">⚡ NEW TOURNAMENT: Kanpur Monsoon Bash registration closing in 48h</span>
               <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">|</span>
-              <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-[0.2em]">ð VENUE UPDATE: Royal Turf Arena sync complete</span>
+              <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-[0.2em]">🏟️ VENUE UPDATE: Royal Turf Arena sync complete</span>
               <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">|</span>
-              <span className="text-[9px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">ð ANALYTICS: Your Impact Score increased by +1.2 pts</span>
+              <span className="text-[9px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">📊 ANALYTICS: Your Impact Score increased by +1.2 pts</span>
             </div>
           ))}
         </div>

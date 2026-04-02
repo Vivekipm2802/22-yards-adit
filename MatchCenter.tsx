@@ -194,6 +194,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   // Scoring lock — prevents race conditions from rapid clicks
   const isProcessingBall = useRef(false);
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Player ID search dropdown
   const [playerDropdownList, setPlayerDropdownList] = useState<Array<{id: string, name: string, phone: string}>>([]);
@@ -384,6 +385,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
        return;
     }
 
+    if (!match.crease.strikerId) {
+       setSelectionTarget('NEW_BATSMAN');
+       return;
+    }
+
     // Block scoring if innings is already over (overs exhausted or all out)
     const battingTeamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
     const squadSize = (match.teams[battingTeamKey]?.squad || []).length;
@@ -398,15 +404,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     isProcessingBall.current = true;
     setTimeout(() => { isProcessingBall.current = false; }, 150);
 
+    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
     if (pendingExtra === 'NB') {
        setOverlayAnim('FREE_HIT');
-       setTimeout(() => setOverlayAnim(null), 2500);
+       overlayTimerRef.current = setTimeout(() => setOverlayAnim(null), 2500);
     } else if (runs === 4) {
        setOverlayAnim('FOUR');
-       setTimeout(() => setOverlayAnim(null), 1500);
+       overlayTimerRef.current = setTimeout(() => setOverlayAnim(null), 1500);
     } else if (runs === 6) {
        setOverlayAnim('SIX');
-       setTimeout(() => setOverlayAnim(null), 1500);
+       overlayTimerRef.current = setTimeout(() => setOverlayAnim(null), 1500);
     }
     commitBall(runs, pendingExtra);
     setPendingExtra(null);
@@ -880,7 +887,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         const bowlingTeamName = getTeamObj(m.teams.bowlingTeamId)?.name || 'Team';
 
         if (inn2Score >= (m.config.target || inn1Score + 1)) {
-          const wicketsLeft = 10 - newLiveScore.wickets;
+          const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+          const battingSquadSize = (m.teams[battingTeamKey]?.squad || []).length;
+          const wicketsLeft = Math.max(0, battingSquadSize - 1 - newLiveScore.wickets);
           setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}` });
         } else if (inn2Score === inn1Score) {
           setWinnerTeam({ name: 'Match Tied', id: null, margin: `Both teams scored ${inn1Score} runs` });
@@ -895,7 +904,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       if (!shouldTransition && m.currentInnings === 2 && m.config.target && newLiveScore.runs >= m.config.target) {
         newStatus = 'COMPLETED';
         const battingTeamName = getTeamObj(m.teams.battingTeamId)?.name || 'Team';
-        const wicketsLeft = 10 - newLiveScore.wickets;
+        const _battingTeamKey2 = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+        const _battingSquadSize2 = (m.teams[_battingTeamKey2]?.squad || []).length;
+        const wicketsLeft = Math.max(0, _battingSquadSize2 - 1 - newLiveScore.wickets);
         setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}` });
         setTimeout(() => setStatus('SUMMARY'), 100);
       }
@@ -4531,6 +4542,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             setOverlayAnim(null);
                             setSummaryTab('SUMMARY');
                             setShowShareSheet(false);
+                            setFireMode(false);
+                            setFireModeBanner(false);
+                            setFireModeDeclined(false);
+                            setIceMode(false);
+                            setIceModeBanner(false);
+                            setIceModeDeclined(false);
+                            setSummaryPhase('SKELETON');
+                            setScorecardReady(false);
+                            setPendingExtra(null);
+                            isProcessingBall.current = false;
                           }}
                           className="flex-1 py-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
                         >

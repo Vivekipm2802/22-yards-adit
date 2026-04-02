@@ -45,7 +45,7 @@ const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('DUGOUT');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  /* ââ URL params: ?watch=MATCH_ID or ?resume=MATCH_ID ââ */
+  /* ── URL params: ?watch=MATCH_ID or ?resume=MATCH_ID ── */
   const [watchMatchId] = useState<string | null>(() => {
     try { return new URLSearchParams(window.location.search).get('watch'); } catch { return null; }
   });
@@ -101,7 +101,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  /* ââ Resume: after login, load match state from Supabase â localStorage â MATCH_CENTER ââ */
+  /* ── Resume: after login, load match state from Supabase → localStorage → MATCH_CENTER ── */
   useEffect(() => {
     if (!userData || !resumeMatchId) return;
     (async () => {
@@ -230,7 +230,7 @@ const App: React.FC = () => {
     return <SplashScreen onComplete={() => setIsReady(true)} />;
   }
 
-  /* ââ Spectator mode: ?watch=MATCH_ID â no login required ââ */
+  /* ── Spectator mode: ?watch=MATCH_ID - no login required ── */
   if (watchMatchId) {
     return <LiveScoreboard matchId={watchMatchId} />;
   }
@@ -268,7 +268,7 @@ const App: React.FC = () => {
   return (
     <AuthContext.Provider value={{ userData, login: handleLogin, logout: handleLogout }}>
       <div className="h-[100dvh] w-full bg-[#020617] text-white flex flex-col overflow-hidden relative font-sans">
-        {/* Top Navigation â safe-area-inset-top handles iPhone Dynamic Island / notch */}
+        {/* Top Navigation - safe-area-inset-top handles iPhone Dynamic Island / notch */}
         <div
           className="border-b border-white/5 shrink-0 bg-black/50 backdrop-blur-xl z-[100]"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
@@ -293,8 +293,8 @@ const App: React.FC = () => {
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            {/* B-17 fix: notification bell â dot removed until real notifications exist */}
-            <button className="p-2 text-white/60 hover:text-[#00F0FF] relative transition-colors" title="Notifications â coming soon">
+            {/* B-17 fix: notification bell - dot removed until real notifications exist */}
+            <button className="p-2 text-white/60 hover:text-[#00F0FF] relative transition-colors" title="Notifications - coming soon">
               <Bell size={18} />
             </button>
           </div>
@@ -417,7 +417,7 @@ const App: React.FC = () => {
                   {/* B-16 fix: upgrade button now shows coming-soon message */}
                   <button
                     className="w-full bg-[#00F0FF] text-black py-5 rounded-2xl font-black text-[10px] tracking-[0.5em] uppercase shadow-[0_10px_30px_rgba(0,240,255,0.3)]"
-                    onClick={() => { setShowUpgradeModal(false); alert('â¡ Elite Squadron is coming soon!\n\nWe\'re building something special. Stay tuned for the launch announcement.'); }}
+                    onClick={() => { setShowUpgradeModal(false); alert('⚡ Elite Squadron is coming soon!\n\nWe\'re building something special. Stay tuned for the launch announcement.'); }}
                   >AUTHORIZE UPGRADE</button>
                   <button onClick={() => setShowUpgradeModal(false)} className="w-full text-white/20 py-2 text-[8px] font-black uppercase tracking-widest">Decline Protocol</button>
                 </div>

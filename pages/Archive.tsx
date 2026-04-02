@@ -30,6 +30,10 @@ const Archive: React.FC = () => {
       // FIX (Bug 2): merge cloud archive_vault so guests who signed up after a match
       // (or log in on a new device) still see their match history.
       const localHist = vaultData?.history || [];
+
+      // BUG A FIX: Create merged history upfront to avoid race condition
+      // where team extraction uses only local history before cloud merges
+      let mergedHistForTeams = localHist;
       fetchPlayerByPhone(user.phone).then(cloudProfile => {
         const cloudHist = (cloudProfile?.archive_vault && Array.isArray(cloudProfile.archive_vault))
           ? cloudProfile.archive_vault : [];
@@ -38,16 +42,20 @@ const Archive: React.FC = () => {
           if (!m?.id || seen.has(m.id)) return false;
           seen.add(m.id); return true;
         });
+        mergedHistForTeams = merged;  // Update reference for team extraction
         setHistory(merged);
-      }).catch(() => setHistory(localHist));
+      }).catch(() => {
+        mergedHistForTeams = localHist;
+        setHistory(localHist);
+      });
 
       if (vaultData) {
-        const hist = vaultData.history || [];
-        // history state already set above via cloud merge; skip setHistory(hist)
-        
+        // Use the merged history (will be updated when cloud fetch completes)
+        const hist = mergedHistForTeams;
+
         // Sync team names if registered ID matches a match ID context
         let rawTeams = vaultData.teams || [];
-        
+
         // If no explicit teams are registered, extract unique squads from match history
         if (rawTeams.length === 0 && hist.length > 0) {
           const uniqueTeamsMap = new Map();
@@ -85,7 +93,7 @@ const Archive: React.FC = () => {
            }
            return team;
         });
-        
+
         setTeams(syncedTeams);
         setVaultInfo({ name: vaultData.name, phone: user.phone });
       }
@@ -100,7 +108,7 @@ const Archive: React.FC = () => {
            <div className="flex items-center space-x-3 bg-[#39FF14]/5 border border-[#39FF14]/20 px-4 py-2 rounded-full">
               <Cloud size={14} className="text-[#39FF14]" />
               <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-widest">
-             {isSyncing ? 'â³ SYNCING...' : `Vault: +91 ${vaultInfo.phone}`}
+             {isSyncing ? '🚳 SYNCING...' : `Vault: +91 ${vaultInfo.phone}`}
            </span>
            </div>
         </div>
@@ -264,10 +272,10 @@ const generateScorecardPDF = async (match: any) => {
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-    // ââ Layout constants âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ── Layout constants ─────────────────────────────────────────────────────
     const W = 210, PL = 12, PR = 12, CW = W - PL - PR;
 
-    // ââ Color palette ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ── Color palette ────────────────────────────────────────────────────────
     const RED:    [number,number,number] = [204, 16,  16];
     const DKRED:  [number,number,number] = [30,  40,  70];
     const PURPLE: [number,number,number] = [50,  50,  80];
@@ -283,9 +291,9 @@ const generateScorecardPDF = async (match: any) => {
       if (y + need > 282) { doc.addPage(); y = 14; }
     };
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // HEADER BAND
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     doc.setFillColor(...RED);
     doc.rect(0, 0, W, 30, 'F');
     doc.setTextColor(...WHITE);
@@ -300,9 +308,9 @@ const generateScorecardPDF = async (match: any) => {
     doc.text(dateStr, W - PR, 20, { align: 'right' });
     y = 38;
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-    // MATCH HEADER â teams + result
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
+    // MATCH HEADER - teams + result
+    // ════════════════════════════════════════════════════════════════
     const sc   = match.fullScorecard;
     const tA   = sc?.battingTeam?.name  || 'TEAM A'; // inn-1 batting team
     const tB   = sc?.bowlingTeam?.name  || 'TEAM B'; // inn-1 bowling team
@@ -323,9 +331,9 @@ const generateScorecardPDF = async (match: any) => {
     doc.text(resultLine, W / 2, y + 18, { align: 'center' });
     y += 28;
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // MATCH AWARDS
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     if (sc?.awards) {
       checkPage(20);
       doc.setFillColor(255, 248, 215);
@@ -363,9 +371,9 @@ const generateScorecardPDF = async (match: any) => {
       return;
     }
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // SECTION HEADER helper
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     const sectionHeader = (title: string, bgColor: [number,number,number]) => {
       checkPage(14);
       doc.setFillColor(...bgColor);
@@ -376,10 +384,10 @@ const generateScorecardPDF = async (match: any) => {
       y += 10;
     };
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // BATTING TABLE
-    // Cols: Batter(40) | Dismissal(60) | R(12) | B(12) | 4s(10) | 6s(10) | SR(12) â 156 out of CW=186
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // Cols: Batter(40) | Dismissal(60) | R(12) | B(12) | 4s(10) | 6s(10) | SR(12) → 156 out of CW=186
+    // ════════════════════════════════════════════════════════════════
     const BAT_COLS = [
       { h: 'BATTER',    w: 40, align: 'left'  },
       { h: 'DISMISSAL', w: 60, align: 'left'  },
@@ -475,10 +483,10 @@ const generateScorecardPDF = async (match: any) => {
       }
     };
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // BOWLING TABLE
     // Cols: Bowler(64) | O(20) | M(16) | R(18) | W(14) | ER(18)
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     const BWL_COLS = [
       { h: 'BOWLER', w: 64, align: 'left'  },
       { h: 'O',      w: 20, align: 'right' },
@@ -530,7 +538,7 @@ const generateScorecardPDF = async (match: any) => {
         doc.setTextColor(...DARK);
         doc.text(String(rc), cx + BWL_COLS[3].w - 2, y + 5, { align: 'right' }); cx += BWL_COLS[3].w;
 
-        // Wickets â red if any
+        // Wickets - red if any
         doc.setFont('helvetica', (p.wickets||0) > 0 ? 'bold' : 'normal');
         doc.setTextColor(...((p.wickets||0) > 0 ? RED : MUTED));
         doc.text(String(p.wickets||0), cx + BWL_COLS[4].w - 2, y + 5, { align: 'right' }); cx += BWL_COLS[4].w;
@@ -542,9 +550,9 @@ const generateScorecardPDF = async (match: any) => {
       y += 4;
     };
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // FALL OF WICKETS TABLE
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     const drawFoW = (title: string, fow: any[]) => {
       if (!fow || fow.length === 0) return;
       sectionHeader(title, PURPLE);
@@ -576,31 +584,31 @@ const generateScorecardPDF = async (match: any) => {
       y += 5;
     };
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // RENDER INN-1
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     const inn1Total = sc.inn1Total || { runs: match.myTeamScore||0, wickets: match.myTeamWickets||0, balls: 0 };
     const inn2Total = sc.inn2Total || { runs: match.oppTeamScore||0, wickets: match.oppTeamWickets||0, balls: 0 };
 
-    drawBatting(`BATTING â ${tA}  (INN 1)`, sc.battingTeam?.squad || [], sc.inn1Extras, inn1Total);
-    drawBowling(`BOWLING â ${tB}  (INN 1)`, sc.bowlingTeam?.squad || []);
-    drawFoW(`FALL OF WICKETS â ${tA}  (INN 1)`, sc.inn1FoW || []);
+    drawBatting(`BATTING - ${tA}  (INN 1)`, sc.battingTeam?.squad || [], sc.inn1Extras, inn1Total);
+    drawBowling(`BOWLING - ${tB}  (INN 1)`, sc.bowlingTeam?.squad || []);
+    drawFoW(`FALL OF WICKETS - ${tA}  (INN 1)`, sc.inn1FoW || []);
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // RENDER INN-2
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-    drawBatting(`BATTING â ${tB}  (INN 2)`, sc.bowlingTeam?.squad || [], sc.inn2Extras, inn2Total);
-    drawBowling(`BOWLING â ${tA}  (INN 2)`, sc.battingTeam?.squad || []);
-    drawFoW(`FALL OF WICKETS â ${tB}  (INN 2)`, sc.inn2FoW || []);
+    // ════════════════════════════════════════════════════════════════
+    drawBatting(`BATTING - ${tB}  (INN 2)`, sc.bowlingTeam?.squad || [], sc.inn2Extras, inn2Total);
+    drawBowling(`BOWLING - ${tA}  (INN 2)`, sc.battingTeam?.squad || []);
+    drawFoW(`FALL OF WICKETS - ${tB}  (INN 2)`, sc.inn2FoW || []);
 
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     // PAGE FOOTERS
-    // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ════════════════════════════════════════════════════════════════
     const total = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= total; i++) {
       doc.setPage(i);
       doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-      doc.text(`Generated by 22YARDS Cricket App  Â·  Page ${i} of ${total}`, W / 2, 292, { align: 'center' });
+      doc.text(`Generated by 22YARDS Cricket App  ·  Page ${i} of ${total}`, W / 2, 292, { align: 'center' });
     }
 
     doc.save(`22YARDS_${(match.opponent||'Match').replace(/\s+/g,'_')}_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}.pdf`);
@@ -715,10 +723,10 @@ const ScorecardView = ({ match, onBack }) => {
           {(scTab === 'TEAM_A' || scTab === 'TEAM_B') && scorecard && (
             <motion.div key={scTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-10">
               {scTab === 'TEAM_A' ? (
-                /* ââ Inn-1 batting team: show their batting (inn-1) AND bowling (inn-2) ââ */
+                /* ── Inn-1 batting team: show their batting (inn-1) AND bowling (inn-2) ── */
                 <>
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.4em]">BATTING â INN 1</h4>
+                    <h4 className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.4em]">BATTING - INN 1</h4>
                     <div className="bg-[#121212] border border-white/5 rounded-3xl overflow-hidden">
                       <div className="grid grid-cols-5 p-4 border-b border-white/5 text-[8px] font-black uppercase text-white/40 tracking-widest">
                         <span className="col-span-2">Athlete</span><span>R</span><span>B</span><span className="text-right">4s/6s</span>
@@ -739,7 +747,7 @@ const ScorecardView = ({ match, onBack }) => {
                   {/* Inn-2 bowling for this team */}
                   {scorecard.battingTeam.squad.filter(p => (p.balls_bowled || p.ballsBowled || 0) > 0 || (p.wickets || 0) > 0).length > 0 && (
                     <div className="space-y-4">
-                      <h4 className="text-[10px] font-black text-[#FF003C] uppercase tracking-[0.4em]">BOWLING â INN 2</h4>
+                      <h4 className="text-[10px] font-black text-[#FF003C] uppercase tracking-[0.4em]">BOWLING - INN 2</h4>
                       <div className="bg-[#121212] border border-white/5 rounded-3xl overflow-hidden">
                         <div className="grid grid-cols-5 p-4 border-b border-white/5 text-[8px] font-black uppercase text-white/40 tracking-widest">
                           <span className="col-span-2">Bowler</span><span>O</span><span>R</span><span className="text-right">W/Eco</span>
@@ -769,10 +777,10 @@ const ScorecardView = ({ match, onBack }) => {
                   )}
                 </>
               ) : (
-                /* ââ Inn-1 bowling team: show their bowling (inn-1) AND batting (inn-2) ââ */
+                /* ── Inn-1 bowling team: show their bowling (inn-1) AND batting (inn-2) ── */
                 <>
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-[#FF003C] uppercase tracking-[0.4em]">BOWLING â INN 1</h4>
+                    <h4 className="text-[10px] font-black text-[#FF003C] uppercase tracking-[0.4em]">BOWLING - INN 1</h4>
                     <div className="bg-[#121212] border border-white/5 rounded-3xl overflow-hidden">
                       <div className="grid grid-cols-5 p-4 border-b border-white/5 text-[8px] font-black uppercase text-white/40 tracking-widest">
                         <span className="col-span-2">Bowler</span><span>O</span><span>R</span><span className="text-right">W/Eco</span>
@@ -804,7 +812,7 @@ const ScorecardView = ({ match, onBack }) => {
                   </div>
                   {/* Inn-2 batting for this team */}
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.4em]">BATTING â INN 2</h4>
+                    <h4 className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.4em]">BATTING - INN 2</h4>
                     <div className="bg-[#121212] border border-white/5 rounded-3xl overflow-hidden">
                       <div className="grid grid-cols-5 p-4 border-b border-white/5 text-[8px] font-black uppercase text-white/40 tracking-widest">
                         <span className="col-span-2">Athlete</span><span>R</span><span>B</span><span className="text-right">4s/6s</span>
