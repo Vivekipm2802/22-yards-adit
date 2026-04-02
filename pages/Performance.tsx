@@ -55,6 +55,7 @@ const Performance: React.FC<{ userAvatar?: string }> = ({ userAvatar }) => {
       totalRunsConceded: 0,
       matches: userHistory.length,
       inningsPlayed: 0,
+      notOuts: 0,
       threeWhauls: 0,
       fiveWhauls: 0,
       catches: 0,
@@ -86,7 +87,10 @@ const Performance: React.FC<{ userAvatar?: string }> = ({ userAvatar }) => {
       const balls = parseInt(m.ballsFaced || 0);
       data.totalRuns += runs;
       data.totalBallsFaced += balls;
-      if (balls > 0 || runs > 0) data.inningsPlayed++;
+      if (balls > 0 || runs > 0) {
+        data.inningsPlayed++;
+        if (m.notOut) data.notOuts++;
+      }
       
       const s6 = parseInt(m.sixes || 0);
       const s4 = parseInt(m.fours || 0);
@@ -131,7 +135,8 @@ const Performance: React.FC<{ userAvatar?: string }> = ({ userAvatar }) => {
 
   // Core Analytics Formulas
   const strikeRate = stats.totalBallsFaced > 0 ? ((stats.totalRuns / stats.totalBallsFaced) * 100).toFixed(1) : "0.0";
-  const battingAverage = stats.inningsPlayed > 0 ? (stats.totalRuns / stats.inningsPlayed).toFixed(2) : "0.00";
+  const dismissals = stats.inningsPlayed - stats.notOuts;
+  const battingAverage = dismissals > 0 ? (stats.totalRuns / dismissals).toFixed(2) : (stats.totalRuns > 0 ? stats.totalRuns.toFixed(2) : "0.00");
   
   // Fielding Impact Calculation: Weighted defensive index per appearance
   // Formula: (Catches * 1.0 + Stumpings * 1.2 + RunOuts * 1.2) - scaled for aesthetic presentation

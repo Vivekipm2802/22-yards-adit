@@ -549,28 +549,62 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     const teamB = finalMatchState.teams.teamB;
 
     const buildMatchRecord = (playerObj: any, playerTeamId: 'A' | 'B') => {
+      const myTeamObj = playerTeamId === 'A' ? teamA : teamB;
       const oppTeamObj = playerTeamId === 'A' ? teamB : teamA;
 
+      // Compute innings scores
+      const inn1Score = finalMatchState.config.innings1Score || 0;
+      const inn1Wickets = finalMatchState.config.innings1Wickets || 0;
+      const inn1Balls = finalMatchState.config.innings1Balls || 0;
+      const inn2Score = finalMatchState.liveScore.runs;
+      const inn2Wickets = finalMatchState.liveScore.wickets;
+      const inn2Balls = finalMatchState.liveScore.balls;
+
+      // Which team batted first? bowlingTeamId in final state = team that batted 1st
+      const inn1BattingTeamId = finalMatchState.teams.bowlingTeamId;
+      const inn1BattingKey = inn1BattingTeamId === 'A' ? 'teamA' : 'teamB';
+      const inn1BowlingKey = inn1BattingTeamId === 'A' ? 'teamB' : 'teamA';
+      const inn2BattingKey = finalMatchState.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+      const inn2BowlingKey = finalMatchState.teams.battingTeamId === 'A' ? 'teamB' : 'teamA';
+
+      // Determine if this player's team batted first
+      const myTeamBattedFirst = inn1BattingTeamId === playerTeamId;
+      const myTeamScore = myTeamBattedFirst ? inn1Score : inn2Score;
+      const myTeamWickets = myTeamBattedFirst ? inn1Wickets : inn2Wickets;
+      const myTeamBalls = myTeamBattedFirst ? inn1Balls : inn2Balls;
+      const oppTeamScore = myTeamBattedFirst ? inn2Score : inn1Score;
+      const oppTeamWickets = myTeamBattedFirst ? inn2Wickets : inn1Wickets;
+      const oppTeamBalls = myTeamBattedFirst ? inn2Balls : inn1Balls;
+
+      // Result — fix: use actual score comparison, not target-1
       let result = 'DREW';
       if (finalMatchState.status === 'COMPLETED') {
-        const chasers = finalMatchState.teams.battingTeamId;
-        const defenders = finalMatchState.teams.bowlingTeamId;
-        const finalScore = finalMatchState.liveScore.runs;
-        const target = finalMatchState.config.target || 0;
-        if (finalScore >= target) {
-          result = chasers === playerTeamId ? 'WON' : 'LOST';
-        } else if (finalScore === target - 1) {
+        if (inn2Score > inn1Score) {
+          // Chasing team won
+          result = finalMatchState.teams.battingTeamId === playerTeamId ? 'WON' : 'LOST';
+        } else if (inn2Score === inn1Score) {
           result = 'TIED';
         } else {
-          result = defenders === playerTeamId ? 'WON' : 'LOST';
+          // Defending team won
+          result = finalMatchState.teams.bowlingTeamId === playerTeamId ? 'WON' : 'LOST';
         }
       }
+
+      // Not-out detection: player batted but wasn't dismissed
+      const notOut = (playerObj.balls > 0 || playerObj.runs > 0) && !playerObj.isOut;
+
+      const formatOvers = (balls: number) => {
+        const overs = Math.floor(balls / 6);
+        const rem = balls % 6;
+        return rem > 0 ? `${overs}.${rem}` : `${overs}`;
+      };
 
       return {
         id: finalMatchState.matchId,
         date: finalMatchState.config.dateTime,
         opponent: oppTeamObj.name,
         result,
+        // Player individual stats
         runs: playerObj.runs || 0,
         ballsFaced: playerObj.balls || 0,
         fours: playerObj.fours || 0,
@@ -581,29 +615,45 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         catches: playerObj.catches || 0,
         stumpings: playerObj.stumpings || 0,
         runOuts: playerObj.run_outs || 0,
+        notOut,
         asCaptain: playerObj.isCaptain,
         asKeeper: playerObj.isWicketKeeper,
         matchWon: result === 'WON',
         tossWon: finalMatchState.toss.winnerId === playerTeamId,
-        fullScorecard: (() => {
-          const inn1BatterKey = finalMatchState.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
-          const inn1BowlerKey = finalMatchState.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
-          const inn1BattingTeam = finalMatchState.teams[inn1BatterKey];
-          const inn1BowlingTeam = finalMatchState.teams[inn1BowlerKey];
-
-          return {
-            innings1: {
-              teamName: inn1BattingTeam.name,
-              batters: inn1BattingTeam.squad || [],
-              bowlers: inn1BowlingTeam.squad || [],
-            },
-            innings2: {
-              teamName: finalMatchState.teams.battingTeamId === 'A' ? teamA.name : teamB.name,
-              batters: finalMatchState.teams.battingTeamId === 'A' ? (teamA.squad || []) : (teamB.squad || []),
-              bowlers: finalMatchState.teams.battingTeamId === 'A' ? (teamB.squad || []) : (teamA.squad || []),
-            }
-          };
-        })(),
+        // Team-level scores for Archive display
+        myTeamName: myTeamObj.name,
+        myTeamScore,
+        myTeamWickets,
+        myTeamOvers: formatOvers(myTeamBalls),
+        oppTeamName: oppTeamObj.name,
+        oppTeamScore,
+        oppTeamWickets,
+        oppTeamOvers: formatOvers(oppTeamBalls),
+        matchResult: winnerName ? `${winnerName} - ${winnerMargin}` : result,
+        overs: finalMatchState.config.overs,
+        // Full scorecard with innings totals
+        fullScorecard: {
+          innings1: {
+            teamName: finalMatchState.teams[inn1BattingKey].name,
+            batters: finalMatchState.teams[inn1BattingKey].squad || [],
+            bowlers: finalMatchState.teams[inn1BowlingKey].squad || [],
+            runs: inn1Score,
+            wickets: inn1Wickets,
+            balls: inn1Balls,
+            overs: formatOvers(inn1Balls),
+          },
+          innings2: {
+            teamName: finalMatchState.teams[inn2BattingKey].name,
+            batters: finalMatchState.teams[inn2BattingKey].squad || [],
+            bowlers: finalMatchState.teams[inn2BowlingKey].squad || [],
+            runs: inn2Score,
+            wickets: inn2Wickets,
+            balls: inn2Balls,
+            overs: formatOvers(inn2Balls),
+          },
+          matchResult: winnerName ? `${winnerName} - ${winnerMargin}` : result,
+          target: finalMatchState.config.target || inn1Score + 1,
+        },
       };
     };
 
@@ -801,9 +851,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       let newStatus = m.status;
       let newCurrentInnings = m.currentInnings;
 
+      // Save innings 1 data immediately so it survives crashes
+      let newConfig = m.config;
       if (shouldTransition && m.currentInnings === 1) {
         newStatus = 'INNINGS_BREAK';
         newCurrentInnings = 1; // stays 1 until user clicks "Start Innings 2"
+        newConfig = { ...m.config, innings1Score: newLiveScore.runs, innings1Wickets: newLiveScore.wickets, innings1Balls: newLiveScore.balls };
         setOverlayAnim('INNINGS_BREAK');
         setTimeout(() => { setOverlayAnim(null); setStatus('INNINGS_BREAK'); }, 2000);
       }
@@ -866,6 +919,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       return {
         ...m,
         status: newStatus,
+        config: newConfig,
         teams: {
           ...m.teams,
           [battingTeamKey]: { ...m.teams[battingTeamKey], squad: updatedBattingSquad },
@@ -1540,6 +1594,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       {/* HEADER */}
       <div className="h-14 flex items-center px-6 border-b border-white/5 bg-black/50 backdrop-blur-md z-[100] shrink-0">
         <button onClick={() => {
+          if (status === 'LIVE' || status === 'INNINGS_BREAK' || status === 'OPENERS') {
+            if (!window.confirm('Match in progress! Are you sure you want to leave? Your match is auto-saved and you can resume later.')) return;
+          }
           if (status === 'SUMMARY') {
             localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
           }
