@@ -5,7 +5,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area
+  AreaChart, Area, Line, Legend, LineChart, Cell
 } from 'recharts';
 import {
   ChevronLeft, ChevronDown, Swords, Plus, Minus, Check, Zap, X,
@@ -278,26 +278,27 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     requestAnimationFrame(animate);
   }, [summaryPhase, match.config.innings1Score, match.liveScore.runs]);
 
-  // FIRE MODE + ICE MODE: Monitor CRR during live scoring
+  // FIRE MODE + ICE MODE: Monitor CRR during live scoring (with hysteresis to prevent flicker)
   useEffect(() => {
     if (status !== 'LIVE') return;
     const balls = match.liveScore.balls || 0;
     const crr = balls > 0 ? (match.liveScore.runs / balls) * 6 : 0;
 
-    // FIRE MODE: CRR >= 15
+    // FIRE MODE: CRR >= 15 to trigger, < 12 to revert (hysteresis band)
     if (crr >= 15 && !fireMode && !fireModeDeclined && !fireModeBanner) {
-      if (iceMode) setIceMode(false); // exit ice if entering fire
+      if (iceMode) { setIceMode(false); setIceModeDeclined(false); }
       setFireModeBanner(true);
     }
-    if (crr < 15 && fireMode) {
+    if (crr < 12 && fireMode) {
       setFireMode(false);
     }
 
-    // ICE MODE: CRR < 4 (only after at least 6 balls to avoid false trigger at start)
-    if (balls >= 6 && crr < 4 && crr > 0 && !iceMode && !iceModeDeclined && !iceModeBanner && !fireMode && !fireModeBanner) {
+    // ICE MODE: CRR < 4 to trigger, >= 5.5 to revert (hysteresis band)
+    // Only after 6+ balls, and only if fire mode isn't active
+    if (balls >= 6 && crr < 4 && crr > 0 && !iceMode && !iceModeDeclined && !iceModeBanner && !fireMode) {
       setIceModeBanner(true);
     }
-    if ((crr >= 4 || balls < 6) && iceMode) {
+    if (crr >= 5.5 && iceMode) {
       setIceMode(false);
     }
   }, [match.liveScore.runs, match.liveScore.balls, status]);
@@ -1611,7 +1612,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                               // @ts-nocheck
                               value={match.config.customRules || ''}
                               onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, customRules: e.target.value } }))}
-                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/25"
                             />
                           </div>
                         </motion.div>
@@ -1716,7 +1717,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         type="text"
                         value={match.config.ground}
                         onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, ground: e.target.value } }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 pl-10 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                        className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 pl-10 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/25"
                         placeholder="Search ground or stadium..."
                       />
                     </div>
@@ -1763,7 +1764,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                               // @ts-nocheck
                               value={match.config.umpireName || ''}
                               onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, umpireName: e.target.value } }))}
-                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/25"
                             />
                           </div>
                           <div className="space-y-2">
@@ -1774,7 +1775,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                               // @ts-nocheck
                               value={match.config.scorerName || ''}
                               onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, scorerName: e.target.value } }))}
-                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/25"
                             />
                           </div>
                         </motion.div>
@@ -1848,10 +1849,10 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   animate={{ scale: [1, 1.08, 1] }}
                                   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                                 >
-                                  <Plus size={48} className="text-white/20 mb-4" />
+                                  <Plus size={48} className="text-white/40 mb-4" />
                                 </motion.div>
-                                <p className="text-[10px] text-white/30 uppercase tracking-[0.2em]">Tap to select</p>
-                                <p className="text-[8px] text-white/15 uppercase tracking-widest small-caps mt-6 absolute top-6">Team {teamId}</p>
+                                <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">Tap to select</p>
+                                <p className="text-[8px] text-white/25 uppercase tracking-widest small-caps mt-6 absolute top-6">Team {teamId}</p>
                               </motion.div>
                             ) : (
                               // FILLED STATE
@@ -1978,7 +1979,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     value={teamSearchQuery}
                                     onChange={(e) => setTeamSearchQuery(e.target.value)}
                                     autoFocus
-                                    className="w-full bg-white/5 border border-white/10 rounded-[20px] pl-12 pr-4 py-3 text-white outline-none focus:border-[#00F0FF]/40 placeholder:text-white/20 text-sm"
+                                    className="w-full bg-white/5 border border-white/10 rounded-[20px] pl-12 pr-4 py-3 text-white outline-none focus:border-[#00F0FF]/40 placeholder:text-white/40 text-sm"
                                   />
                                 </div>
                               </div>
@@ -1995,7 +1996,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     // No recent teams
                                     return (
                                       <div className="p-6 flex flex-col items-center justify-center min-h-[300px]">
-                                        <Shield size={48} className="text-white/10 mb-4" />
+                                        <Shield size={48} className="text-white/25 mb-4" />
                                         <p className="text-center text-white/50 text-sm mb-6">No teams yet. Your legacy starts here.</p>
                                         <motion.button
                                           onClick={() => {
@@ -2116,7 +2117,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     value={teamCreateName}
                                     onChange={(e) => setTeamCreateName(e.target.value.toUpperCase())}
                                     autoFocus
-                                    className="w-full bg-white/5 border border-white/10 rounded-[20px] px-4 py-3 text-white font-black uppercase outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10 text-sm"
+                                    className="w-full bg-white/5 border border-white/10 rounded-[20px] px-4 py-3 text-white font-black uppercase outline-none focus:border-[#00F0FF]/40 placeholder:text-white/25 text-sm"
                                   />
                                 </div>
 
@@ -2128,7 +2129,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     whileTap={{ scale: 0.98 }}
                                     className="flex flex-col items-center justify-center p-8 rounded-[24px] border-2 border-dashed border-white/10 cursor-pointer hover:border-white/20 transition-all"
                                   >
-                                    <Camera size={32} className="text-white/30 mb-2" />
+                                    <Camera size={32} className="text-white/40 mb-2" />
                                     <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">Tap to upload logo (optional)</p>
                                     <input
                                       type="file"
@@ -2189,7 +2190,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   className={`w-full py-4 rounded-[24px] font-black uppercase tracking-[0.2em] text-sm transition-all ${
                                     teamCreateName.trim()
                                       ? 'bg-[#39FF14] text-black shadow-[0_0_30px_rgba(57,255,20,0.3)]'
-                                      : 'bg-white/5 text-white/30 cursor-not-allowed'
+                                      : 'bg-white/5 text-white/40 cursor-not-allowed'
                                   }`}
                                 >
                                   Create Team
@@ -2235,7 +2236,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     disabled={!isConfigValid()}
                     onClick={checkTeamConflicts}
                     className={`flex-1 py-6 !rounded-[24px] font-black uppercase tracking-[0.3em] text-sm transition-all ${
-                      isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/10'
+                      isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/25'
                     }`}
                   >
                     Proceed to Toss
@@ -2270,13 +2271,13 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <div className="space-y-4 text-center">
                     <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.4em]">Conflict Detected</p>
                     <h4 className="font-heading text-5xl uppercase leading-none text-white italic">{squadConflict.name}</h4>
-                    <p className="text-[10px] font-black text-white/30 uppercase leading-relaxed tracking-widest">
+                    <p className="text-[10px] font-black text-white/40 uppercase leading-relaxed tracking-widest">
                       THIS TEAM ALREADY EXISTS IN YOUR CAREER ARCHIVE
                     </p>
                   </div>
                   <div className="p-5 bg-white/5 rounded-3xl border border-white/10 space-y-4">
                     <div className="flex justify-between items-center px-2">
-                      <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Archived Roster</span>
+                      <span className="text-[8px] font-black text-white/40 uppercase tracking-[0.3em]">Archived Roster</span>
                       <span className="text-[9px] font-black text-[#39FF14] uppercase">{(squadConflict.existingSquad || []).length} PERSONNEL</span>
                     </div>
                     <div className="flex -space-x-3 justify-center overflow-hidden py-2">
@@ -2301,7 +2302,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     </MotionButton>
                     <button
                       onClick={() => handleResolveConflict('NEW')}
-                      className="w-full text-white/30 hover:text-white py-4 font-black uppercase text-[9px] tracking-[0.4em] transition-all"
+                      className="w-full text-white/40 hover:text-white py-4 font-black uppercase text-[9px] tracking-[0.4em] transition-all"
                     >
                       FRESH COMMISSION
                     </button>
@@ -2419,7 +2420,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <button
                       type="button"
                       onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: null, decision: null } }))}
-                      className="text-[11px] font-black text-white/30 uppercase tracking-[0.1em] hover:text-white/50 transition-all"
+                      className="text-[11px] font-black text-white/40 uppercase tracking-[0.1em] hover:text-white/50 transition-all"
                     >
                       Change toss winner
                     </button>
@@ -2496,7 +2497,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       i <= currentStepIdx ? 'bg-[#00F0FF]' : 'bg-white/10'
                     }`} />
                     <p className={`text-[8px] font-black uppercase tracking-[0.1em] shrink-0 ${
-                      i === currentStepIdx ? 'text-[#00F0FF]' : i < currentStepIdx ? 'text-[#39FF14]' : 'text-white/20'
+                      i === currentStepIdx ? 'text-[#00F0FF]' : i < currentStepIdx ? 'text-[#39FF14]' : 'text-white/40'
                     }`}>{step.label}</p>
                   </div>
                 ))}
@@ -2558,7 +2559,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
                       <p className="text-[10px] text-white/40">{player.phone || ''}</p>
                     </div>
-                    <ChevronRight size={16} className="text-white/20" />
+                    <ChevronRight size={16} className="text-white/40" />
                   </button>
                 ))}
 
@@ -2577,7 +2578,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
                       <p className="text-[10px] text-white/40">{player.phone || ''}</p>
                     </div>
-                    <ChevronRight size={16} className="text-white/20" />
+                    <ChevronRight size={16} className="text-white/40" />
                   </button>
                 ))}
 
@@ -2597,23 +2598,23 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
                       <p className="text-[10px] text-white/40">{player.phone || ''}</p>
                     </div>
-                    <ChevronRight size={16} className="text-white/20" />
+                    <ChevronRight size={16} className="text-white/40" />
                   </button>
                 ))}
 
                 {/* Empty state if no players in squad */}
                 {((activeTarget === 'STRIKER' || activeTarget === 'NON_STRIKER') && battingSquad.length === 0) && (
                   <div className="p-8 text-center space-y-3">
-                    <Users size={32} className="text-white/20 mx-auto" />
+                    <Users size={32} className="text-white/40 mx-auto" />
                     <p className="text-[12px] text-white/40 font-black uppercase">No players in batting squad</p>
-                    <p className="text-[10px] text-white/30">Go back and add players first</p>
+                    <p className="text-[10px] text-white/40">Go back and add players first</p>
                   </div>
                 )}
                 {(activeTarget === 'BOWLER' && bowlingSquad.length === 0) && (
                   <div className="p-8 text-center space-y-3">
-                    <Users size={32} className="text-white/20 mx-auto" />
+                    <Users size={32} className="text-white/40 mx-auto" />
                     <p className="text-[12px] text-white/40 font-black uppercase">No players in bowling squad</p>
-                    <p className="text-[10px] text-white/30">Go back and add players first</p>
+                    <p className="text-[10px] text-white/40">Go back and add players first</p>
                   </div>
                 )}
               </div>
@@ -2782,7 +2783,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <div className={`font-numbers text-2xl font-black ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-[#00F0FF]'}`}>
                       {match.liveScore.runs}/{match.liveScore.wickets}
                     </div>
-                    <div className={`text-[9px] ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/60' : 'text-white/50'}`}>
+                    <div className={`text-[9px] ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/80' : 'text-white/50'}`}>
                       {overs}.{ballsInOver} | CRR {crr}
                     </div>
                   </div>
@@ -2791,7 +2792,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   </div>
                 </div>
                 {match.currentInnings === 2 && target > 0 && (
-                  <div className="text-[8px] text-white/60 uppercase tracking-wider text-center py-1 bg-white/5 rounded">
+                  <div className="text-[8px] text-white/70 uppercase tracking-wider text-center py-1 bg-white/[0.08] rounded">
                     Need {need} off {ballsRemaining}b | RRR: {rrr}
                   </div>
                 )}
@@ -2821,7 +2822,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       <div className="font-numbers font-black text-white/60 w-6 text-right">
                         {striker.sixes || 0}6
                       </div>
-                      <div className="font-numbers font-black text-[#BC13FE] w-10 text-right">
+                      <div className={`font-numbers font-black w-10 text-right ${fireMode ? 'text-[#FFD600]' : iceMode ? 'text-[#E1BEE7]' : 'text-[#BC13FE]'}`}>
                         {strikerSR}
                       </div>
                     </div>
@@ -2830,7 +2831,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 {/* Non-Striker Row */}
                 {nonStriker && (
                   <div className="mb-2">
-                    <div className="flex items-center gap-2 text-[8px] text-white/50">
+                    <div className="flex items-center gap-2 text-[8px] text-white/60">
                       <div className="w-5" />
                       <div className="flex-1 font-black uppercase min-w-0 truncate">
                         {nonStriker.name}
@@ -2875,7 +2876,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <div className="font-numbers font-black text-white/80 w-6 text-right">
                       {bowler.wickets || 0}w
                     </div>
-                    <div className="font-numbers font-black text-[#BC13FE] w-10 text-right">
+                    <div className={`font-numbers font-black w-10 text-right ${fireMode ? 'text-[#FFD600]' : iceMode ? 'text-[#E1BEE7]' : 'text-[#BC13FE]'}`}>
                       {bowlerEcon}
                     </div>
                   </div>
@@ -2885,7 +2886,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       style={{ width: `${Math.min(100, (bowlerOversComplete / bowlerMaxOvers) * 100)}%` }}
                     />
                   </div>
-                  <div className="text-[7px] text-white/50 mt-1 uppercase font-black">
+                  <div className="text-[7px] text-white/60 mt-1 uppercase font-black">
                     {bowlerOversComplete}/{bowlerMaxOvers} overs
                   </div>
                 </div>
@@ -3392,7 +3393,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       className="py-2"
                     >
                       <span className="font-numbers text-6xl font-black text-[#00F0FF] leading-none">{match.liveScore.runs}</span>
-                      <span className="font-numbers text-3xl font-black text-white/30 mx-1">/</span>
+                      <span className="font-numbers text-3xl font-black text-white/40 mx-1">/</span>
                       <span className="font-numbers text-4xl font-black text-[#FF003C] leading-none">{match.liveScore.wickets}</span>
                     </motion.div>
                     <p className="text-[10px] text-white/50 font-black">{overs}.{balls} overs &bull; RR {runRate}</p>
@@ -3402,19 +3403,19 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <div className="relative z-10 grid grid-cols-4 border-t border-white/10">
                     <div className="p-3 text-center border-r border-white/5">
                       <p className="font-numbers text-lg font-black text-[#BC13FE]">{totalFours}</p>
-                      <p className="text-[7px] font-black text-white/30 uppercase">Fours</p>
+                      <p className="text-[7px] font-black text-white/40 uppercase">Fours</p>
                     </div>
                     <div className="p-3 text-center border-r border-white/5">
                       <p className="font-numbers text-lg font-black text-[#FFD600]">{totalSixes}</p>
-                      <p className="text-[7px] font-black text-white/30 uppercase">Sixes</p>
+                      <p className="text-[7px] font-black text-white/40 uppercase">Sixes</p>
                     </div>
                     <div className="p-3 text-center border-r border-white/5">
                       <p className="font-numbers text-lg font-black text-[#FF6D00]">{totalExtras}</p>
-                      <p className="text-[7px] font-black text-white/30 uppercase">Extras</p>
+                      <p className="text-[7px] font-black text-white/40 uppercase">Extras</p>
                     </div>
                     <div className="p-3 text-center">
                       <p className="font-numbers text-lg font-black text-[#4DB6AC]">{partnerships.length}</p>
-                      <p className="text-[7px] font-black text-white/30 uppercase">P'ships</p>
+                      <p className="text-[7px] font-black text-white/40 uppercase">P'ships</p>
                     </div>
                   </div>
                 </motion.div>
@@ -3493,7 +3494,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     transition={{ delay: 0.5 }}
                     className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/5"
                   >
-                    <p className="text-[8px] font-black text-white/30 uppercase shrink-0">Last Over</p>
+                    <p className="text-[8px] font-black text-white/40 uppercase shrink-0">Last Over</p>
                     <div className="flex gap-1.5 flex-1 justify-center">
                       {lastOverBalls.map((ball, idx) => {
                         let bgColor = 'bg-white/15';
@@ -3675,16 +3676,16 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         {/* Result Card */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 text-center space-y-3">
-                            <p className="text-[10px] font-black text-white/40 uppercase">{getTeamObj(innings1TeamId).name}</p>
+                            <p className="text-[10px] font-black text-white/60 uppercase">{getTeamObj(innings1TeamId).name}</p>
                             <p className="font-numbers text-4xl font-black text-[#00F0FF]">{countingRuns.inn1}</p>
-                            <p className="text-[8px] text-white/30">
+                            <p className="text-[8px] text-white/40">
                               {match.config.innings1Wickets || 0} wickets
                             </p>
                           </div>
                           <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 text-center space-y-3">
-                            <p className="text-[10px] font-black text-white/40 uppercase">{getTeamObj(innings2TeamId).name}</p>
+                            <p className="text-[10px] font-black text-white/60 uppercase">{getTeamObj(innings2TeamId).name}</p>
                             <p className="font-numbers text-4xl font-black text-[#00F0FF]">{countingRuns.inn2}</p>
-                            <p className="text-[8px] text-white/30">
+                            <p className="text-[8px] text-white/40">
                               {match.liveScore.wickets || 0} wickets
                             </p>
                           </div>
@@ -3709,7 +3710,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   </div>
                                   <div className="space-y-2">
                                     <p className="text-[14px] font-black text-white">{motm.name}</p>
-                                    <p className="text-[9px] text-white/40">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
+                                    <p className="text-[9px] text-white/50">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
                                     <div className="flex gap-2 pt-1">
                                       {motm.runs !== undefined && <span className="text-[10px] font-numbers text-[#00F0FF]">{motm.runs}R</span>}
                                       {motm.wickets !== undefined && <span className="text-[10px] font-numbers text-[#FF6D00]">{motm.wickets}W</span>}
@@ -3724,7 +3725,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
                                     <p className="text-[9px] font-black text-[#00F0FF] uppercase">Best Batter</p>
                                     <p className="text-[12px] font-black text-white">{topScorer.name}</p>
-                                    <p className="text-[8px] text-white/40">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
+                                    <p className="text-[8px] text-white/50">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
                                     <div className="flex gap-1 text-[9px] font-numbers pt-1">
                                       <span className="text-[#00F0FF]">{topScorer.runs || 0}R</span>
                                       <span className="text-white/40">{topScorer.balls || 0}B</span>
@@ -3735,7 +3736,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
                                     <p className="text-[9px] font-black text-[#FF6D00] uppercase">Best Bowler</p>
                                     <p className="text-[12px] font-black text-white">{bestBowler.name}</p>
-                                    <p className="text-[8px] text-white/40">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
+                                    <p className="text-[8px] text-white/50">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
                                     <div className="flex gap-1 text-[9px] font-numbers pt-1">
                                       <span className="text-[#FF6D00]">{bestBowler.wickets || 0}W</span>
                                       <span className="text-white/40">{bestBowler.runs_conceded || 0}R</span>
@@ -3764,7 +3765,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 {allPlayers.map((player) => (
                                   <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
                                     <p className="text-[10px] font-black text-white truncate">{player.name}</p>
-                                    <p className="text-[8px] text-white/40">{getTeamObj(player.teamId || innings1TeamId).name}</p>
+                                    <p className="text-[8px] text-white/60">{getTeamObj(player.teamId || innings1TeamId).name}</p>
                                     <div className="flex gap-1 text-[8px] font-numbers text-[#00F0FF]">
                                       {player.runs > 0 && <span>{player.runs}R</span>}
                                       {player.wickets > 0 && <span>{player.wickets}W</span>}
@@ -3899,7 +3900,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   <p className="text-[9px] font-black text-[#00F0FF] uppercase">{overKey}</p>
                                   {balls.map((ball, idx) => (
                                     <div key={idx} className="p-2 rounded-[12px] bg-white/5 border border-white/10">
-                                      <p className="text-[8px] text-white/40">{ball.ballNum}</p>
+                                      <p className="text-[8px] text-white/60">{ball.ballNum}</p>
                                       <p className="text-[9px] font-black text-white">{ball.desc}</p>
                                     </div>
                                   ))}
@@ -3922,7 +3923,8 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           const inn1History = (match.history || []).filter(b => b.innings === 1);
                           const inn2History = (match.history || []).filter(b => b.innings === 2);
 
-                          const buildData = (history: any[]) => {
+                          // Build per-over data
+                          const buildPerOverData = (history: any[]) => {
                             const overs: {over: string, runs: number}[] = [];
                             let currentOver = -1;
                             let currentRuns = 0;
@@ -3939,52 +3941,266 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             return overs;
                           };
 
-                          const inn1Data = buildData(inn1History);
-                          const inn2Data = buildData(inn2History);
+                          // Build cumulative data
+                          const buildCumulativeData = (history: any[]) => {
+                            const overs: {over: string, cumulative: number}[] = [];
+                            let currentOver = -1;
+                            let cumulative = 0;
+                            let currentRuns = 0;
+                            history.forEach(b => {
+                              if (b.overNumber !== currentOver) {
+                                if (currentOver >= 0) {
+                                  cumulative += currentRuns;
+                                  overs.push({ over: `${currentOver}`, cumulative });
+                                }
+                                currentOver = b.overNumber;
+                                currentRuns = 0;
+                              }
+                              currentRuns += b.runsScored || 0;
+                              if (b.type === 'WD' || b.type === 'NB') currentRuns += 1;
+                            });
+                            if (currentOver >= 0) {
+                              cumulative += currentRuns;
+                              overs.push({ over: `${currentOver}`, cumulative });
+                            }
+                            return overs;
+                          };
+
+                          // Build scoring breakdown
+                          const buildScoringBreakdown = (history: any[]) => {
+                            const counts = {
+                              'Dots': 0,
+                              '1s': 0,
+                              '2s': 0,
+                              '3s': 0,
+                              '4s': 0,
+                              '6s': 0,
+                              'Extras': 0
+                            };
+                            history.forEach(b => {
+                              if (b.runsScored === 0) counts['Dots']++;
+                              else if (b.runsScored === 1) counts['1s']++;
+                              else if (b.runsScored === 2) counts['2s']++;
+                              else if (b.runsScored === 3) counts['3s']++;
+                              else if (b.runsScored === 4) counts['4s']++;
+                              else if (b.runsScored === 6) counts['6s']++;
+                              if (b.type === 'WD' || b.type === 'NB' || b.type === 'BYE' || b.type === 'LB') counts['Extras']++;
+                            });
+                            return Object.entries(counts).map(([type, count]) => ({ type, count }));
+                          };
+
+                          // Build wicket timeline
+                          const buildWicketData = (history: any[]) => {
+                            const data: {over: string, wickets: number}[] = [];
+                            let currentOver = -1;
+                            let wickets = 0;
+                            history.forEach(b => {
+                              if (b.overNumber !== currentOver) {
+                                if (currentOver >= 0) data.push({ over: `${currentOver}`, wickets });
+                                currentOver = b.overNumber;
+                                wickets = 0;
+                              }
+                              if (b.isWicket) wickets++;
+                            });
+                            if (currentOver >= 0) data.push({ over: `${currentOver}`, wickets });
+                            return data;
+                          };
+
+                          // Combine data for overlaid charts
+                          const buildManhattanData = () => {
+                            const inn1 = buildPerOverData(inn1History);
+                            const inn2 = buildPerOverData(inn2History);
+                            const maxOvers = Math.max(inn1.length, inn2.length);
+                            const combined = [];
+                            for (let i = 0; i < maxOvers; i++) {
+                              combined.push({
+                                over: `${i}`,
+                                inn1Runs: inn1[i]?.runs || 0,
+                                inn2Runs: inn2[i]?.runs || 0
+                              });
+                            }
+                            return combined;
+                          };
+
+                          const buildRunProgressionData = () => {
+                            const inn1 = buildCumulativeData(inn1History);
+                            const inn2 = buildCumulativeData(inn2History);
+                            const maxOvers = Math.max(inn1.length, inn2.length);
+                            const combined = [];
+                            for (let i = 0; i < maxOvers; i++) {
+                              combined.push({
+                                over: `${i}`,
+                                inn1Cumulative: inn1[i]?.cumulative || 0,
+                                inn2Cumulative: inn2[i]?.cumulative || 0
+                              });
+                            }
+                            return combined;
+                          };
+
+                          const inn1Data = buildPerOverData(inn1History);
+                          const inn2Data = buildPerOverData(inn2History);
+                          const inn1Cumulative = buildCumulativeData(inn1History);
+                          const inn2Cumulative = buildCumulativeData(inn2History);
+                          const inn1Scoring = buildScoringBreakdown(inn1History);
+                          const inn2Scoring = buildScoringBreakdown(inn2History);
+                          const inn1Wickets = buildWicketData(inn1History);
+                          const inn2Wickets = buildWicketData(inn2History);
+                          const manhattanData = buildManhattanData();
+                          const runProgressionData = buildRunProgressionData();
 
                           return (
-                            <>
-                              {inn1Data.length > 0 && (
-                                <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Run Rate</p>
-                                  <ResponsiveContainer width="100%" height={180}>
-                                    <AreaChart data={inn1Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                      <defs>
-                                        <linearGradient id="colorRuns1" x1="0" y1="0" x2="0" y2="1">
-                                          <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.3}/>
-                                          <stop offset="95%" stopColor="#00F0FF" stopOpacity={0}/>
-                                        </linearGradient>
-                                      </defs>
-                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
-                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #00F0FF', borderRadius: '8px' }} />
-                                      <Area type="monotone" dataKey="runs" stroke="#00F0FF" fillOpacity={1} fill="url(#colorRuns1)" />
-                                    </AreaChart>
+                            <div className="space-y-6">
+                              {/* CHART 1: MANHATTAN */}
+                              {manhattanData.length > 0 && (
+                                <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 space-y-3">
+                                  <p className="text-[11px] font-black text-white/70 uppercase tracking-[0.15em]">Manhattan</p>
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <BarChart data={manhattanData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                      <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                      <XAxis dataKey="over" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                                      <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 11 }} itemStyle={{ fontSize: 10 }} />
+                                      <Bar dataKey="inn1Runs" fill="#00F0FF" />
+                                      <Bar dataKey="inn2Runs" fill="#39FF14" />
+                                    </BarChart>
                                   </ResponsiveContainer>
                                 </div>
                               )}
-                              {inn2Data.length > 0 && (
-                                <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-[#39FF14] uppercase">{getTeamObj(innings2TeamId).name} - Run Rate</p>
-                                  <ResponsiveContainer width="100%" height={180}>
-                                    <AreaChart data={inn2Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+
+                              {/* CHART 2: WORM (Run Progression) */}
+                              {runProgressionData.length > 0 && (
+                                <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 space-y-3">
+                                  <p className="text-[11px] font-black text-white/70 uppercase tracking-[0.15em]">Run Progression</p>
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <AreaChart data={runProgressionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                       <defs>
-                                        <linearGradient id="colorRuns2" x1="0" y1="0" x2="0" y2="1">
+                                        <linearGradient id="gradInn1" x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.3}/>
+                                          <stop offset="95%" stopColor="#00F0FF" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="gradInn2" x1="0" y1="0" x2="0" y2="1">
                                           <stop offset="5%" stopColor="#39FF14" stopOpacity={0.3}/>
                                           <stop offset="95%" stopColor="#39FF14" stopOpacity={0}/>
                                         </linearGradient>
                                       </defs>
-                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
-                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #39FF14', borderRadius: '8px' }} />
-                                      <Area type="monotone" dataKey="runs" stroke="#39FF14" fillOpacity={1} fill="url(#colorRuns2)" />
+                                      <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                      <XAxis dataKey="over" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                                      <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 11 }} itemStyle={{ fontSize: 10 }} />
+                                      <Area type="monotone" dataKey="inn1Cumulative" stroke="#00F0FF" fill="url(#gradInn1)" />
+                                      <Area type="monotone" dataKey="inn2Cumulative" stroke="#39FF14" fill="url(#gradInn2)" />
                                     </AreaChart>
                                   </ResponsiveContainer>
                                 </div>
                               )}
-                            </>
+
+                              {/* CHART 3: RUN RATE PER OVER */}
+                              {(() => {
+                                const buildRRData = () => {
+                                  const inn1 = buildPerOverData(inn1History);
+                                  const inn2 = buildPerOverData(inn2History);
+                                  const maxOvers = Math.max(inn1.length, inn2.length);
+                                  const combined = [];
+                                  let inn1Total = 0, inn2Total = 0;
+                                  for (let i = 0; i < maxOvers; i++) {
+                                    inn1Total += inn1[i]?.runs || 0;
+                                    inn2Total += inn2[i]?.runs || 0;
+                                    combined.push({
+                                      over: `${i + 1}`,
+                                      inn1CRR: i >= 0 && inn1[i] ? +((inn1Total / (i + 1)).toFixed(2)) : null,
+                                      inn2CRR: i >= 0 && inn2[i] ? +((inn2Total / (i + 1)).toFixed(2)) : null,
+                                    });
+                                  }
+                                  return combined;
+                                };
+                                const rrData = buildRRData();
+                                return rrData.length > 0 ? (
+                                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 space-y-3">
+                                    <p className="text-[11px] font-black text-white/70 uppercase tracking-[0.15em]">Run Rate</p>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                      <LineChart data={rrData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                        <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                        <XAxis dataKey="over" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                                        <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }} />
+                                        <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 11 }} itemStyle={{ fontSize: 10 }} />
+                                        <Line type="monotone" dataKey="inn1CRR" stroke="#00F0FF" strokeWidth={2} dot={{ r: 3, fill: '#00F0FF' }} name={getTeamObj(innings1TeamId).name} connectNulls />
+                                        <Line type="monotone" dataKey="inn2CRR" stroke="#39FF14" strokeWidth={2} dot={{ r: 3, fill: '#39FF14' }} name={getTeamObj(innings2TeamId).name} connectNulls />
+                                      </LineChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                ) : null;
+                              })()}
+
+                              {/* CHART 4: SCORING BREAKDOWN */}
+                              {(inn1Scoring.length > 0 || inn2Scoring.length > 0) && (
+                                <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 space-y-3">
+                                  <p className="text-[11px] font-black text-white/70 uppercase tracking-[0.15em]">Scoring Breakdown</p>
+                                  <div className="grid grid-cols-1 gap-4">
+                                    {/* Innings 1 */}
+                                    <div>
+                                      <p className="text-[9px] text-white/60 mb-2">{getTeamObj(innings1TeamId).name}</p>
+                                      <ResponsiveContainer width="100%" height={120}>
+                                        <BarChart data={inn1Scoring} layout="vertical" margin={{ top: 5, right: 10, left: 40, bottom: 5 }}>
+                                          <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                          <XAxis type="number" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <YAxis dataKey="type" type="category" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 10 }} />
+                                          <Bar dataKey="count" fill="#00F0FF" />
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                    {/* Innings 2 */}
+                                    <div>
+                                      <p className="text-[9px] text-white/60 mb-2">{getTeamObj(innings2TeamId).name}</p>
+                                      <ResponsiveContainer width="100%" height={120}>
+                                        <BarChart data={inn2Scoring} layout="vertical" margin={{ top: 5, right: 10, left: 40, bottom: 5 }}>
+                                          <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                          <XAxis type="number" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <YAxis dataKey="type" type="category" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 10 }} />
+                                          <Bar dataKey="count" fill="#39FF14" />
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* CHART 5: WICKET MAP */}
+                              {(inn1Wickets.length > 0 || inn2Wickets.length > 0) && (
+                                <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 space-y-3">
+                                  <p className="text-[11px] font-black text-white/70 uppercase tracking-[0.15em]">Wicket Map</p>
+                                  <div className="grid grid-cols-1 gap-4">
+                                    {/* Innings 1 */}
+                                    <div>
+                                      <p className="text-[9px] text-white/60 mb-2">{getTeamObj(innings1TeamId).name}</p>
+                                      <ResponsiveContainer width="100%" height={100}>
+                                        <BarChart data={inn1Wickets} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                          <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                          <XAxis dataKey="over" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 10 }} />
+                                          <Bar dataKey="wickets" fill="#FF6D00" />
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                    {/* Innings 2 */}
+                                    <div>
+                                      <p className="text-[9px] text-white/60 mb-2">{getTeamObj(innings2TeamId).name}</p>
+                                      <ResponsiveContainer width="100%" height={100}>
+                                        <BarChart data={inn2Wickets} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                          <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                                          <XAxis dataKey="over" stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
+                                          <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#fff', fontSize: 10 }} />
+                                          <Bar dataKey="wickets" fill="#FF6D00" />
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           );
                         })()}
                       </motion.div>
@@ -4012,7 +4228,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                               </div>
                               <div className="flex-1">
                                 <p className="text-[10px] font-black text-white">{player.name}</p>
-                                <p className="text-[8px] text-white/40">{getTeamObj(player.teamId || innings1TeamId).name}</p>
+                                <p className="text-[8px] text-white/60">{getTeamObj(player.teamId || innings1TeamId).name}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-[11px] font-black text-[#FFD600]">{Math.round(player.impact)}</p>
@@ -4263,7 +4479,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       placeholder="Player name"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/30 outline-none"
+                      className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                     />
                     {showPlayerDropdown && playerDropdownList.length > 0 && (
                       <motion.div
@@ -4291,7 +4507,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     placeholder="Phone (optional)"
                     value={phoneQuery}
                     onChange={(e) => setPhoneQuery(e.target.value)}
-                    className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/30 outline-none"
+                    className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                   />
                   <button
                     onClick={startQRScanner}
@@ -4307,7 +4523,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   onClick={() => { handleEnlistNewPlayer(); }}
                   className={`w-full min-h-[56px] py-4 rounded-[20px] font-black uppercase text-[13px] tracking-[0.2em] transition-all duration-150 flex items-center justify-center gap-2 select-none touch-manipulation ${
                     isAddPlayerDisabled
-                      ? 'bg-white/5 text-white/20 pointer-events-none'
+                      ? 'bg-white/5 text-white/40 pointer-events-none'
                       : 'bg-[#00F0FF] text-black shadow-[0_4px_20px_rgba(0,240,255,0.3)] cursor-pointer active:scale-95 active:shadow-[0_0_10px_rgba(0,240,255,0.5)]'
                   }`}
                   style={{ WebkitTapHighlightColor: 'transparent' }}
