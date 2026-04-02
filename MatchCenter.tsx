@@ -115,7 +115,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   });
 
   const [status, setStatus] = useState<string>(match.status === 'COMPLETED' ? 'SUMMARY' : match.status);
-  const [summaryTab, setSummaryTab] = useState<'RESULT' | 'SCORECARD' | 'HIGHLIGHTS' | 'ANALYTICS' | 'PARTNERSHIPS' | 'OVER_BY_OVER'>('RESULT');
+  const [summaryTab, setSummaryTab] = useState<'SUMMARY' | 'SCORECARD' | 'COMMS' | 'ANALYSIS' | 'MVP'>('SUMMARY');
   const [overlayAnim, setOverlayAnim] = useState<'FOUR' | 'SIX' | 'WICKET' | 'FREE_HIT' | 'INNINGS_BREAK' | null>(null);
   const [winnerTeam, setWinnerTeam] = useState<{name: string, id: TeamID | null, margin: string} | null>(null);
   const [selectionTarget, setSelectionTarget] = useState<'STRIKER' | 'NON_STRIKER' | 'BOWLER' | 'NEW_BATSMAN' | 'NEXT_BOWLER' | 'FIELDER' | null>(null);
@@ -148,6 +148,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareText, setShareText] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   // Summary reveal animation state
   const [summaryPhase, setSummaryPhase] = useState<'SKELETON' | 'COUNTING' | 'REVEAL' | 'READY'>('SKELETON');
@@ -3523,25 +3524,6 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 background-size: 800px 100%;
                 animation: shimmer 1.5s infinite linear;
               }
-              @keyframes glint {
-                0% { left: -100%; }
-                50% { left: 100%; }
-                100% { left: 100%; }
-              }
-              .golden-glint {
-                position: relative;
-                overflow: hidden;
-              }
-              .golden-glint::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: -100%;
-                width: 60%;
-                height: 100%;
-                background: linear-gradient(90deg, transparent, rgba(255,214,0,0.3), transparent);
-                animation: glint 2s ease-in-out 0.5s forwards;
-              }
             `}</style>
 
             {/* VISIBLE SUMMARY SCREEN */}
@@ -3557,6 +3539,28 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </motion.div>
               )}
 
+              {/* TAB BAR - Sticky at top */}
+              {summaryPhase !== 'SKELETON' && (
+                <div className="sticky top-0 z-40 bg-[#050505] border-b border-white/5 px-4 pt-4">
+                  <div className="flex gap-1 overflow-x-auto no-scrollbar pb-4">
+                    {['SUMMARY', 'SCORECARD', 'COMMS', 'ANALYSIS', 'MVP'].map((tab) => (
+                      <motion.button
+                        key={tab}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setSummaryTab(tab as any)}
+                        className={`px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-[0.15em] transition-all whitespace-nowrap border-b-2 relative ${
+                          summaryTab === tab
+                            ? 'text-[#00F0FF] border-[#00F0FF]'
+                            : 'text-white/40 border-transparent hover:text-white/60'
+                        }`}
+                      >
+                        {tab}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-24">
                 {/* Phase 1: Skeleton Shimmer */}
                 {summaryPhase === 'SKELETON' && (
@@ -3570,7 +3574,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   </div>
                 )}
 
-                {/* Phase 2-3: Result + Tabs */}
+                {/* Phase 2-3: Content */}
                 {summaryPhase !== 'SKELETON' && (
                   <>
                     {/* Result Banner */}
@@ -3593,13 +3597,14 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       )}
                     </motion.div>
 
-                    {/* Score Cards */}
-                    {summaryTab === 'RESULT' && (
+                    {/* SUMMARY TAB */}
+                    {summaryTab === 'SUMMARY' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-6"
                       >
+                        {/* Result Card */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 text-center space-y-3">
                             <p className="text-[10px] font-black text-white/40 uppercase">{getTeamObj(innings1TeamId).name}</p>
@@ -3616,142 +3621,230 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             </p>
                           </div>
                         </div>
+
+                        {/* Heroes of the Match Section */}
+                        {(() => {
+                          const motm = calculateMOTM();
+                          const topScorer = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.runs || 0) > (best.runs || 0) ? p : best, {});
+                          const bestBowler = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.wickets || 0) > (best.wickets || 0) ? p : best, {});
+
+                          return (
+                            <div className="space-y-4">
+                              <h3 className="text-[12px] font-black text-[#FFD600] uppercase tracking-[0.2em]">Heroes of the Match</h3>
+
+                              {/* MOTM Card - Large */}
+                              {motm?.name && (
+                                <div className="p-6 rounded-[24px] bg-gradient-to-br from-[#FFD600]/20 to-[#FF6D00]/10 border border-[#FFD600]/30 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-black text-[#FFD600] uppercase">Man of the Match</p>
+                                    <Trophy size={16} className="text-[#FFD600]" />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <p className="text-[14px] font-black text-white">{motm.name}</p>
+                                    <p className="text-[9px] text-white/40">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
+                                    <div className="flex gap-2 pt-1">
+                                      {motm.runs !== undefined && <span className="text-[10px] font-numbers text-[#00F0FF]">{motm.runs}R</span>}
+                                      {motm.wickets !== undefined && <span className="text-[10px] font-numbers text-[#FF6D00]">{motm.wickets}W</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Best Batter & Best Bowler - Side by side */}
+                              <div className="grid grid-cols-2 gap-3">
+                                {topScorer?.name && (
+                                  <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
+                                    <p className="text-[9px] font-black text-[#00F0FF] uppercase">Best Batter</p>
+                                    <p className="text-[12px] font-black text-white">{topScorer.name}</p>
+                                    <p className="text-[8px] text-white/40">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
+                                    <div className="flex gap-1 text-[9px] font-numbers pt-1">
+                                      <span className="text-[#00F0FF]">{topScorer.runs || 0}R</span>
+                                      <span className="text-white/40">{topScorer.balls || 0}B</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {bestBowler?.name && (
+                                  <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
+                                    <p className="text-[9px] font-black text-[#FF6D00] uppercase">Best Bowler</p>
+                                    <p className="text-[12px] font-black text-white">{bestBowler.name}</p>
+                                    <p className="text-[8px] text-white/40">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
+                                    <div className="flex gap-1 text-[9px] font-numbers pt-1">
+                                      <span className="text-[#FF6D00]">{bestBowler.wickets || 0}W</span>
+                                      <span className="text-white/40">{bestBowler.runs_conceded || 0}R</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Star Performances Grid */}
+                        {(() => {
+                          const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])]
+                            .map(p => ({
+                              ...p,
+                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10
+                            }))
+                            .sort((a, b) => b.impact - a.impact)
+                            .slice(0, 4);
+
+                          return allPlayers.length > 0 ? (
+                            <div className="space-y-3">
+                              <h3 className="text-[12px] font-black text-[#FFD600] uppercase tracking-[0.2em]">Star Performances</h3>
+                              <div className="grid grid-cols-2 gap-3">
+                                {allPlayers.map((player) => (
+                                  <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
+                                    <p className="text-[10px] font-black text-white truncate">{player.name}</p>
+                                    <p className="text-[8px] text-white/40">{getTeamObj(player.teamId || innings1TeamId).name}</p>
+                                    <div className="flex gap-1 text-[8px] font-numbers text-[#00F0FF]">
+                                      {player.runs > 0 && <span>{player.runs}R</span>}
+                                      {player.wickets > 0 && <span>{player.wickets}W</span>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
                       </motion.div>
                     )}
 
-                    {/* Scorecard Tab */}
+                    {/* SCORECARD TAB */}
                     {summaryTab === 'SCORECARD' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-6"
                       >
-                        {/* Innings 1 Batting */}
+                        {/* Innings 1 */}
                         <div className="space-y-3">
-                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Batting</p>
+                          <button className="w-full p-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/20 text-left">
+                            <p className="text-[11px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name}</p>
+                            <p className="text-[9px] text-white/40 mt-1">{countingRuns.inn1}/{match.config.innings1Wickets || 0}</p>
+                          </button>
                           <div className="space-y-2">
                             {(getTeamObj(innings1TeamId).squad || []).map((player) => (
                               <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
                                 <div className="flex justify-between items-start mb-1">
-                                  <p className="text-[9px] font-black text-white">{player.name}</p>
+                                  <div>
+                                    <p className="text-[9px] font-black text-white">{player.name}</p>
+                                    <p className="text-[8px] text-white/40">{player.isOut ? getWicketDetail(player, 1) : 'not out'}</p>
+                                  </div>
                                   <p className="text-[9px] font-numbers text-[#00F0FF]">{player.runs || 0}({player.balls || 0})</p>
                                 </div>
-                                <p className="text-[8px] text-white/40">
-                                  {player.isOut ? getWicketDetail(player, 1) : 'not out'}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Innings 1 Bowling */}
-                        <div className="space-y-3">
-                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name} - Bowling</p>
-                          <div className="space-y-2">
-                            {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
-                              <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
-                                <div className="flex justify-between items-start mb-1">
-                                  <p className="text-[9px] font-black text-white">{player.name}</p>
-                                  <p className="text-[9px] font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                                <div className="flex gap-2 text-[8px] text-white/40">
+                                  {player.fours > 0 && <span>{player.fours}x4</span>}
+                                  {player.sixes > 0 && <span>{player.sixes}x6</span>}
                                 </div>
-                                <p className="text-[8px] text-white/40">
-                                  {Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov
-                                </p>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {/* Innings 2 Batting */}
+                        {/* Innings 2 */}
                         <div className="space-y-3">
-                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name} - Batting</p>
+                          <button className="w-full p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/20 text-left">
+                            <p className="text-[11px] font-black text-[#39FF14] uppercase">{getTeamObj(innings2TeamId).name}</p>
+                            <p className="text-[9px] text-white/40 mt-1">{countingRuns.inn2}/{match.liveScore.wickets || 0}</p>
+                          </button>
                           <div className="space-y-2">
                             {(getTeamObj(innings2TeamId).squad || []).map((player) => (
                               <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
                                 <div className="flex justify-between items-start mb-1">
-                                  <p className="text-[9px] font-black text-white">{player.name}</p>
-                                  <p className="text-[9px] font-numbers text-[#00F0FF]">{player.runs || 0}({player.balls || 0})</p>
+                                  <div>
+                                    <p className="text-[9px] font-black text-white">{player.name}</p>
+                                    <p className="text-[8px] text-white/40">{player.isOut ? getWicketDetail(player, 2) : 'not out'}</p>
+                                  </div>
+                                  <p className="text-[9px] font-numbers text-[#39FF14]">{player.runs || 0}({player.balls || 0})</p>
                                 </div>
-                                <p className="text-[8px] text-white/40">
-                                  {player.isOut ? getWicketDetail(player, 2) : 'not out'}
-                                </p>
+                                <div className="flex gap-2 text-[8px] text-white/40">
+                                  {player.fours > 0 && <span>{player.fours}x4</span>}
+                                  {player.sixes > 0 && <span>{player.sixes}x6</span>}
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {/* Innings 2 Bowling */}
-                        <div className="space-y-3">
-                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Bowling</p>
-                          <div className="space-y-2">
-                            {(getTeamObj(innings1TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
-                              <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
-                                <div className="flex justify-between items-start mb-1">
-                                  <p className="text-[9px] font-black text-white">{player.name}</p>
-                                  <p className="text-[9px] font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                        {/* Bowlers Section */}
+                        <div className="space-y-3 pt-4 border-t border-white/10">
+                          <h4 className="text-[10px] font-black text-[#00F0FF] uppercase">Bowling</h4>
+                          {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                            <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 text-[8px]">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-black text-white">{player.name}</p>
+                                  <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6}</p>
                                 </div>
-                                <p className="text-[8px] text-white/40">
-                                  {Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov
-                                </p>
+                                <p className="font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
                         </div>
                       </motion.div>
                     )}
 
-                    {/* Highlights Tab */}
-                    {summaryTab === 'HIGHLIGHTS' && (
+                    {/* COMMS TAB */}
+                    {summaryTab === 'COMMS' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="space-y-6"
+                        className="space-y-4"
                       >
-                        <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 space-y-4">
-                          <h3 className="text-[12px] font-black text-[#FFD600] uppercase text-center">Key Stats</h3>
-                          <div className="space-y-3 text-[10px]">
-                            {(() => {
-                              const topScorer = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.runs || 0) > (best.runs || 0) ? p : best, {});
-                              const bestBowler = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.wickets || 0) > (best.wickets || 0) ? p : best, {});
-                              const motm = calculateMOTM();
-                              const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])];
-                              const bestCatch = allPlayers.reduce((best, p) => (p.catches || 0) > (best.catches || 0) ? p : best, {});
-                              return (
-                                <>
-                                  {topScorer?.name && (
-                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-white/5">
-                                      <span className="text-white/40">Top Scorer:</span>
-                                      <span className="text-[#00F0FF] font-black">{topScorer.name}</span>
+                        {(() => {
+                          const comms = (match.history || [])
+                            .sort((a, b) => {
+                              if (b.innings !== a.innings) return b.innings - a.innings;
+                              if (b.overNumber !== a.overNumber) return b.overNumber - a.overNumber;
+                              return (b.ballNumber || 0) - (a.ballNumber || 0);
+                            })
+                            .reduce((acc, ball) => {
+                              const ballNum = `${ball.overNumber}.${ball.ballNumber}`;
+                              let desc = '';
+                              if (ball.isWicket) {
+                                desc = `WICKET - ${ball.wicketType || 'out'}`;
+                              } else if (ball.runsScored) {
+                                desc = `${ball.runsScored} runs`;
+                              } else if (ball.type === 'WD') {
+                                desc = 'Wide';
+                              } else if (ball.type === 'NB') {
+                                desc = 'No Ball';
+                              } else {
+                                desc = 'Dot';
+                              }
+                              acc.push({ ballNum, desc, innings: ball.innings });
+                              return acc;
+                            }, [] as any[]);
+
+                          const groupedByOver = comms.reduce((acc, c) => {
+                            const key = `Innings ${c.innings} - Over ${Math.floor(parseFloat(c.ballNum))}`;
+                            if (!acc[key]) acc[key] = [];
+                            acc[key].push(c);
+                            return acc;
+                          }, {} as Record<string, any[]>);
+
+                          return (
+                            <>
+                              {Object.entries(groupedByOver).map(([overKey, balls]) => (
+                                <div key={overKey} className="space-y-2">
+                                  <p className="text-[9px] font-black text-[#00F0FF] uppercase">{overKey}</p>
+                                  {balls.map((ball, idx) => (
+                                    <div key={idx} className="p-2 rounded-[12px] bg-white/5 border border-white/10">
+                                      <p className="text-[8px] text-white/40">{ball.ballNum}</p>
+                                      <p className="text-[9px] font-black text-white">{ball.desc}</p>
                                     </div>
-                                  )}
-                                  {bestBowler?.name && (
-                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-white/5">
-                                      <span className="text-white/40">Best Bowler:</span>
-                                      <span className="text-[#FF6D00] font-black">{bestBowler.name}</span>
-                                    </div>
-                                  )}
-                                  {bestCatch?.name && (bestCatch?.catches || 0) > 0 && (
-                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-white/5">
-                                      <span className="text-white/40">Most Catches:</span>
-                                      <span className="text-[#4DB6AC] font-black">{bestCatch.name}</span>
-                                    </div>
-                                  )}
-                                  {motm?.name && (
-                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-[#FFD600]/10 border border-[#FFD600]/30">
-                                      <span className="text-white/40">Man of Match:</span>
-                                      <span className="text-[#FFD600] font-black">{motm.name}</span>
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </>
+                          );
+                        })()}
                       </motion.div>
                     )}
 
-                    {/* Analytics Tab */}
-                    {summaryTab === 'ANALYTICS' && (
+                    {/* ANALYSIS TAB */}
+                    {summaryTab === 'ANALYSIS' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -3760,8 +3853,8 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         {(() => {
                           const inn1History = (match.history || []).filter(b => b.innings === 1);
                           const inn2History = (match.history || []).filter(b => b.innings === 2);
-                          
-                          const buildRunRateData = (history: any[]) => {
+
+                          const buildData = (history: any[]) => {
                             const overs: {over: string, runs: number}[] = [];
                             let currentOver = -1;
                             let currentRuns = 0;
@@ -3778,16 +3871,16 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             return overs;
                           };
 
-                          const inn1RR = buildRunRateData(inn1History);
-                          const inn2RR = buildRunRateData(inn2History);
+                          const inn1Data = buildData(inn1History);
+                          const inn2Data = buildData(inn2History);
 
                           return (
                             <>
-                              {inn1RR.length > 0 && (
+                              {inn1Data.length > 0 && (
                                 <div className="space-y-3">
                                   <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Run Rate</p>
-                                  <ResponsiveContainer width="100%" height={200}>
-                                    <AreaChart data={inn1RR} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                  <ResponsiveContainer width="100%" height={180}>
+                                    <AreaChart data={inn1Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                       <defs>
                                         <linearGradient id="colorRuns1" x1="0" y1="0" x2="0" y2="1">
                                           <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.3}/>
@@ -3803,11 +3896,11 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                   </ResponsiveContainer>
                                 </div>
                               )}
-                              {inn2RR.length > 0 && (
+                              {inn2Data.length > 0 && (
                                 <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name} - Run Rate</p>
-                                  <ResponsiveContainer width="100%" height={200}>
-                                    <AreaChart data={inn2RR} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                  <p className="text-[10px] font-black text-[#39FF14] uppercase">{getTeamObj(innings2TeamId).name} - Run Rate</p>
+                                  <ResponsiveContainer width="100%" height={180}>
+                                    <AreaChart data={inn2Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                       <defs>
                                         <linearGradient id="colorRuns2" x1="0" y1="0" x2="0" y2="1">
                                           <stop offset="5%" stopColor="#39FF14" stopOpacity={0.3}/>
@@ -3829,204 +3922,173 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       </motion.div>
                     )}
 
-                    {/* Partnerships Tab */}
-                    {summaryTab === 'PARTNERSHIPS' && (
+                    {/* MVP TAB */}
+                    {summaryTab === 'MVP' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="space-y-6"
+                        className="space-y-3"
                       >
                         {(() => {
-                          const inn1History = (match.history || []).filter(b => b.innings === 1);
-                          const partnerships = [];
-                          let currentPartners = { id1: null, id2: null, runs: 0, balls: 0 };
-                          
-                          inn1History.forEach(b => {
-                            if (!currentPartners.id1 || !currentPartners.id2) {
-                              currentPartners.id1 = b.strikerId;
-                              currentPartners.id2 = b.nonStrikerId;
-                            }
-                            if (b.strikerId === currentPartners.id1 || b.strikerId === currentPartners.id2) {
-                              currentPartners.runs += b.runsScored || 0;
-                              currentPartners.balls += 1;
-                            }
-                            if (b.isWicket) {
-                              if (currentPartners.runs > 0) partnerships.push({...currentPartners});
-                              currentPartners = { id1: null, id2: null, runs: 0, balls: 0 };
-                            }
-                          });
-                          if (currentPartners.runs > 0) partnerships.push({...currentPartners});
+                          const mvpList = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])]
+                            .map(p => ({
+                              ...p,
+                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10
+                            }))
+                            .sort((a, b) => b.impact - a.impact);
 
-                          return (
-                            <div className="space-y-3">
-                              <p className="text-[10px] font-black text-[#00F0FF] uppercase">Innings 1 Partnerships</p>
-                              {partnerships.length > 0 ? partnerships.map((p, idx) => (
-                                <div key={idx} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
-                                  <div className="flex justify-between items-start mb-1">
-                                    <p className="text-[9px] font-black text-white">Partnership {idx + 1}</p>
-                                    <p className="text-[9px] font-numbers text-[#00F0FF]">{p.runs} ({p.balls})</p>
-                                  </div>
-                                </div>
-                              )) : (
-                                <p className="text-[10px] text-white/40 text-center">No partnership data</p>
-                              )}
+                          return mvpList.map((player, idx) => (
+                            <div key={player.id} className="p-4 rounded-[16px] bg-white/5 border border-white/10 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-[#00F0FF]/20 flex items-center justify-center">
+                                <p className="text-[10px] font-black text-[#00F0FF]">#{idx + 1}</p>
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-[10px] font-black text-white">{player.name}</p>
+                                <p className="text-[8px] text-white/40">{getTeamObj(player.teamId || innings1TeamId).name}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[11px] font-black text-[#FFD600]">{Math.round(player.impact)}</p>
+                                <p className="text-[7px] text-white/40">impact</p>
+                              </div>
                             </div>
-                          );
+                          ));
                         })()}
                       </motion.div>
                     )}
 
-                    {/* Over by Over Tab */}
-                    {summaryTab === 'OVER_BY_OVER' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-6"
+                    {/* Action Buttons - Bottom */}
+                    <div className="space-y-3 pt-6 border-t border-white/10">
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowShareSheet(true)}
+                        className="w-full py-4 rounded-[20px] bg-gradient-to-r from-[#00F0FF] to-[#39FF14] text-black font-black uppercase text-[12px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-[0_0_30px_rgba(0,240,255,0.2)]"
                       >
-                        {(() => {
-                          const buildOBOData = (history: any[]) => {
-                            const overs: {over: string, runs: number}[] = [];
-                            let currentOver = -1;
-                            let currentRuns = 0;
-                            history.forEach(b => {
-                              if (b.overNumber !== currentOver) {
-                                if (currentOver >= 0) overs.push({ over: `${currentOver}`, runs: currentRuns });
-                                currentOver = b.overNumber;
-                                currentRuns = 0;
-                              }
-                              currentRuns += b.runsScored || 0;
-                              if (b.type === 'WD' || b.type === 'NB') currentRuns += 1;
-                            });
-                            if (currentOver >= 0) overs.push({ over: `${currentOver}`, runs: currentRuns });
-                            return overs;
-                          };
+                        <Share2 size={16} />
+                        Share
+                      </motion.button>
 
-                          const inn1Data = buildOBOData((match.history || []).filter(b => b.innings === 1));
-                          const inn2Data = buildOBOData((match.history || []).filter(b => b.innings === 2));
-
-                          return (
-                            <>
-                              {inn1Data.length > 0 && (
-                                <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name}</p>
-                                  <ResponsiveContainer width="100%" height={200}>
-                                    <BarChart data={inn1Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
-                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #00F0FF', borderRadius: '8px' }} />
-                                      <Bar dataKey="runs" fill="#00F0FF" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                  </ResponsiveContainer>
-                                </div>
-                              )}
-                              {inn2Data.length > 0 && (
-                                <div className="space-y-3">
-                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name}</p>
-                                  <ResponsiveContainer width="100%" height={200}>
-                                    <BarChart data={inn2Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
-                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
-                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #39FF14', borderRadius: '8px' }} />
-                                      <Bar dataKey="runs" fill="#39FF14" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                  </ResponsiveContainer>
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </motion.div>
-                    )}
-
-                    {/* Tab Buttons */}
-                    <div className="flex gap-2 p-2 bg-white/5 rounded-[20px] overflow-x-auto">
-                      {['RESULT', 'SCORECARD', 'HIGHLIGHTS', 'ANALYTICS', 'PARTNERSHIPS', 'OVER_BY_OVER'].map((tab) => (
+                      <div className="flex gap-3">
                         <button
-                          key={tab}
-                          onClick={() => setSummaryTab(tab as any)}
-                          className={`px-3 py-2 rounded-[12px] font-black text-[9px] uppercase tracking-[0.15em] transition-all whitespace-nowrap ${
-                            summaryTab === tab ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.3)]' : 'text-white/40'
-                          }`}
+                          type="button"
+                          onClick={() => {
+                            const freshState = createInitialState();
+                            localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
+                            setMatch(freshState);
+                            setStatus('CONFIG');
+                            setWinnerTeam(null);
+                            setSelectionTarget(null);
+                            setConfigStep(1);
+                            setVsRevealed(false);
+                            setOverlayAnim(null);
+                            setSummaryTab('SUMMARY');
+                            setShowShareSheet(false);
+                          }}
+                          className="flex-1 py-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
                         >
-                          {tab.replace('_', ' ')}
+                          <Swords size={14} />
+                          New Match
                         </button>
-                      ))}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
+                            onBack();
+                          }}
+                          className="flex-1 py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/40 font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                        >
+                          <ChevronLeft size={14} />
+                          Dugout
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Share buttons */}
-                    <div className="space-y-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={generateScorecardPDF}
-                        disabled={isCapturing}
-                        className="w-full py-4 rounded-[20px] bg-[#39FF14] text-black font-black uppercase text-[12px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
-                      >
-                        <Share2 size={16} />
-                        {isCapturing ? 'Generating...' : 'Share Full Scorecard'}
-                      </button>
+                    {/* Share Bottom Sheet */}
+                    <AnimatePresence>
+                      {showShareSheet && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => setShowShareSheet(false)}
+                          className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-sm flex items-end justify-center"
+                        >
+                          <motion.div
+                            initial={{ y: 300, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: 300, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-md bg-[#0A0A0A] border-t border-white/10 rounded-t-[32px] p-6 pb-10 space-y-4"
+                          >
+                            {/* Handle bar */}
+                            <div className="flex justify-center">
+                              <div className="w-10 h-1 rounded-full bg-white/20" />
+                            </div>
+                            <h3 className="text-[13px] font-black text-white uppercase tracking-[0.2em] text-center">Share Match</h3>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const followUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
-                          const result = winnerTeam ? `${winnerTeam.name} ${winnerTeam.margin}` : 'Match Complete';
-                          const text = `Match Result\n\n${match.teams.teamA.name} vs ${match.teams.teamB.name}\n\n${result}\n\n📍 ${match.config.ground || match.config.city}\n\n📺 Full Scorecard:\n${followUrl}`;
-                          window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-                        }}
-                        className="w-full py-4 rounded-[20px] bg-[#25D366] text-black font-black uppercase text-[12px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                      >
-                        <Share2 size={16} />
-                        Share Result
-                      </button>
+                            <div className="space-y-2">
+                              {/* Share Full Scorecard PDF */}
+                              <motion.button
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => { setShowShareSheet(false); generateScorecardPDF(); }}
+                                disabled={isCapturing}
+                                className="w-full p-4 rounded-[16px] bg-white/5 border border-white/10 flex items-center gap-4 active:bg-white/10 transition-all disabled:opacity-50"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-[#39FF14]/15 flex items-center justify-center">
+                                  <ClipboardList size={18} className="text-[#39FF14]" />
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-[11px] font-black text-white uppercase tracking-[0.1em]">{isCapturing ? 'Generating...' : 'Full Scorecard PDF'}</p>
+                                  <p className="text-[9px] text-white/40 mt-0.5">Download or share detailed scorecard</p>
+                                </div>
+                              </motion.button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const followUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
-                          navigator.clipboard.writeText(followUrl);
-                          setShareCopied(true);
-                          setTimeout(() => setShareCopied(false), 2000);
-                        }}
-                        className="w-full py-3 rounded-[20px] bg-[#4DB6AC] text-black font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                      >
-                        <Check size={14} />
-                        {shareCopied ? 'Copied!' : 'Copy Scorecard Link'}
-                      </button>
+                              {/* Share to WhatsApp */}
+                              <motion.button
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => {
+                                  setShowShareSheet(false);
+                                  const followUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
+                                  const result = winnerTeam ? `${winnerTeam.name} ${winnerTeam.margin}` : 'Match Complete';
+                                  const text = `*${match.teams.teamA.name} vs ${match.teams.teamB.name}*\n\n${result}\n\nFull Scorecard: ${followUrl}\n\n_Scored on 22 Yards_`;
+                                  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+                                }}
+                                className="w-full p-4 rounded-[16px] bg-white/5 border border-white/10 flex items-center gap-4 active:bg-white/10 transition-all"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-[#25D366]/15 flex items-center justify-center">
+                                  <Share2 size={18} className="text-[#25D366]" />
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-[11px] font-black text-white uppercase tracking-[0.1em]">Share on WhatsApp</p>
+                                  <p className="text-[9px] text-white/40 mt-0.5">Send result with match link</p>
+                                </div>
+                              </motion.button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const freshState = createInitialState();
-                          localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
-                          setMatch(freshState);
-                          setStatus('CONFIG');
-                          setWinnerTeam(null);
-                          setSelectionTarget(null);
-                          setConfigStep(1);
-                          setVsRevealed(false);
-                          setOverlayAnim(null);
-                          setSummaryTab('RESULT');
-                        }}
-                        className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[12px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                      >
-                        <Swords size={16} />
-                        New Match
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
-                          onBack();
-                        }}
-                        className="w-full py-3 rounded-[20px] bg-white/5 border border-white/10 text-white/50 font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                      >
-                        <ChevronLeft size={16} />
-                        Back to Dugout
-                      </button>
-                    </div>
+                              {/* Copy Link */}
+                              <motion.button
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => {
+                                  const followUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
+                                  navigator.clipboard.writeText(followUrl);
+                                  setShareCopied(true);
+                                  setTimeout(() => { setShareCopied(false); setShowShareSheet(false); }, 1200);
+                                }}
+                                className="w-full p-4 rounded-[16px] bg-white/5 border border-white/10 flex items-center gap-4 active:bg-white/10 transition-all"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-[#00F0FF]/15 flex items-center justify-center">
+                                  {shareCopied ? <Check size={18} className="text-[#39FF14]" /> : <Coins size={18} className="text-[#00F0FF]" />}
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-[11px] font-black text-white uppercase tracking-[0.1em]">{shareCopied ? 'Link Copied!' : 'Copy Match Link'}</p>
+                                  <p className="text-[9px] text-white/40 mt-0.5">Copy scorecard URL to clipboard</p>
+                                </div>
+                              </motion.button>
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </>
                 )}
               </div>
