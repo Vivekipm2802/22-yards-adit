@@ -705,7 +705,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     if (!editingTeamId || !newName.trim()) return;
     const key = editingTeamId === 'A' ? 'teamA' : 'teamB';
     const newPlayer = {
-      id: generatePlayerId(),
+      id: generatePlayerId(phoneQuery || `${Date.now()}`),
       name: newName.trim(),
       phone: phoneQuery,
       isCaptain: false,
@@ -2663,25 +2663,19 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </div>
 
                 {/* Add Player Button */}
-                <motion.button
-                  onClick={() => {
-                    if (!isAddPlayerDisabled) {
-                      handleEnlistNewPlayer();
-                    }
-                  }}
-                  disabled={isAddPlayerDisabled}
-                  whileTap={!isAddPlayerDisabled ? { scale: 0.95 } : {}}
-                  whileHover={!isAddPlayerDisabled ? { scale: 1.02 } : {}}
-                  className={`w-full min-h-[56px] py-4 rounded-[20px] font-black uppercase text-[13px] tracking-[0.2em] transition-all flex items-center justify-center gap-2 select-none touch-manipulation ${
+                <button
+                  type="button"
+                  onClick={() => { handleEnlistNewPlayer(); }}
+                  className={`w-full min-h-[56px] py-4 rounded-[20px] font-black uppercase text-[13px] tracking-[0.2em] transition-all duration-150 flex items-center justify-center gap-2 select-none touch-manipulation ${
                     isAddPlayerDisabled
-                      ? 'bg-white/5 text-white/20 cursor-not-allowed'
-                      : 'bg-[#00F0FF] text-black shadow-[0_4px_20px_rgba(0,240,255,0.3)] active:shadow-[0_0_10px_rgba(0,240,255,0.5)] cursor-pointer'
+                      ? 'bg-white/5 text-white/20 pointer-events-none'
+                      : 'bg-[#00F0FF] text-black shadow-[0_4px_20px_rgba(0,240,255,0.3)] cursor-pointer active:scale-95 active:shadow-[0_0_10px_rgba(0,240,255,0.5)]'
                   }`}
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   <Plus size={18} />
                   <span>Add Player</span>
-                </motion.button>
+                </button>
               </div>
 
               <div className="p-6 border-t border-white/5 flex gap-3">
