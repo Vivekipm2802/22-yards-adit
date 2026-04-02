@@ -18,7 +18,7 @@ interface ProfileProps {
   onBack: () => void;
 }
 
-// B-14 fix: unified role list â Login roles added first so existing users see pre-selection
+// B-14 fix: unified role list — Login roles added first so existing users see pre-selection
 const ROLES = [
   'All-Rounder',
   'Batsman',
@@ -260,7 +260,7 @@ const Profile: React.FC<ProfileProps> = ({ currentName, currentRole, currentAvat
                 <h3 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30">System Preferences</h3>
              </div>
              <GlassCard className="p-5 bg-white/[0.01] border-white/5 space-y-4">
-                {/* B-15 fix: functional toggle â Tactical Privacy */}
+                {/* B-15 fix: functional toggle — Tactical Privacy */}
                 <div className="flex items-center justify-between" onClick={handleTogglePrivacy} role="button" tabIndex={0}>
                   <div className="space-y-0.5">
                     <p className="font-bold text-xs uppercase text-white/80">Tactical Privacy</p>
@@ -270,7 +270,7 @@ const Profile: React.FC<ProfileProps> = ({ currentName, currentRole, currentAvat
                     <div className={`w-3 h-3 rounded-full transition-all ${privacyMode ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-white/20'}`} />
                   </div>
                 </div>
-                {/* B-15 fix: functional toggle â Notification Sync */}
+                {/* B-15 fix: functional toggle — Notification Sync */}
                 <div className="flex items-center justify-between" onClick={handleToggleNotifications} role="button" tabIndex={0}>
                   <div className="space-y-0.5">
                     <p className="font-bold text-xs uppercase text-white/80">Notification Sync</p>
@@ -303,8 +303,8 @@ const Profile: React.FC<ProfileProps> = ({ currentName, currentRole, currentAvat
                   </div>
                 )}
                 <div className="text-center space-y-1">
-                  <p className="font-heading text-xl italic uppercase text-white leading-none">{name || 'â'}</p>
-                  <p className="text-[8px] font-black text-[#00F0FF] uppercase tracking-widest">{role || 'â'}</p>
+                  <p className="font-heading text-xl italic uppercase text-white leading-none">{name || '—'}</p>
+                  <p className="text-[8px] font-black text-[#00F0FF] uppercase tracking-widest">{role || '—'}</p>
                 </div>
              </GlassCard>
           </section>

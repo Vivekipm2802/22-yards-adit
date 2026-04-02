@@ -215,7 +215,7 @@ const Arena: React.FC = () => {
                       <div className="space-y-1">
                         <h3 className="font-heading text-3xl tracking-tight text-white uppercase">{venue.name}</h3>
                         <div className="flex items-center text-white/30 text-[10px] font-black uppercase tracking-widest">
-                          <MapPin size={12} className="mr-1.5" /> {venue.distance} â¢ {venue.pitchType}
+                          <MapPin size={12} className="mr-1.5" /> {venue.distance} • {venue.pitchType}
                         </div>
                       </div>
                       <div className="p-3 bg-white/5 rounded-2xl group-hover:bg-[#FFC107] group-hover:text-black transition-colors">

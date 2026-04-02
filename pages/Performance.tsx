@@ -101,7 +101,7 @@ const Performance: React.FC<{ userAvatar?: string }> = ({ userAvatar }) => {
       data.distribution['4'].shots += s4; data.distribution['4'].totalRuns += s4 * 4;
       
       // B-10 fix: remaining runs after boundaries counted as "singles & others"
-      // (per-ball breakdown needs individual ball events â not yet stored in match record)
+      // (per-ball breakdown needs individual ball events — not yet stored in match record)
       const remainingRuns = runs - (s6 * 6) - (s4 * 4);
       if (remainingRuns > 0) {
         data.distribution['1'].shots += remainingRuns;
@@ -201,7 +201,7 @@ const Performance: React.FC<{ userAvatar?: string }> = ({ userAvatar }) => {
           <div className="space-y-1">
             <div className="bg-white/5 px-3 py-1 rounded-full border border-white/10 flex items-center justify-center space-x-1 mb-2 mx-auto w-fit"><Hash size={10} className="text-[#00F0FF]" /><span className="text-[10px] font-black text-white/40 tracking-[0.2em] uppercase">{stats.uid}</span></div>
             <div className="flex items-center justify-center space-x-2"><h1 className="font-heading text-6xl italic leading-none tracking-tighter uppercase">{userData?.name || 'NEW PLAYER'}</h1></div>
-            <div className="flex items-center justify-center space-x-2"><p className="text-[9px] font-black uppercase text-[#00F0FF] tracking-[0.4em]">{userData?.role || 'UNRANKED'}</p>{stats.matchesAsCaptain > 0 && (<><span className="text-white/10 text-[8px]">â¢</span><p className="text-[9px] font-black uppercase text-[#FFD600] tracking-[0.4em]">COMMANDER STATUS</p></>)}</div>
+            <div className="flex items-center justify-center space-x-2"><p className="text-[9px] font-black uppercase text-[#00F0FF] tracking-[0.4em]">{userData?.role || 'UNRANKED'}</p>{stats.matchesAsCaptain > 0 && (<><span className="text-white/10 text-[8px]">•</span><p className="text-[9px] font-black uppercase text-[#FFD600] tracking-[0.4em]">COMMANDER STATUS</p></>)}</div>
           </div>
         </section>
 
