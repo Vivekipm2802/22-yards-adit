@@ -192,6 +192,9 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [transferLinkCopied, setTransferLinkCopied] = useState(false);
   const [transferStatus, setTransferStatus] = useState<'IDLE' | 'WAITING' | 'TRANSFERRED'>('IDLE');
 
+  // Scoring lock — prevents race conditions from rapid clicks
+  const isProcessingBall = useRef(false);
+
   // Player ID search dropdown
   const [playerDropdownList, setPlayerDropdownList] = useState<Array<{id: string, name: string, phone: string}>>([]);
   const [selectedVaultPlayer, setSelectedVaultPlayer] = useState<{id: string, name: string, phone: string} | null>(null);
@@ -373,10 +376,28 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   const handleScore = (runs: number) => {
+    // Race condition guard: block scoring while a ball is being processed
+    if (isProcessingBall.current) return;
+
     if (!match.crease.bowlerId) {
        setSelectionTarget('NEXT_BOWLER');
        return;
     }
+
+    // Block scoring if innings is already over (overs exhausted or all out)
+    const battingTeamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+    const squadSize = (match.teams[battingTeamKey]?.squad || []).length;
+    const allOutWickets = Math.max(1, squadSize - 1);
+    const totalOversCompleted = Math.floor(match.liveScore.balls / 6);
+    const ballsInCurrentOver = match.liveScore.balls % 6;
+    if (match.liveScore.wickets >= allOutWickets) return;
+    if (totalOversCompleted >= match.config.overs && ballsInCurrentOver === 0 && match.liveScore.balls > 0) return;
+    if (match.status === 'COMPLETED' || match.status === 'INNINGS_BREAK') return;
+
+    // Lock scoring
+    isProcessingBall.current = true;
+    setTimeout(() => { isProcessingBall.current = false; }, 150);
+
     if (pendingExtra === 'NB') {
        setOverlayAnim('FREE_HIT');
        setTimeout(() => setOverlayAnim(null), 2500);
@@ -682,6 +703,16 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const commitBall = (runs: number, extra?: string, isWicket?: boolean, wicketType?: string, fielderId?: PlayerID) => {
     setMatch(m => {
       if (!m.crease.strikerId || !m.crease.bowlerId) return m;
+
+      // GUARD: Reject ball if innings is already complete (prevents race condition from queued state updates)
+      if (m.status === 'COMPLETED' || m.status === 'INNINGS_BREAK') return m;
+      const _bKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+      const _sqSize = (m.teams[_bKey]?.squad || []).length;
+      const _allOut = Math.max(1, _sqSize - 1);
+      if (m.liveScore.wickets >= _allOut) return m;
+      const _totalOvers = Math.floor(m.liveScore.balls / 6);
+      const _ballsInOver = m.liveScore.balls % 6;
+      if (_totalOvers >= m.config.overs && _ballsInOver === 0 && m.liveScore.balls > 0) return m;
 
       const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
       const bowlingTeamKey = m.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
