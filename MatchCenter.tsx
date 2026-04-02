@@ -205,6 +205,12 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     });
   }, [match.liveScore.balls, match.liveScore.wickets, match.currentInnings, status]);
 
+  useEffect(() => {
+    if (status === 'SUMMARY' && winnerTeam) {
+      persistToGlobalVault(match, winnerTeam.name, winnerTeam.margin);
+    }
+  }, [status, winnerTeam]);
+
   const getTeamObj = (id: TeamID) => id === 'A' ? match.teams.teamA : match.teams.teamB;
   const getPlayer = (id: PlayerID | null) => {
     if (!id) return null;
@@ -344,23 +350,19 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
       const bowlingTeamKey = m.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
+      const isLegalDelivery = !lastBall.type || lastBall.type === 'LEGAL' || lastBall.type === 'BYE' || lastBall.type === 'LB';
+      const isNoBallOrWide = lastBall.type === 'WD' || lastBall.type === 'NB';
 
       const updatedBattingSquad = (m.teams[battingTeamKey]?.squad || []).map(p => {
         if (p.id === lastBall.strikerId) {
           return {
             ...p,
             runs: Math.max(0, (p.runs || 0) - (lastBall.runsScored || 0)),
-            balls: Math.max(0, (p.balls || 0) - (!lastBall.type || lastBall.type === 'LEGAL' ? 1 : 0)),
-            fours: lastBall.runsScored === 4 && (!lastBall.type || lastBall.type === 'LEGAL') ? Math.max(0, (p.fours || 0) - 1) : (p.fours || 0),
-            sixes: lastBall.runsScored === 6 && (!lastBall.type || lastBall.type === 'LEGAL') ? Math.max(0, (p.sixes || 0) - 1) : (p.sixes || 0),
-            isOut: false,
-            wicketType: undefined,
-          };
-        }
-        if (p.id === lastBall.nonStrikerId && (lastBall.runsScored === 2 || lastBall.runsScored === 3)) {
-          return {
-            ...p,
-            balls: Math.max(0, (p.balls || 0) - 1),
+            balls: Math.max(0, (p.balls || 0) - (isLegalDelivery ? 1 : 0)),
+            fours: lastBall.runsScored === 4 && isLegalDelivery ? Math.max(0, (p.fours || 0) - 1) : (p.fours || 0),
+            sixes: lastBall.runsScored === 6 && isLegalDelivery ? Math.max(0, (p.sixes || 0) - 1) : (p.sixes || 0),
+            isOut: lastBall.isWicket ? false : p.isOut,
+            wicketType: lastBall.isWicket ? undefined : p.wicketType,
           };
         }
         return p;
@@ -371,12 +373,29 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           return {
             ...p,
             wickets: lastBall.isWicket ? Math.max(0, (p.wickets || 0) - 1) : (p.wickets || 0),
-            runs_conceded: Math.max(0, (p.runs_conceded || 0) - (lastBall.runsScored || 0) - (lastBall.type === 'WD' || lastBall.type === 'NB' ? 1 : 0)),
-            balls_bowled: Math.max(0, (p.balls_bowled || 0) - (lastBall.type === 'WD' || lastBall.type === 'NB' ? 0 : 1)),
+            runs_conceded: Math.max(0, (p.runs_conceded || 0) - (lastBall.runsScored || 0) - (isNoBallOrWide ? 1 : 0)),
+            balls_bowled: Math.max(0, (p.balls_bowled || 0) - (isLegalDelivery ? 1 : 0)),
+          };
+        }
+        // Reverse fielder stats
+        if (lastBall.fielderId && p.id === lastBall.fielderId) {
+          return {
+            ...p,
+            catches: lastBall.wicketType === 'CAUGHT' ? Math.max(0, (p.catches || 0) - 1) : (p.catches || 0),
+            run_outs: lastBall.wicketType === 'RUN OUT' ? Math.max(0, (p.run_outs || 0) - 1) : (p.run_outs || 0),
+            stumpings: lastBall.wicketType === 'STUMPED' ? Math.max(0, (p.stumpings || 0) - 1) : (p.stumpings || 0),
           };
         }
         return p;
       });
+
+      // Restore crease positions from the ball event
+      const restoredCrease = {
+        ...m.crease,
+        strikerId: lastBall.strikerId,
+        nonStrikerId: lastBall.nonStrikerId || m.crease.nonStrikerId,
+        bowlerId: lastBall.bowlerId,
+      };
 
       return {
         ...m,
@@ -386,13 +405,16 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           [bowlingTeamKey]: { ...m.teams[bowlingTeamKey], squad: updatedBowlingSquad },
         },
         liveScore: {
-          runs: Math.max(0, m.liveScore.runs - (lastBall.runsScored || 0) - (lastBall.type === 'WD' || lastBall.type === 'NB' ? 1 : 0)),
+          runs: Math.max(0, m.liveScore.runs - (lastBall.runsScored || 0) - (isNoBallOrWide ? 1 : 0)),
           wickets: Math.max(0, m.liveScore.wickets - (lastBall.isWicket ? 1 : 0)),
-          balls: Math.max(0, m.liveScore.balls - (lastBall.type === 'WD' || lastBall.type === 'NB' ? 0 : 1)),
+          balls: Math.max(0, m.liveScore.balls - (isLegalDelivery ? 1 : 0)),
         },
         history: m.history.slice(0, -1),
+        crease: restoredCrease,
       };
     });
+    // Clear any pending selection targets
+    setSelectionTarget(null);
   };
 
   const persistToGlobalVault = (finalMatchState: MatchState, winnerName = '', winnerMargin = '') => {
@@ -549,23 +571,19 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
       const bowlingTeamKey = m.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
+      const isLegalDelivery = !extra || (extra === 'BYE' || extra === 'LB');
+      const isNoBallOrWide = extra === 'WD' || extra === 'NB';
 
       const updatedBattingSquad = (m.teams[battingTeamKey]?.squad || []).map(p => {
         if (p.id === m.crease.strikerId) {
           return {
             ...p,
             runs: (p.runs || 0) + runs,
-            balls: (p.balls || 0) + (extra ? 0 : 1),
-            fours: runs === 4 && !extra ? (p.fours || 0) + 1 : (p.fours || 0),
-            sixes: runs === 6 && !extra ? (p.sixes || 0) + 1 : (p.sixes || 0),
+            balls: (p.balls || 0) + (isLegalDelivery ? 1 : 0),
+            fours: runs === 4 && isLegalDelivery ? (p.fours || 0) + 1 : (p.fours || 0),
+            sixes: runs === 6 && isLegalDelivery ? (p.sixes || 0) + 1 : (p.sixes || 0),
             isOut: isWicket ? true : p.isOut,
             wicketType: isWicket ? wicketType : p.wicketType,
-          };
-        }
-        if (p.id === m.crease.nonStrikerId && (runs === 2 || runs === 3)) {
-          return {
-            ...p,
-            balls: (p.balls || 0) + 1,
           };
         }
         return p;
@@ -576,17 +594,17 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           return {
             ...p,
             wickets: isWicket ? (p.wickets || 0) + 1 : (p.wickets || 0),
-            runs_conceded: (p.runs_conceded || 0) + runs + (extra === 'WD' || extra === 'NB' ? 1 : 0),
-            balls_bowled: (p.balls_bowled || 0) + (extra === 'WD' || extra === 'NB' ? 0 : 1),
+            runs_conceded: (p.runs_conceded || 0) + runs + (isNoBallOrWide ? 1 : 0),
+            balls_bowled: (p.balls_bowled || 0) + (isLegalDelivery ? 1 : 0),
           };
         }
         return p;
       });
 
       const newLiveScore = {
-        runs: m.liveScore.runs + runs + (extra === 'WD' || extra === 'NB' ? 1 : 0),
+        runs: m.liveScore.runs + runs + (isNoBallOrWide ? 1 : 0),
         wickets: m.liveScore.wickets + (isWicket ? 1 : 0),
-        balls: m.liveScore.balls + (extra === 'WD' || extra === 'NB' ? 0 : 1),
+        balls: m.liveScore.balls + (isLegalDelivery ? 1 : 0),
       };
 
       const ballEvent: BallEvent = {
@@ -595,10 +613,11 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         ballNumber: (m.liveScore.balls % 6) + 1,
         bowlerId: m.crease.bowlerId!,
         strikerId: m.crease.strikerId!,
+        nonStrikerId: m.crease.nonStrikerId,
         fielderId,
         runsScored: runs,
-        totalValue: runs + (extra === 'WD' || extra === 'NB' ? 1 : 0),
-        extras: extra === 'WD' || extra === 'NB' || extra === 'BYE' || extra === 'LB' ? 1 : 0,
+        totalValue: runs + (isNoBallOrWide ? 1 : 0),
+        extras: isNoBallOrWide || extra === 'BYE' || extra === 'LB' ? 1 : 0,
         isWicket: isWicket || false,
         type: extra ? (extra as any) : 'LEGAL',
         zone: undefined,
@@ -609,31 +628,100 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         wicketsAtThisBall: newLiveScore.wickets,
       };
 
-      const totalOvers = Math.floor(newLiveScore.balls / 6);
-      const ballsInOver = newLiveScore.balls % 6;
-      const shouldTransition = newLiveScore.wickets >= 10 || (totalOvers >= m.config.overs && ballsInOver === 0);
+      // --- STRIKE ROTATION ---
+      let newStrikerId = m.crease.strikerId;
+      let newNonStrikerId = m.crease.nonStrikerId;
+      const isOddRuns = runs % 2 === 1;
 
-      let newStatus = 'LIVE';
+      // Swap on odd runs (but not if wicket fell — new batsman selection handles that)
+      if (isOddRuns && !isWicket) {
+        newStrikerId = m.crease.nonStrikerId;
+        newNonStrikerId = m.crease.strikerId;
+      }
+
+      // --- OVER COMPLETION ---
+      const newBallsInOver = newLiveScore.balls % 6;
+      const isOverComplete = isLegalDelivery && newBallsInOver === 0 && newLiveScore.balls > 0;
+
+      // Swap at end of over (on top of any odd-run swap)
+      if (isOverComplete && !isWicket) {
+        const temp = newStrikerId;
+        newStrikerId = newNonStrikerId;
+        newNonStrikerId = temp;
+      }
+
+      // --- INNINGS TRANSITION ---
+      const totalOvers = Math.floor(newLiveScore.balls / 6);
+      const shouldTransition = newLiveScore.wickets >= 10 || (totalOvers >= m.config.overs && newBallsInOver === 0);
+
+      let newStatus = m.status;
       let newCurrentInnings = m.currentInnings;
+
       if (shouldTransition && m.currentInnings === 1) {
         newStatus = 'INNINGS_BREAK';
-        newCurrentInnings = 2;
+        newCurrentInnings = 1; // stays 1 until user clicks "Start Innings 2"
         setOverlayAnim('INNINGS_BREAK');
-        setTimeout(() => setOverlayAnim(null), 3000);
+        setTimeout(() => { setOverlayAnim(null); setStatus('INNINGS_BREAK'); }, 2000);
       }
 
       if (shouldTransition && m.currentInnings === 2) {
         newStatus = 'COMPLETED';
+        // Determine winner
+        const inn1Score = m.config.innings1Score || 0;
+        const inn2Score = newLiveScore.runs;
+        const battingTeamName = getTeamObj(m.teams.battingTeamId)?.name || 'Team';
+        const bowlingTeamName = getTeamObj(m.teams.bowlingTeamId)?.name || 'Team';
+
+        if (inn2Score >= (m.config.target || inn1Score + 1)) {
+          const wicketsLeft = 10 - newLiveScore.wickets;
+          setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}` });
+        } else if (inn2Score === inn1Score) {
+          setWinnerTeam({ name: 'Match Tied', id: null, margin: `Both teams scored ${inn1Score} runs` });
+        } else {
+          const runDiff = inn1Score - inn2Score;
+          setWinnerTeam({ name: bowlingTeamName, id: m.teams.bowlingTeamId, margin: `Won by ${runDiff} run${runDiff !== 1 ? 's' : ''}` });
+        }
         setTimeout(() => setStatus('SUMMARY'), 100);
       }
 
-      if (m.currentInnings === 2 && m.config.target && newLiveScore.runs >= m.config.target) {
+      // Target chase mid-over
+      if (!shouldTransition && m.currentInnings === 2 && m.config.target && newLiveScore.runs >= m.config.target) {
         newStatus = 'COMPLETED';
+        const battingTeamName = getTeamObj(m.teams.battingTeamId)?.name || 'Team';
+        const wicketsLeft = 10 - newLiveScore.wickets;
+        setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}` });
         setTimeout(() => setStatus('SUMMARY'), 100);
+      }
+
+      // --- NEW BATSMAN after wicket ---
+      let newCrease = {
+        ...m.crease,
+        strikerId: newStrikerId,
+        nonStrikerId: newNonStrikerId,
+        previousBowlerId: isOverComplete ? m.crease.bowlerId : m.crease.previousBowlerId,
+        bowlerId: isOverComplete && newStatus === 'LIVE' ? null : m.crease.bowlerId,
+      };
+
+      if (isWicket && newStatus !== 'COMPLETED' && newStatus !== 'INNINGS_BREAK') {
+        // Need to select new batsman — set striker to null, will trigger NEW_BATSMAN selection
+        newCrease.strikerId = null;
+        setTimeout(() => setSelectionTarget('NEW_BATSMAN'), 50);
+      }
+
+      // Need new bowler after over completes
+      if (isOverComplete && newStatus !== 'COMPLETED' && newStatus !== 'INNINGS_BREAK' && !isWicket) {
+        setTimeout(() => setSelectionTarget('NEXT_BOWLER'), 50);
+      }
+
+      // If wicket falls ON the last ball of an over, need both new batsman AND new bowler
+      if (isWicket && isOverComplete && newStatus !== 'COMPLETED' && newStatus !== 'INNINGS_BREAK') {
+        newCrease.bowlerId = null;
+        // NEW_BATSMAN first, then NEXT_BOWLER will be triggered after batsman is selected
       }
 
       return {
         ...m,
+        status: newStatus,
         teams: {
           ...m.teams,
           [battingTeamKey]: { ...m.teams[battingTeamKey], squad: updatedBattingSquad },
@@ -642,6 +730,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         liveScore: newLiveScore,
         history: [...(m.history || []), ballEvent],
         currentInnings: newCurrentInnings,
+        crease: newCrease,
       };
     });
   };
@@ -1901,7 +1990,6 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         {status === 'OPENERS' && (() => {
           // Safety net: if selectionTarget is null when entering OPENERS, auto-set to STRIKER
           const activeTarget = selectionTarget || 'STRIKER';
-          if (!selectionTarget) setTimeout(() => setSelectionTarget('STRIKER'), 0);
 
           const battingSquad = getTeamObj(match.teams.battingTeamId)?.squad || [];
           const bowlingSquad = getTeamObj(match.teams.bowlingTeamId)?.squad || [];
@@ -1925,6 +2013,21 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   {activeTarget === 'BOWLER' ? bowlingTeamName : battingTeamName}
                 </p>
               </div>
+
+              {/* Share Match Link */}
+              <button
+                type="button"
+                onClick={() => {
+                  const tossWinner = getTeamObj(match.toss.winnerId)?.name || 'Team';
+                  const decision = match.toss.decision === 'BAT' ? 'bat' : 'bowl';
+                  const text = `🏏 Match Starting!\n\n${match.teams.teamA.name} vs ${match.teams.teamB.name}\n${tossWinner} won the toss and elected to ${decision}.\n\n📍 ${match.config.ground || match.config.city}\n\nFollow live on 22 Yards!`;
+                  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+                }}
+                className="w-full p-4 rounded-[20px] bg-[#25D366]/15 border border-[#25D366]/40 flex items-center justify-center gap-3 transition-all active:scale-95"
+              >
+                <Share2 size={16} className="text-[#25D366]" />
+                <span className="text-[12px] font-black text-[#25D366] uppercase tracking-[0.1em]">Share Match on WhatsApp</span>
+              </button>
 
               {/* Step Progress */}
               <div className="flex items-center gap-2">
@@ -2172,7 +2275,12 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
               <div className="grid grid-cols-4 gap-2">
                 <KeypadButton onClick={() => setWicketWizard({ open: true })} bg="#FF003C" color="#FFF" span={2}>WICKET</KeypadButton>
-                <KeypadButton onClick={() => {}} bg="white/5" color="white/30" disabled>SWAP</KeypadButton>
+                <KeypadButton onClick={() => {
+                  setMatch(m => ({
+                    ...m,
+                    crease: { ...m.crease, strikerId: m.crease.nonStrikerId, nonStrikerId: m.crease.strikerId }
+                  }));
+                }} bg={CYBER_COLORS.teal + '33'} color={CYBER_COLORS.teal}>SWAP</KeypadButton>
                 <KeypadButton onClick={handleUndo} disabled={!match.history || match.history.length === 0} bg={CYBER_COLORS.grey} color={CYBER_COLORS.orange}>UNDO</KeypadButton>
               </div>
             </div>
@@ -2205,6 +2313,146 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         >
                           {type}
                         </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* NEW BATSMAN SELECTION */}
+            <AnimatePresence>
+              {selectionTarget === 'NEW_BATSMAN' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[5000] bg-black/95 flex items-end justify-center p-4"
+                >
+                  <motion.div
+                    initial={{ y: 100 }}
+                    animate={{ y: 0 }}
+                    exit={{ y: 100 }}
+                    className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-t-[40px] overflow-hidden max-h-[70vh] flex flex-col"
+                  >
+                    <div className="p-6 border-b border-white/5">
+                      <h3 className="font-heading text-xl uppercase italic text-[#FF003C]">New Batsman</h3>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Select who comes in next</p>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                      {(getTeamObj(match.teams.battingTeamId)?.squad || [])
+                        .filter(p => !p.isOut && p.id !== match.crease.nonStrikerId && p.id !== match.crease.strikerId)
+                        .map(player => (
+                        <button
+                          key={player.id}
+                          type="button"
+                          onClick={() => {
+                            setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: player.id } }));
+                            // If bowler also needs selecting (over ended on wicket ball)
+                            if (!match.crease.bowlerId) {
+                              setSelectionTarget('NEXT_BOWLER');
+                            } else {
+                              setSelectionTarget(null);
+                            }
+                          }}
+                          className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-3 transition-all active:scale-95"
+                        >
+                          <img src={getPlayerAvatar(player)} className="w-10 h-10 rounded-full" />
+                          <div className="flex-1 text-left">
+                            <p className="text-[12px] font-black text-white uppercase">{player.name}</p>
+                            <p className="text-[9px] text-white/40">{player.runs || 0}({player.balls || 0})</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* NEXT BOWLER SELECTION */}
+            <AnimatePresence>
+              {selectionTarget === 'NEXT_BOWLER' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[5000] bg-black/95 flex items-end justify-center p-4"
+                >
+                  <motion.div
+                    initial={{ y: 100 }}
+                    animate={{ y: 0 }}
+                    exit={{ y: 100 }}
+                    className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-t-[40px] overflow-hidden max-h-[70vh] flex flex-col"
+                  >
+                    <div className="p-6 border-b border-white/5">
+                      <h3 className="font-heading text-xl uppercase italic text-[#BC13FE]">Next Bowler</h3>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Over {Math.floor(match.liveScore.balls / 6)} complete — pick next bowler</p>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                      {(getTeamObj(match.teams.bowlingTeamId)?.squad || [])
+                        .filter(p => p.id !== match.crease.previousBowlerId)
+                        .map(player => (
+                        <button
+                          key={player.id}
+                          type="button"
+                          onClick={() => {
+                            setMatch(m => ({ ...m, crease: { ...m.crease, bowlerId: player.id, previousBowlerId: m.crease.bowlerId || m.crease.previousBowlerId } }));
+                            setSelectionTarget(null);
+                          }}
+                          className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#BC13FE]/40 flex items-center gap-3 transition-all active:scale-95"
+                        >
+                          <img src={getPlayerAvatar(player)} className="w-10 h-10 rounded-full" />
+                          <div className="flex-1 text-left">
+                            <p className="text-[12px] font-black text-white uppercase">{player.name}</p>
+                            <p className="text-[9px] text-white/40">{player.wickets || 0}-{player.runs_conceded || 0} ({Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov)</p>
+                          </div>
+                          {player.id === match.crease.previousBowlerId && (
+                            <span className="text-[8px] text-[#FF003C] font-black uppercase">Last Over</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* FIELDER SELECTION */}
+            <AnimatePresence>
+              {selectionTarget === 'FIELDER' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[5000] bg-black/95 flex items-end justify-center p-4"
+                >
+                  <motion.div
+                    initial={{ y: 100 }}
+                    animate={{ y: 0 }}
+                    exit={{ y: 100 }}
+                    className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-t-[40px] overflow-hidden max-h-[70vh] flex flex-col"
+                  >
+                    <div className="p-6 border-b border-white/5">
+                      <h3 className="font-heading text-xl uppercase italic text-[#FFD600]">Select Fielder</h3>
+                      <p className="text-[10px] text-white/40 uppercase mt-1">Who took the {wicketWizard.type === 'CAUGHT' ? 'catch' : wicketWizard.type === 'RUN OUT' ? 'run out' : 'stumping'}?</p>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                      {(getTeamObj(match.teams.bowlingTeamId)?.squad || []).map(player => (
+                        <button
+                          key={player.id}
+                          type="button"
+                          onClick={() => handleFielderSelected(player.id)}
+                          className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#FFD600]/40 flex items-center gap-3 transition-all active:scale-95"
+                        >
+                          <img src={getPlayerAvatar(player)} className="w-10 h-10 rounded-full" />
+                          <div className="flex-1 text-left">
+                            <p className="text-[12px] font-black text-white uppercase">{player.name}</p>
+                            <p className="text-[9px] text-white/40">
+                              {player.isWicketKeeper ? 'WK' : ''} {player.isCaptain ? '(C)' : ''}
+                            </p>
+                          </div>
+                        </button>
                       ))}
                     </div>
                   </motion.div>
@@ -2263,11 +2511,13 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 className="p-8 rounded-[40px] bg-gradient-to-br from-[#00F0FF]/10 to-[#FFD600]/10 border border-white/10 space-y-4 text-center"
               >
                 <h2 className="font-heading text-4xl uppercase italic text-[#00F0FF]">Match Complete</h2>
-                {winnerTeam && (
+                {winnerTeam ? (
                   <>
-                    <h3 className="font-heading text-5xl uppercase italic text-[#39FF14]">{winnerTeam.name}</h3>
+                    <h3 className={`font-heading text-5xl uppercase italic ${winnerTeam.id ? 'text-[#39FF14]' : 'text-[#FFD600]'}`}>{winnerTeam.name}</h3>
                     <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em]">{winnerTeam.margin}</p>
                   </>
+                ) : (
+                  <p className="text-[13px] text-white/40 font-black uppercase">Calculating result...</p>
                 )}
               </motion.div>
 
