@@ -6,7 +6,7 @@ import {
   AreaChart, Area
 } from 'recharts';
 import {
-  ChevronLeft, Swords, Plus, Minus, Check, Zap, X,
+  ChevronLeft, ChevronDown, Swords, Plus, Minus, Check, Zap, X,
   Undo2, Disc, User, Trash2, ArrowRight,
   CheckCircle2, Target, Shield, Flame, Activity, Trophy, Share2,
   TrendingUp, BarChart2, Users, Star, Award,
@@ -128,6 +128,9 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
   // NEW: Config flow step tracking (1: format, 2: details, 3: teams)
   const [configStep, setConfigStep] = useState(1);
+  const [matchMode, setMatchMode] = useState<'INDIVIDUAL' | 'TOURNAMENT'>('INDIVIDUAL');
+  const [showCustomRules, setShowCustomRules] = useState(false);
+  const [showOfficials, setShowOfficials] = useState(false);
 
   // Share scorecard
   const [showShareModal, setShowShareModal] = useState(false);
@@ -868,144 +871,382 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           )}
         </AnimatePresence>
 
-        {/* CONFIG SCREEN - STEP-BASED */}
+        {/* CONFIG SCREEN - CRICHEROS STYLE 3-STEP FLOW */}
         {status === 'CONFIG' && (
           <div className="flex-1 flex flex-col h-full overflow-hidden">
             <AnimatePresence mode="wait">
+              {/* STEP 1: MATCH MODE SELECTION (Individual vs Tournament) */}
               {configStep === 1 && (
                 <motion.div
                   key="step1"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8"
+                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 flex flex-col"
                 >
                   <div className="space-y-3">
-                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Match Format</h3>
-                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Select the cricket format</p>
+                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Match Type</h3>
+                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Choose your match format</p>
                   </div>
 
-                  <div className="space-y-4">
-                    {['LIMITED_OVERS', 'BOX_TURF', 'PAIR_CRICKET', 'TEST', 'THE_HUNDRED'].map((type) => (
-                      <motion.button
-                        key={type}
-                        onClick={() => setMatch(m => ({ ...m, config: { ...m.config, matchType: type } }))}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`w-full p-6 rounded-[32px] border-2 transition-all ${
-                          match.config.matchType === type
-                            ? 'bg-[#00F0FF]/10 border-[#00F0FF] shadow-[0_0_30px_rgba(0,240,255,0.3)]'
-                            : 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                            match.config.matchType === type ? 'border-[#00F0FF] bg-[#00F0FF]' : 'border-white/20'
-                          }`}>
-                            {match.config.matchType === type && <Check size={16} className="text-black" />}
+                  <div className="space-y-4 flex-1">
+                    {/* INDIVIDUAL MATCH CARD */}
+                    <motion.button
+                      onClick={() => {
+                        setMatchMode('INDIVIDUAL');
+                        setConfigStep(2);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`w-full p-8 rounded-[32px] border-2 transition-all ${
+                        matchMode === 'INDIVIDUAL'
+                          ? 'bg-[#00F0FF]/10 border-[#00F0FF] shadow-[0_0_40px_rgba(0,240,255,0.3)]'
+                          : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-6">
+                        <div className="flex-shrink-0">
+                          <div className="w-16 h-16 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center">
+                            <Swords size={32} className="text-[#00F0FF]" />
                           </div>
-                          <span className="font-heading text-xl uppercase italic">{type.replace('_', ' ')}</span>
                         </div>
-                      </motion.button>
-                    ))}
+                        <div className="flex-1 text-left">
+                          <h4 className="font-heading text-xl uppercase italic text-white mb-2">Individual Match</h4>
+                          <p className="text-[11px] text-white/60">Standalone friendly game between two teams</p>
+                        </div>
+                      </div>
+                    </motion.button>
+
+                    {/* TOURNAMENT MATCH CARD */}
+                    <motion.button
+                      onClick={() => {
+                        setMatchMode('TOURNAMENT');
+                        setConfigStep(2);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`w-full p-8 rounded-[32px] border-2 transition-all ${
+                        matchMode === 'TOURNAMENT'
+                          ? 'bg-[#39FF14]/10 border-[#39FF14] shadow-[0_0_40px_rgba(57,255,20,0.3)]'
+                          : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-6">
+                        <div className="flex-shrink-0">
+                          <div className="w-16 h-16 rounded-full bg-[#39FF14]/20 border border-[#39FF14] flex items-center justify-center">
+                            <Trophy size={32} className="text-[#39FF14]" />
+                          </div>
+                        </div>
+                        <div className="flex-1 text-left">
+                          <h4 className="font-heading text-xl uppercase italic text-white mb-2">Tournament Match</h4>
+                          <p className="text-[11px] text-white/60">Linked to a tournament with multiple rounds</p>
+                        </div>
+                      </div>
+                    </motion.button>
                   </div>
+
+                  {/* Tournament selector placeholder (if needed in future) */}
+                  {matchMode === 'TOURNAMENT' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Tournament</label>
+                        <div className="w-full bg-white/5 border border-white/10 rounded-[20px] p-4 text-white/40 text-sm">
+                          Select Tournament (Coming Soon)
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Round</label>
+                        <div className="w-full bg-white/5 border border-white/10 rounded-[20px] p-4 text-white/40 text-sm">
+                          Select Round (Coming Soon)
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
 
+              {/* STEP 2: MATCH DETAILS (Single scrollable screen with all config) */}
               {configStep === 2 && (
                 <motion.div
                   key="step2"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32"
+                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-32"
                 >
                   <div className="space-y-3">
                     <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Match Details</h3>
-                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Configure overs and match settings</p>
+                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Configure your match</p>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Overs Per Side</label>
-                      <div className="flex items-center bg-white/5 border border-white/10 rounded-[24px] p-2 px-6">
-                        <input
-                          type="number"
-                          min="1"
-                          max="999"
-                          value={match.config.overs}
-                          onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, overs: parseInt(e.target.value) || 0 } }))}
-                          className="w-full bg-transparent text-center font-numbers text-4xl font-black py-4 text-white outline-none"
-                        />
-                      </div>
+                  {/* MATCH TYPE SELECTOR - Horizontal Pills */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Match Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['LIMITED_OVERS', 'TEST', 'BOX_CRICKET', 'PAIRS_CRICKET'].map((type) => (
+                        <motion.button
+                          key={type}
+                          onClick={() => {
+                            setMatch(m => ({ ...m, config: { ...m.config, matchType: type } }));
+                            if (type === 'BOX_CRICKET') {
+                              setShowCustomRules(true);
+                            }
+                          }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all ${
+                            match.config.matchType === type
+                              ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.4)]'
+                              : 'bg-white/5 border border-white/10 text-white hover:border-white/20'
+                          }`}
+                        >
+                          {type.replace('_', ' ')}
+                        </motion.button>
+                      ))}
                     </div>
+                  </div>
 
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Max Overs Per Bowler</label>
-                      <div className="flex items-center bg-white/5 border border-white/10 rounded-[24px] p-2 px-6">
-                        <input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={match.config.oversPerBowler}
-                          onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, oversPerBowler: parseInt(e.target.value) || 0 } }))}
-                          className="w-full bg-transparent text-center font-numbers text-4xl font-black py-4 text-white outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Ball Type</label>
-                      <select
-                        value={match.config.ballType}
-                        onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, ballType: e.target.value } }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-[24px] p-4 text-white font-bold uppercase outline-none"
+                  {/* CUSTOM MATCH RULES - Collapsible */}
+                  <motion.div className="border border-white/10 rounded-[24px] overflow-hidden">
+                    <motion.button
+                      onClick={() => setShowCustomRules(!showCustomRules)}
+                      className="w-full p-4 bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-between transition-all"
+                    >
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Custom Match Rules</span>
+                      <motion.div
+                        animate={{ rotate: showCustomRules ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
                       >
-                        <option>TENNIS</option>
-                        <option>LEATHER</option>
-                        <option>SYNTHETIC</option>
-                      </select>
-                    </div>
+                        <ChevronDown size={16} className="text-white/40" />
+                      </motion.div>
+                    </motion.button>
+                    <AnimatePresence>
+                      {showCustomRules && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="bg-black/40 border-t border-white/5 p-4 space-y-4"
+                        >
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Minus Runs Per Wicket</label>
+                            <input
+                              type="number"
+                              placeholder="-5"
+                              // @ts-nocheck - store as custom field
+                              value={match.config.minusRunsPerWicket || '-5'}
+                              onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, minusRunsPerWicket: e.target.value } }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold text-center outline-none focus:border-[#00F0FF]/40"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Any Other Rules</label>
+                            <input
+                              type="text"
+                              placeholder="E.g., No wides, Boundary line rule..."
+                              // @ts-nocheck
+                              value={match.config.customRules || ''}
+                              onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, customRules: e.target.value } }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
 
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Pitch Type</label>
-                      <select
-                        value={match.config.pitchType}
-                        onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, pitchType: e.target.value } }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-[24px] p-4 text-white font-bold uppercase outline-none"
-                      >
-                        <option>TURF</option>
-                        <option>CONCRETE</option>
-                        <option>MATTING</option>
-                        <option>CLAY</option>
-                      </select>
+                  {/* NUMBER OF OVERS - Input with Quick Presets */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Number of Overs</label>
+                    <div className="flex gap-2 mb-3 flex-wrap">
+                      {[5, 10, 15, 20, 50].map((preset) => (
+                        <motion.button
+                          key={preset}
+                          onClick={() => setMatch(m => ({ ...m, config: { ...m.config, overs: preset } }))}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                            match.config.overs === preset
+                              ? 'bg-[#00F0FF] text-black shadow-[0_0_15px_rgba(0,240,255,0.3)]'
+                              : 'bg-white/5 border border-white/10 text-white hover:border-white/20'
+                          }`}
+                        >
+                          {preset}
+                        </motion.button>
+                      ))}
                     </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="999"
+                      value={match.config.overs}
+                      onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, overs: parseInt(e.target.value) || 0 } }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold text-center outline-none focus:border-[#00F0FF]/40"
+                      placeholder="Enter overs"
+                    />
+                  </div>
 
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">City / Town</label>
-                      <input
-                        type="text"
-                        value={match.config.city}
-                        onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, city: e.target.value } }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-[24px] p-4 text-white font-bold uppercase outline-none placeholder:text-white/10"
-                        placeholder="KANPUR"
-                      />
+                  {/* MAX OVERS PER BOWLER */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Max Overs Per Bowler</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={match.config.oversPerBowler}
+                      onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, oversPerBowler: parseInt(e.target.value) || 0 } }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold text-center outline-none focus:border-[#00F0FF]/40"
+                    />
+                  </div>
+
+                  {/* BALL TYPE - Horizontal Pills */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Ball Type</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {['TENNIS', 'LEATHER', 'OTHER'].map((type) => (
+                        <motion.button
+                          key={type}
+                          onClick={() => setMatch(m => ({ ...m, config: { ...m.config, ballType: type } }))}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all ${
+                            match.config.ballType === type
+                              ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.4)]'
+                              : 'bg-white/5 border border-white/10 text-white hover:border-white/20'
+                          }`}
+                        >
+                          {type}
+                        </motion.button>
+                      ))}
                     </div>
+                  </div>
 
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Ground / Stadium</label>
+                  {/* PITCH TYPE - Horizontal Pills */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Pitch Type</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {['TURF', 'MATTING', 'INDOOR', 'OTHER'].map((type) => (
+                        <motion.button
+                          key={type}
+                          onClick={() => setMatch(m => ({ ...m, config: { ...m.config, pitchType: type } }))}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all ${
+                            match.config.pitchType === type
+                              ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.4)]'
+                              : 'bg-white/5 border border-white/10 text-white hover:border-white/20'
+                          }`}
+                        >
+                          {type}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* GROUND NAME - Search Input */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Ground Name</label>
+                    <div className="relative">
+                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
                       <input
                         type="text"
                         value={match.config.ground}
                         onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, ground: e.target.value } }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-[24px] p-4 text-white font-bold uppercase outline-none placeholder:text-white/10"
-                        placeholder="STADIUM NAME"
+                        className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 pl-10 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                        placeholder="Search ground or stadium..."
                       />
+                    </div>
+                  </div>
+
+                  {/* DATE & TIME */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={match.config.dateTime}
+                      onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, dateTime: e.target.value } }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40"
+                    />
+                  </div>
+
+                  {/* MATCH OFFICIALS - Collapsible */}
+                  <motion.div className="border border-white/10 rounded-[24px] overflow-hidden">
+                    <motion.button
+                      onClick={() => setShowOfficials(!showOfficials)}
+                      className="w-full p-4 bg-white/[0.02] hover:bg-white/[0.05] flex items-center justify-between transition-all"
+                    >
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Match Officials</span>
+                      <motion.div
+                        animate={{ rotate: showOfficials ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown size={16} className="text-white/40" />
+                      </motion.div>
+                    </motion.button>
+                    <AnimatePresence>
+                      {showOfficials && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="bg-black/40 border-t border-white/5 p-4 space-y-4"
+                        >
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Umpire Name</label>
+                            <input
+                              type="text"
+                              placeholder="Enter umpire name"
+                              // @ts-nocheck
+                              value={match.config.umpireName || ''}
+                              onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, umpireName: e.target.value } }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Scorer Name</label>
+                            <input
+                              type="text"
+                              placeholder="Enter scorer name"
+                              // @ts-nocheck
+                              value={match.config.scorerName || ''}
+                              onChange={(e) => setMatch(m => ({ ...m, config: { ...m.config, scorerName: e.target.value } }))}
+                              className="w-full bg-white/5 border border-white/10 rounded-[20px] p-3 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+
+                  {/* TIE-BREAKER METHOD - Horizontal Pills */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Tie-Breaker Method</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {['SUPER_OVER', 'BOWL_OUT', 'NO_TIEBREAKER'].map((type) => (
+                        <motion.button
+                          key={type}
+                          onClick={() => setMatch(m => ({ ...m, config: { ...m.config, tieBreaker: type } }))}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={`px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all ${
+                            match.config.tieBreaker === type
+                              ? 'bg-[#39FF14] text-black shadow-[0_0_20px_rgba(57,255,20,0.3)]'
+                              : 'bg-white/5 border border-white/10 text-white hover:border-white/20'
+                          }`}
+                        >
+                          {type.replace('_', ' ')}
+                        </motion.button>
+                      ))}
                     </div>
                   </div>
                 </motion.div>
               )}
 
+              {/* STEP 3: TEAM SELECTION */}
               {configStep === 3 && (
                 <motion.div
                   key="step3"
@@ -1015,8 +1256,8 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32"
                 >
                   <div className="space-y-3">
-                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Team Setup</h3>
-                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Configure your squads</p>
+                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Team Selection</h3>
+                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Select or create your teams</p>
                   </div>
 
                   <div className="space-y-8">
@@ -1027,67 +1268,111 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           key={id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="p-6 rounded-[32px] bg-white/[0.02] border border-white/10 space-y-4"
+                          className="space-y-4"
                         >
-                          <div className="flex items-center space-x-4">
-                            <div className="relative group">
-                              <div
-                                onClick={() => triggerLogoUpload(id)}
-                                className="w-16 h-16 rounded-full bg-black border-4 border-white/10 flex items-center justify-center font-heading text-2xl text-white overflow-hidden shadow-xl cursor-pointer hover:border-[#00F0FF]/40 transition-all"
-                              >
-                                {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : getTeamInitials(team.name)}
+                          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Team {id}</p>
+
+                          {team.name ? (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="p-6 rounded-[32px] bg-white/[0.02] border border-white/10 space-y-4"
+                            >
+                              <div className="flex items-center space-x-4">
+                                <div className="relative">
+                                  <div
+                                    onClick={() => triggerLogoUpload(id)}
+                                    className="w-16 h-16 rounded-full bg-black border-4 border-white/10 flex items-center justify-center font-heading text-2xl text-white overflow-hidden shadow-xl cursor-pointer hover:border-[#00F0FF]/40 transition-all"
+                                  >
+                                    {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : getTeamInitials(team.name)}
+                                  </div>
+                                  <button
+                                    onClick={() => triggerLogoUpload(id)}
+                                    className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#00F0FF] text-black rounded-full flex items-center justify-center shadow-lg border-2 border-black"
+                                  >
+                                    <Upload size={10} strokeWidth={3} />
+                                  </button>
+                                </div>
+
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <h4 className="font-heading text-lg uppercase italic text-white">{team.name}</h4>
+                                    <Check size={16} className="text-[#39FF14]" />
+                                  </div>
+                                  <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">{(team.squad || []).length} Players</p>
+                                </div>
                               </div>
-                              <button
-                                onClick={() => triggerLogoUpload(id)}
-                                className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#00F0FF] text-black rounded-full flex items-center justify-center shadow-lg border-2 border-black"
+
+                              <motion.button
+                                onClick={() => setEditingTeamId(id)}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full py-4 rounded-[24px] bg-[#4DB6AC] text-black font-black uppercase tracking-[0.2em] text-sm shadow-lg"
                               >
-                                <Upload size={10} strokeWidth={3} />
-                              </button>
-                            </div>
-
-                            <div className="flex-1 space-y-2">
-                              {editingTeamNameId === id ? (
-                                <input
-                                  autoFocus
-                                  className="bg-white/10 border border-[#00F0FF]/40 rounded-xl px-3 py-2 text-sm font-black uppercase text-white w-full outline-none"
-                                  value={team.name}
-                                  onBlur={() => setEditingTeamNameId(null)}
-                                  onChange={(e) => {
-                                    const val = e.target.value.toUpperCase();
-                                    setMatch(m => ({
-                                      ...m,
-                                      teams: {
-                                        ...m.teams,
-                                        [id === 'A' ? 'teamA' : 'teamB']: { ...m.teams[id === 'A' ? 'teamA' : 'teamB'], name: val }
-                                      }
-                                    }));
-                                  }}
-                                />
-                              ) : (
-                                <button
-                                  onClick={() => setEditingTeamNameId(id)}
-                                  className="flex items-center space-x-2 text-sm"
-                                >
-                                  <p className="font-black uppercase text-white">{team.name}</p>
-                                  <Edit2 size={12} className="text-white/30" />
-                                </button>
-                              )}
-                              <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">{(team.squad || []).length} Players</p>
-                            </div>
-                          </div>
-
-                          <motion.button
-                            onClick={() => setEditingTeamId(id)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="w-full py-4 rounded-[24px] bg-[#4DB6AC] text-black font-black uppercase tracking-[0.2em] text-sm shadow-lg"
-                          >
-                            Manage Squad
-                          </motion.button>
+                                Manage Squad
+                              </motion.button>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="space-y-3"
+                            >
+                              <input
+                                type="text"
+                                placeholder={`Enter Team ${id} Name`}
+                                value={match.teams[id === 'A' ? 'teamA' : 'teamB'].name}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  setMatch(m => ({
+                                    ...m,
+                                    teams: {
+                                      ...m.teams,
+                                      [id === 'A' ? 'teamA' : 'teamB']: { ...m.teams[id === 'A' ? 'teamA' : 'teamB'], name: val }
+                                    }
+                                  }));
+                                }}
+                                className="w-full bg-white/5 border border-white/10 rounded-[20px] p-4 text-white font-bold uppercase outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                              />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      setMatch(m => ({
+                                        ...m,
+                                        teams: {
+                                          ...m.teams,
+                                          [id === 'A' ? 'teamA' : 'teamB']: { ...m.teams[id === 'A' ? 'teamA' : 'teamB'], logo: event.target?.result as string }
+                                        }
+                                      }));
+                                    };
+                                    reader.readAsDataURL(e.target.files[0]);
+                                  }
+                                }}
+                                className="w-full bg-white/5 border border-white/10 rounded-[20px] p-4 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
+                              />
+                            </motion.div>
+                          )}
                         </motion.div>
                       );
                     })}
                   </div>
+
+                  {/* VS DISPLAY */}
+                  {match.teams.teamA.name && match.teams.teamB.name && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex items-center justify-center py-8"
+                    >
+                      <div className="font-heading text-4xl uppercase italic text-[#00F0FF] drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
+                        VS
+                      </div>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1121,7 +1406,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/10'
                   }`}
                 >
-                  Start Match
+                  Proceed to Toss
                 </MotionButton>
               )}
             </div>
