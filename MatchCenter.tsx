@@ -1779,384 +1779,160 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           )}
         </AnimatePresence>
 
-        {/* TOSS FLIP SCREEN - NEW 5-PHASE EXPERIENCE */}
+        {/* TOSS SCREEN - Simple 2-step: Who Won + Bat/Bowl */}
         {status === 'TOSS_FLIP' && (
-          <div className="flex-1 flex flex-col items-center justify-center h-full overflow-hidden relative bg-[#050505]">
-            <style>{`
-              @keyframes coinFlip {
-                0% { transform: perspective(800px) rotateY(0deg) scale(1); }
-                10% { transform: perspective(800px) rotateY(360deg) translateY(-40px) scale(1.1); }
-                20% { transform: perspective(800px) rotateY(720deg) translateY(-80px) scale(1.15); }
-                30% { transform: perspective(800px) rotateY(1080deg) translateY(-120px) scale(1.2); }
-                40% { transform: perspective(800px) rotateY(1440deg) translateY(-140px) scale(1.2); }
-                50% { transform: perspective(800px) rotateY(1800deg) translateY(-130px) scale(1.15); }
-                60% { transform: perspective(800px) rotateY(2160deg) translateY(-100px) scale(1.1); }
-                70% { transform: perspective(800px) rotateY(2520deg) translateY(-60px) scale(1.05); }
-                80% { transform: perspective(800px) rotateY(2880deg) translateY(-20px) scale(1); }
-                90% { transform: perspective(800px) rotateY(3060deg) translateY(-5px) scale(1); }
-                100% { transform: perspective(800px) rotateY(3240deg) translateY(0px) scale(1); }
-              }
-              @keyframes coinGlow { 0%, 100% { box-shadow: 0 0 30px rgba(255, 214, 0, 0.3), 0 0 60px rgba(255, 214, 0, 0.1); } 50% { box-shadow: 0 0 50px rgba(255, 214, 0, 0.6), 0 0 100px rgba(255, 214, 0, 0.3), 0 0 150px rgba(255, 214, 0, 0.1); } }
-              @keyframes coinShadow { 0% { transform: scaleX(1); opacity: 0.3; } 40% { transform: scaleX(0.4); opacity: 0.1; } 100% { transform: scaleX(1); opacity: 0.3; } }
-              @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-              .coin-flip-active { animation: coinFlip 2.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
-              .coin-glow { animation: coinGlow 1.5s ease-in-out infinite; }
-              .coin-shadow { animation: coinShadow 2.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
-              .pulse-text { animation: pulse 1.2s ease-in-out infinite; }
-            `}</style>
-
-            <div className="absolute inset-0 overflow-hidden">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-[#00F0FF]/10 to-transparent rounded-full blur-3xl"
-              />
-            </div>
-
-            <div className="relative z-10 text-center space-y-8 max-w-2xl mx-auto px-6 w-full">
+          <div className="flex-1 flex flex-col overflow-hidden bg-[#050505]">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32 flex flex-col items-center justify-center">
               <AnimatePresence mode="wait">
-                {/* PHASE 1: CALL - Who called the toss? */}
-                {tossPhase === 'CALL' && (
+                {/* STEP 1: Who won the toss? */}
+                {!match.toss.winnerId && (
                   <motion.div
-                    key="call"
+                    key="toss-winner"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="space-y-8"
+                    className="space-y-8 w-full max-w-md text-center"
                   >
-                    {/* Teams header */}
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-14 h-14 rounded-full bg-[#FFD600]/20 border-2 border-[#FFD600] flex items-center justify-center font-black text-[24px] text-[#FFD600]">
-                          A
-                        </div>
-                        <p className="text-[11px] font-black uppercase text-white">{match.teams.teamA.name}</p>
-                      </div>
-                      <p className="text-[20px] font-black text-white/30">VS</p>
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-14 h-14 rounded-full bg-[#00F0FF]/20 border-2 border-[#00F0FF] flex items-center justify-center font-black text-[24px] text-[#00F0FF]">
-                          B
-                        </div>
-                        <p className="text-[11px] font-black uppercase text-white">{match.teams.teamB.name}</p>
-                      </div>
+                    <div className="space-y-3">
+                      <Coins size={40} className="text-[#FFD600] mx-auto" />
+                      <h2 className="font-heading text-3xl uppercase italic text-white">Who Won The Toss?</h2>
+                      <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Tap the winning team</p>
                     </div>
 
-                    <h2 className="font-heading text-4xl uppercase italic text-white">Who Called The Toss?</h2>
-
-                    {/* Team A button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setTossCaller('A');
-                        setTossPhase('FLIP');
-                      }}
-                      className="w-full min-h-[80px] p-6 rounded-[24px] bg-gradient-to-r from-[#FFD600]/20 to-[#FFD600]/5 border-2 border-[#FFD600] flex flex-col items-center justify-center gap-3 hover:shadow-[0_0_30px_rgba(255,214,0,0.3)] transition-all"
+                    <button
+                      type="button"
+                      onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: 'A' } }))}
+                      className="w-full p-5 rounded-[24px] bg-gradient-to-r from-[#FFD600]/15 to-[#FFD600]/5 border-2 border-[#FFD600]/60 hover:border-[#FFD600] flex items-center gap-4 transition-all active:scale-95"
                     >
-                      <div className="w-12 h-12 rounded-full bg-[#FFD600]/30 border border-[#FFD600] flex items-center justify-center font-black text-[20px] text-[#FFD600]">
+                      <div className="w-12 h-12 rounded-full bg-[#FFD600]/20 border border-[#FFD600] flex items-center justify-center font-black text-[18px] text-[#FFD600] shrink-0">
                         A
                       </div>
-                      <p className="font-black text-[14px] uppercase text-[#FFD600]">{match.teams.teamA.name}</p>
-                    </motion.button>
+                      <p className="font-black text-[15px] uppercase text-[#FFD600] text-left">{match.teams.teamA.name}</p>
+                    </button>
 
-                    {/* Team B button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setTossCaller('B');
-                        setTossPhase('FLIP');
-                      }}
-                      className="w-full min-h-[80px] p-6 rounded-[24px] bg-gradient-to-r from-[#00F0FF]/20 to-[#00F0FF]/5 border-2 border-[#00F0FF] flex flex-col items-center justify-center gap-3 hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-all"
+                    <button
+                      type="button"
+                      onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: 'B' } }))}
+                      className="w-full p-5 rounded-[24px] bg-gradient-to-r from-[#00F0FF]/15 to-[#00F0FF]/5 border-2 border-[#00F0FF]/60 hover:border-[#00F0FF] flex items-center gap-4 transition-all active:scale-95"
                     >
-                      <div className="w-12 h-12 rounded-full bg-[#00F0FF]/30 border border-[#00F0FF] flex items-center justify-center font-black text-[20px] text-[#00F0FF]">
+                      <div className="w-12 h-12 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center font-black text-[18px] text-[#00F0FF] shrink-0">
                         B
                       </div>
-                      <p className="font-black text-[14px] uppercase text-[#00F0FF]">{match.teams.teamB.name}</p>
-                    </motion.button>
+                      <p className="font-black text-[15px] uppercase text-[#00F0FF] text-left">{match.teams.teamB.name}</p>
+                    </button>
                   </motion.div>
                 )}
 
-                {/* PHASE 2: FLIP - The 3D Coin Animation */}
-                {tossPhase === 'FLIP' && tossCaller && (
+                {/* STEP 2: Bat or Bowl? */}
+                {match.toss.winnerId && !match.toss.decision && (
                   <motion.div
-                    key="flip"
+                    key="toss-decision"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="space-y-8 py-12"
+                    className="space-y-8 w-full max-w-md text-center"
                   >
-                    <h3 className="font-heading text-3xl uppercase italic text-[#FFD600]">
-                      {getTeamObj(tossCaller).name} calls it...
-                    </h3>
-
-                    {/* 3D Coin Flip */}
-                    <div style={{ perspective: '800px' }} className="flex justify-center py-8">
-                      <motion.div
-                        animate={{
-                          rotateY: [0, 1080],
-                          y: [0, -100, -140, -100, -40, 0],
-                          scale: [1, 1.1, 1.2, 1.15, 1.05, 1]
-                        }}
-                        transition={{ duration: 2.5, ease: [0.25, 0.1, 0.25, 1] }}
-                        onAnimationComplete={() => {
-                          const result = Math.random() > 0.5 ? 'HEADS' : 'TAILS';
-                          setTossResult(result);
-                          try { window.navigator.vibrate?.(80); } catch {}
-                          // Determine winner
-                          const callerChoice = tossCaller === 'A' ? tossCall.teamA : tossCall.teamB;
-                          const winnerId = (result === callerChoice) ? tossCaller : (tossCaller === 'A' ? 'B' : 'A');
-                          setMatch(m => ({ ...m, toss: { ...m.toss, winnerId } }));
-                          setTimeout(() => setTossPhase('WINNER'), 600);
-                        }}
-                        style={{ transformStyle: 'preserve-3d' }}
-                        className="w-36 h-36 rounded-full relative"
-                      >
-                        {/* Front face - HEADS */}
-                        <div
-                          className="absolute inset-0 rounded-full bg-gradient-to-br from-[#FFD600] via-[#FFA500] to-[#FFD600] flex items-center justify-center border-4 border-[#FFD600]/60 shadow-[0_0_60px_rgba(255,214,0,0.4)]"
-                          style={{ backfaceVisibility: 'hidden' }}
-                        >
-                          <span className="text-[60px] font-black text-black/80">H</span>
-                        </div>
-                        {/* Back face - TAILS */}
-                        <div
-                          className="absolute inset-0 rounded-full bg-gradient-to-br from-[#C0C0C0] via-[#E8E8E8] to-[#C0C0C0] flex items-center justify-center border-4 border-white/60 shadow-[0_0_60px_rgba(192,192,192,0.4)]"
-                          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                        >
-                          <span className="text-[60px] font-black text-black/60">T</span>
-                        </div>
-                      </motion.div>
-                    </div>
-
-                    <p className="text-[13px] font-black text-white/60 uppercase tracking-[0.2em] pulse-text">Flipping...</p>
-                  </motion.div>
-                )}
-
-                {/* PHASE 3: WINNER - The Result Reveal */}
-                {tossPhase === 'WINNER' && match.toss.winnerId && tossResult && (
-                  <motion.div
-                    key="winner"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="space-y-8 py-12"
-                  >
-                    {/* Coin result static */}
-                    <div className="flex justify-center">
-                      <div className={`w-32 h-32 rounded-full flex items-center justify-center border-4 ${
-                        tossResult === 'HEADS'
-                          ? 'bg-gradient-to-br from-[#FFD600] via-[#FFA500] to-[#FFD600] border-[#FFD600]/60 shadow-[0_0_60px_rgba(255,214,0,0.4)]'
-                          : 'bg-gradient-to-br from-[#C0C0C0] via-[#E8E8E8] to-[#C0C0C0] border-white/60 shadow-[0_0_60px_rgba(192,192,192,0.4)]'
-                      }`}>
-                        <span className={`text-[60px] font-black ${tossResult === 'HEADS' ? 'text-black/80' : 'text-black/60'}`}>
-                          {tossResult === 'HEADS' ? 'H' : 'T'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <h3 className={`font-heading text-5xl uppercase italic ${tossResult === 'HEADS' ? 'text-[#FFD600]' : 'text-[#C0C0C0]'}`}>
-                      {tossResult}!
-                    </h3>
-
-                    {/* Winner reveal with spring animation */}
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.3 }}
-                      className="space-y-4"
-                    >
-                      <p className="text-[16px] font-black text-white uppercase tracking-[0.1em]">
+                    <div className="space-y-3">
+                      <Trophy size={40} className="text-[#00F0FF] mx-auto" />
+                      <h2 className="font-heading text-3xl uppercase italic text-white">
                         {getTeamObj(match.toss.winnerId).name}
-                      </p>
-                      <p className="text-[14px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">
-                        WINS THE TOSS
-                      </p>
-                    </motion.div>
+                      </h2>
+                      <p className="text-[13px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">Won the toss! What do they choose?</p>
+                    </div>
 
-                    {/* Override button */}
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        const newWinnerId = match.toss.winnerId === 'A' ? 'B' : 'A';
-                        setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: newWinnerId } }));
-                      }}
-                      className="text-[11px] font-black text-white/40 uppercase tracking-[0.1em] hover:text-white/60 transition-all"
-                    >
-                      Used a physical coin? Tap to change winner
-                    </motion.button>
-
-                    {/* Continue button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setTossPhase('DECISION')}
-                      className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[13px] tracking-[0.2em] shadow-[0_0_20px_rgba(0,240,255,0.3)]"
-                    >
-                      Continue
-                    </motion.button>
-                  </motion.div>
-                )}
-
-                {/* PHASE 4: DECISION - Bat or Bowl */}
-                {tossPhase === 'DECISION' && match.toss.winnerId && (
-                  <motion.div
-                    key="decision"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="space-y-8"
-                  >
-                    <h3 className="font-heading text-3xl uppercase italic text-white">
-                      {getTeamObj(match.toss.winnerId).name}
-                    </h3>
-                    <p className="text-[13px] font-black text-white/60 uppercase tracking-[0.2em]">What will they choose?</p>
-
-                    {/* Bat First card */}
-                    <motion.button
-                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <button
+                      type="button"
                       onClick={() => {
                         const winnerId = match.toss.winnerId;
                         const loserId = winnerId === 'A' ? 'B' : 'A';
                         setMatch(m => ({
                           ...m,
                           toss: { ...m.toss, decision: 'BAT' },
-                          teams: {
-                            ...m.teams,
-                            battingTeamId: winnerId,
-                            bowlingTeamId: loserId,
-                          }
+                          teams: { ...m.teams, battingTeamId: winnerId, bowlingTeamId: loserId }
                         }));
-                        setTossPhase('RESULT');
                       }}
-                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#39FF14]/20 to-[#39FF14]/5 border-2 border-[#39FF14] hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] transition-all space-y-3"
+                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#39FF14]/15 to-[#39FF14]/5 border-2 border-[#39FF14]/60 hover:border-[#39FF14] hover:shadow-[0_0_20px_rgba(57,255,20,0.2)] transition-all space-y-2 active:scale-95"
                     >
-                      <Zap size={32} className="text-[#39FF14] mx-auto" />
-                      <div>
-                        <p className="font-black text-[16px] text-[#39FF14] uppercase">Bat First</p>
-                        <p className="text-[11px] text-white/60 uppercase">Take first strike and set the target</p>
-                      </div>
-                    </motion.button>
+                      <Zap size={28} className="text-[#39FF14] mx-auto" />
+                      <p className="font-black text-[16px] text-[#39FF14] uppercase">Bat First</p>
+                      <p className="text-[11px] text-white/50">Set the target</p>
+                    </button>
 
-                    {/* Bowl First card */}
-                    <motion.button
-                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <button
+                      type="button"
                       onClick={() => {
                         const winnerId = match.toss.winnerId;
                         const loserId = winnerId === 'A' ? 'B' : 'A';
                         setMatch(m => ({
                           ...m,
                           toss: { ...m.toss, decision: 'BOWL' },
-                          teams: {
-                            ...m.teams,
-                            battingTeamId: loserId,
-                            bowlingTeamId: winnerId,
-                          }
+                          teams: { ...m.teams, battingTeamId: loserId, bowlingTeamId: winnerId }
                         }));
-                        setTossPhase('RESULT');
                       }}
-                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#BC13FE]/20 to-[#BC13FE]/5 border-2 border-[#BC13FE] hover:shadow-[0_0_30px_rgba(188,19,254,0.4)] transition-all space-y-3"
+                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#BC13FE]/15 to-[#BC13FE]/5 border-2 border-[#BC13FE]/60 hover:border-[#BC13FE] hover:shadow-[0_0_20px_rgba(188,19,254,0.2)] transition-all space-y-2 active:scale-95"
                     >
-                      <Disc size={32} className="text-[#BC13FE] mx-auto" />
-                      <div>
-                        <p className="font-black text-[16px] text-[#BC13FE] uppercase">Bowl First</p>
-                        <p className="text-[11px] text-white/60 uppercase">Put them under pressure, chase later</p>
-                      </div>
-                    </motion.button>
+                      <Disc size={28} className="text-[#BC13FE] mx-auto" />
+                      <p className="font-black text-[16px] text-[#BC13FE] uppercase">Bowl First</p>
+                      <p className="text-[11px] text-white/50">Chase later</p>
+                    </button>
+
+                    {/* Change winner link */}
+                    <button
+                      type="button"
+                      onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: null } }))}
+                      className="text-[11px] font-black text-white/30 uppercase tracking-[0.1em] hover:text-white/50 transition-all"
+                    >
+                      Change toss winner
+                    </button>
                   </motion.div>
                 )}
 
-                {/* PHASE 5: RESULT - The Broadcast Card */}
-                {tossPhase === 'RESULT' && match.toss.winnerId && match.toss.decision && (
+                {/* STEP 3: Confirm & Proceed */}
+                {match.toss.winnerId && match.toss.decision && (
                   <motion.div
-                    key="result"
-                    initial={{ opacity: 0, y: 40 }}
+                    key="toss-confirm"
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -40 }}
-                    className="space-y-8 pb-8"
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-8 w-full max-w-md text-center"
                   >
-                    {/* Broadcast Card */}
-                    <motion.div
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                      className="p-6 rounded-[24px] bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-4"
-                    >
-                      <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">TOSS RESULT</p>
-
-                      {/* Teams vs */}
+                    <div className="p-6 rounded-[24px] bg-white/5 border border-white/10 space-y-4">
+                      <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">Toss Result</p>
                       <div className="flex items-center justify-center gap-3">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-12 h-12 rounded-full bg-[#FFD600]/20 border border-[#FFD600] flex items-center justify-center font-black text-[16px] text-[#FFD600]">
-                            A
-                          </div>
-                          <p className="text-[10px] font-black text-white uppercase">{match.teams.teamA.name}</p>
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="w-10 h-10 rounded-full bg-[#FFD600]/20 border border-[#FFD600] flex items-center justify-center font-black text-[14px] text-[#FFD600]">A</div>
+                          <p className="text-[9px] font-black text-white uppercase">{match.teams.teamA.name}</p>
                         </div>
-                        <p className="text-[14px] font-black text-white/20">VS</p>
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-12 h-12 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center font-black text-[16px] text-[#00F0FF]">
-                            B
-                          </div>
-                          <p className="text-[10px] font-black text-white uppercase">{match.teams.teamB.name}</p>
+                        <p className="text-[12px] font-black text-white/20">VS</p>
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="w-10 h-10 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center font-black text-[14px] text-[#00F0FF]">B</div>
+                          <p className="text-[9px] font-black text-white uppercase">{match.teams.teamB.name}</p>
                         </div>
                       </div>
-
-                      <div className="border-t border-white/5"></div>
-
-                      {/* Decision text */}
-                      <div className="space-y-2">
-                        <p className="text-[13px] font-black text-white uppercase">
-                          {getTeamObj(match.toss.winnerId).name} won the toss
-                        </p>
-                        <p className="text-[13px] font-black text-[#00F0FF] uppercase">
-                          and elected to {match.toss.decision === 'BAT' ? 'BAT' : 'BOWL'}
-                        </p>
+                      <div className="border-t border-white/5 pt-3 space-y-1">
+                        <p className="text-[13px] font-black text-white uppercase">{getTeamObj(match.toss.winnerId).name} won the toss</p>
+                        <p className="text-[13px] font-black text-[#00F0FF] uppercase">and elected to {match.toss.decision === 'BAT' ? 'bat' : 'bowl'}</p>
                       </div>
+                    </div>
 
-                      <div className="border-t border-white/5"></div>
-
-                      {/* Location and date */}
-                      <div className="space-y-2 text-[11px] font-black text-white/60 uppercase tracking-[0.1em]">
-                        <p>📍 {match.config.ground || match.config.city}, {match.config.city}</p>
-                        <p>📅 {match.config.dateTime}</p>
-                      </div>
-                    </motion.div>
-
-                    {/* Share to WhatsApp button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        const text = `🏏 Toss Update!\n\n${getTeamObj(match.toss.winnerId).name} won the toss and elected to ${match.toss.decision === 'BAT' ? 'bat' : 'bowl'}.\n\nMatch starting now at ${match.config.ground || match.config.city}!\n\nFollow live: 22yards.app`;
-                        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-                      }}
-                      className="w-full py-4 rounded-[20px] bg-[#25D366] text-black font-black uppercase text-[13px] tracking-[0.2em] flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]"
-                    >
-                      Share to WhatsApp
-                    </motion.button>
-
-                    {/* Start Match button */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <button
+                      type="button"
                       onClick={() => {
                         setStatus('OPENERS');
-                        setTossPhase('CALL');
-                        setTossCaller(null);
+                        setSelectionTarget('STRIKER');
                       }}
-                      className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[13px] tracking-[0.2em] shadow-[0_0_20px_rgba(0,240,255,0.3)] flex items-center justify-center gap-2"
+                      className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[13px] tracking-[0.2em] shadow-[0_0_20px_rgba(0,240,255,0.3)] flex items-center justify-center gap-2 active:scale-95 transition-all"
                     >
-                      Start Match <ArrowRight size={16} />
-                    </motion.button>
+                      Select Openers <ArrowRight size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, decision: null, winnerId: null } }))}
+                      className="text-[11px] font-black text-white/30 uppercase tracking-[0.1em] hover:text-white/50 transition-all"
+                    >
+                      Redo Toss
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -2165,94 +1941,167 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         )}
 
         {/* OPENERS SCREEN */}
-        {status === 'OPENERS' && (
+        {status === 'OPENERS' && (() => {
+          // Safety net: if selectionTarget is null when entering OPENERS, auto-set to STRIKER
+          const activeTarget = selectionTarget || 'STRIKER';
+          if (!selectionTarget) setTimeout(() => setSelectionTarget('STRIKER'), 0);
+
+          const battingSquad = getTeamObj(match.teams.battingTeamId)?.squad || [];
+          const bowlingSquad = getTeamObj(match.teams.bowlingTeamId)?.squad || [];
+          const battingTeamName = getTeamObj(match.teams.battingTeamId)?.name || 'Batting';
+          const bowlingTeamName = getTeamObj(match.teams.bowlingTeamId)?.name || 'Bowling';
+
+          const stepLabels = [
+            { key: 'STRIKER', label: 'Striker' },
+            { key: 'NON_STRIKER', label: 'Non-Striker' },
+            { key: 'BOWLER', label: 'Opening Bowler' },
+          ];
+          const currentStepIdx = stepLabels.findIndex(s => s.key === activeTarget);
+
+          return (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-32">
+              {/* Header */}
               <div className="space-y-3">
-                <h2 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Select Your Openers</h2>
-                <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Choose striker and non-striker</p>
+                <h2 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Select Openers</h2>
+                <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">
+                  {activeTarget === 'BOWLER' ? bowlingTeamName : battingTeamName}
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-6">
-                {selectionTarget === 'STRIKER' && (
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.3em]">Select Striker</p>
-                    {(getTeamObj(match.teams.battingTeamId).squad || []).map((player) => (
-                      <motion.button
-                        key={player.id}
-                        onClick={() => {
-                          setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: player.id } }));
-                          setSelectionTarget('NON_STRIKER');
-                        }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full p-4 rounded-[24px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center space-x-4 transition-all"
-                      >
-                        <img src={getPlayerAvatar(player)} className="w-12 h-12 rounded-full" />
-                        <div className="flex-1 text-left">
-                          <p className="font-black text-white uppercase">{player.name}</p>
-                          <p className="text-[10px] text-white/40">{player.phone}</p>
+              {/* Step Progress */}
+              <div className="flex items-center gap-2">
+                {stepLabels.map((step, i) => (
+                  <div key={step.key} className="flex items-center gap-2 flex-1">
+                    <div className={`h-1 flex-1 rounded-full transition-all ${
+                      i <= currentStepIdx ? 'bg-[#00F0FF]' : 'bg-white/10'
+                    }`} />
+                    <p className={`text-[8px] font-black uppercase tracking-[0.1em] shrink-0 ${
+                      i === currentStepIdx ? 'text-[#00F0FF]' : i < currentStepIdx ? 'text-[#39FF14]' : 'text-white/20'
+                    }`}>{step.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Current Selection Label */}
+              <div className="p-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/20">
+                <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.2em] text-center">
+                  {activeTarget === 'STRIKER' && 'Tap to select the opening striker'}
+                  {activeTarget === 'NON_STRIKER' && 'Now pick the non-striker'}
+                  {activeTarget === 'BOWLER' && 'Choose who bowls the first over'}
+                </p>
+              </div>
+
+              {/* Selected so far */}
+              {(match.crease.strikerId || match.crease.nonStrikerId) && (
+                <div className="flex gap-3">
+                  {match.crease.strikerId && (() => {
+                    const p = battingSquad.find(pl => pl.id === match.crease.strikerId);
+                    return p ? (
+                      <div className="flex-1 p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/30 flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-[#39FF14] shrink-0" />
+                        <div>
+                          <p className="text-[8px] text-[#39FF14] font-black uppercase">Striker</p>
+                          <p className="text-[11px] font-black text-white uppercase">{p.name}</p>
                         </div>
-                        <ChevronRight size={18} className="text-white/30" />
-                      </motion.button>
-                    ))}
+                      </div>
+                    ) : null;
+                  })()}
+                  {match.crease.nonStrikerId && (() => {
+                    const p = battingSquad.find(pl => pl.id === match.crease.nonStrikerId);
+                    return p ? (
+                      <div className="flex-1 p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/30 flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-[#39FF14] shrink-0" />
+                        <div>
+                          <p className="text-[8px] text-[#39FF14] font-black uppercase">Non-Striker</p>
+                          <p className="text-[11px] font-black text-white uppercase">{p.name}</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+
+              {/* Player List */}
+              <div className="space-y-3">
+                {activeTarget === 'STRIKER' && battingSquad.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    onClick={() => {
+                      setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: player.id } }));
+                      setSelectionTarget('NON_STRIKER');
+                    }}
+                    className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-4 transition-all active:scale-95"
+                  >
+                    <img src={getPlayerAvatar(player)} className="w-11 h-11 rounded-full" />
+                    <div className="flex-1 text-left">
+                      <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
+                      <p className="text-[10px] text-white/40">{player.phone || ''}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-white/20" />
+                  </button>
+                ))}
+
+                {activeTarget === 'NON_STRIKER' && battingSquad.filter(p => p.id !== match.crease.strikerId).map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    onClick={() => {
+                      setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: player.id } }));
+                      setSelectionTarget('BOWLER');
+                    }}
+                    className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-4 transition-all active:scale-95"
+                  >
+                    <img src={getPlayerAvatar(player)} className="w-11 h-11 rounded-full" />
+                    <div className="flex-1 text-left">
+                      <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
+                      <p className="text-[10px] text-white/40">{player.phone || ''}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-white/20" />
+                  </button>
+                ))}
+
+                {activeTarget === 'BOWLER' && bowlingSquad.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    onClick={() => {
+                      setMatch(m => ({ ...m, crease: { ...m.crease, bowlerId: player.id } }));
+                      setSelectionTarget(null);
+                      setStatus('LIVE');
+                    }}
+                    className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#BC13FE]/40 flex items-center gap-4 transition-all active:scale-95"
+                  >
+                    <img src={getPlayerAvatar(player)} className="w-11 h-11 rounded-full" />
+                    <div className="flex-1 text-left">
+                      <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
+                      <p className="text-[10px] text-white/40">{player.phone || ''}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-white/20" />
+                  </button>
+                ))}
+
+                {/* Empty state if no players in squad */}
+                {((activeTarget === 'STRIKER' || activeTarget === 'NON_STRIKER') && battingSquad.length === 0) && (
+                  <div className="p-8 text-center space-y-3">
+                    <Users size={32} className="text-white/20 mx-auto" />
+                    <p className="text-[12px] text-white/40 font-black uppercase">No players in batting squad</p>
+                    <p className="text-[10px] text-white/30">Go back and add players first</p>
                   </div>
                 )}
-
-                {selectionTarget === 'NON_STRIKER' && (
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.3em]">Select Non-Striker</p>
-                    {(getTeamObj(match.teams.battingTeamId).squad || []).filter(p => p.id !== match.crease.strikerId).map((player) => (
-                      <motion.button
-                        key={player.id}
-                        onClick={() => {
-                          setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: player.id } }));
-                          setSelectionTarget('BOWLER');
-                        }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full p-4 rounded-[24px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center space-x-4 transition-all"
-                      >
-                        <img src={getPlayerAvatar(player)} className="w-12 h-12 rounded-full" />
-                        <div className="flex-1 text-left">
-                          <p className="font-black text-white uppercase">{player.name}</p>
-                          <p className="text-[10px] text-white/40">{player.phone}</p>
-                        </div>
-                        <ChevronRight size={18} className="text-white/30" />
-                      </motion.button>
-                    ))}
-                  </div>
-                )}
-
-                {selectionTarget === 'BOWLER' && (
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-black text-[#00F0FF] uppercase tracking-[0.3em]">Select Opening Bowler</p>
-                    {(getTeamObj(match.teams.bowlingTeamId).squad || []).map((player) => (
-                      <motion.button
-                        key={player.id}
-                        onClick={() => {
-                          setMatch(m => ({ ...m, crease: { ...m.crease, bowlerId: player.id } }));
-                          setSelectionTarget(null);
-                          setStatus('LIVE');
-                        }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full p-4 rounded-[24px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center space-x-4 transition-all"
-                      >
-                        <img src={getPlayerAvatar(player)} className="w-12 h-12 rounded-full" />
-                        <div className="flex-1 text-left">
-                          <p className="font-black text-white uppercase">{player.name}</p>
-                          <p className="text-[10px] text-white/40">{player.phone}</p>
-                        </div>
-                        <ChevronRight size={18} className="text-white/30" />
-                      </motion.button>
-                    ))}
+                {(activeTarget === 'BOWLER' && bowlingSquad.length === 0) && (
+                  <div className="p-8 text-center space-y-3">
+                    <Users size={32} className="text-white/20 mx-auto" />
+                    <p className="text-[12px] text-white/40 font-black uppercase">No players in bowling squad</p>
+                    <p className="text-[10px] text-white/30">Go back and add players first</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* LIVE SCORING SCREEN */}
         {status === 'LIVE' && (
@@ -2434,6 +2283,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     crease: { strikerId: null, nonStrikerId: null, bowlerId: null, previousBowlerId: null },
                     currentInnings: 2,
                   }));
+                  setSelectionTarget('STRIKER');
                   setStatus('OPENERS');
                 }}
                 whileHover={{ scale: 1.05 }}
