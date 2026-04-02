@@ -132,6 +132,12 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [showCustomRules, setShowCustomRules] = useState(false);
   const [showOfficials, setShowOfficials] = useState(false);
 
+  // Premium team selection state
+  const [teamDrawer, setTeamDrawer] = useState<{ open: boolean; targetTeam: 'A' | 'B' | null; mode: 'SEARCH' | 'CREATE' }>({ open: false, targetTeam: null, mode: 'SEARCH' });
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [teamCreateName, setTeamCreateName] = useState('');
+  const [vsRevealed, setVsRevealed] = useState(false);
+
   // Share scorecard
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareText, setShareText] = useState('');
@@ -506,6 +512,23 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     return words.length > 1
       ? (words[0][0] + words[1][0]).toUpperCase()
       : name.slice(0, 2).toUpperCase();
+  };
+
+  const getRecentTeams = (): Array<{ name: string; logo?: string; squad: any[] }> => {
+    try {
+      const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
+      const allTeams: Array<{ name: string; logo?: string; squad: any[] }> = [];
+      Object.values(globalVault).forEach((userVault: any) => {
+        if (userVault?.teams) {
+          userVault.teams.forEach((t: any) => {
+            if (t.name && !allTeams.some(existing => existing.name.toUpperCase() === t.name.toUpperCase())) {
+              allTeams.push({ name: t.name, logo: t.logo, squad: t.players || t.squad || [] });
+            }
+          });
+        }
+      });
+      return allTeams;
+    } catch { return []; }
   };
 
   const isConfigValid = () => {
@@ -1246,7 +1269,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </motion.div>
               )}
 
-              {/* STEP 3: TEAM SELECTION */}
+              {/* STEP 3: PREMIUM TEAM SELECTION */}
               {configStep === 3 && (
                 <motion.div
                   key="step3"
@@ -1260,119 +1283,387 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Select or create your teams</p>
                   </div>
 
-                  <div className="space-y-8">
-                    {['A', 'B'].map((id) => {
-                      const team = getTeamObj(id);
+                  {/* TWO SLEEK TEAM CARDS */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {(['A', 'B'] as const).map((teamId) => {
+                      const team = getTeamObj(teamId);
+                      const isTeamSelected = !!team.name;
+
                       return (
                         <motion.div
-                          key={id}
+                          key={teamId}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="space-y-4"
+                          className="relative"
                         >
-                          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Team {id}</p>
-
-                          {team.name ? (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="p-6 rounded-[32px] bg-white/[0.02] border border-white/10 space-y-4"
-                            >
-                              <div className="flex items-center space-x-4">
-                                <div className="relative">
-                                  <div
-                                    onClick={() => triggerLogoUpload(id)}
-                                    className="w-16 h-16 rounded-full bg-black border-4 border-white/10 flex items-center justify-center font-heading text-2xl text-white overflow-hidden shadow-xl cursor-pointer hover:border-[#00F0FF]/40 transition-all"
-                                  >
-                                    {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : getTeamInitials(team.name)}
-                                  </div>
-                                  <button
-                                    onClick={() => triggerLogoUpload(id)}
-                                    className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#00F0FF] text-black rounded-full flex items-center justify-center shadow-lg border-2 border-black"
-                                  >
-                                    <Upload size={10} strokeWidth={3} />
-                                  </button>
-                                </div>
-
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    <h4 className="font-heading text-lg uppercase italic text-white">{team.name}</h4>
-                                    <Check size={16} className="text-[#39FF14]" />
-                                  </div>
-                                  <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">{(team.squad || []).length} Players</p>
-                                </div>
-                              </div>
-
-                              <motion.button
-                                onClick={() => setEditingTeamId(id)}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="w-full py-4 rounded-[24px] bg-[#4DB6AC] text-black font-black uppercase tracking-[0.2em] text-sm shadow-lg"
+                          <AnimatePresence mode="wait">
+                            {!isTeamSelected ? (
+                              // EMPTY STATE
+                              <motion.div
+                                key="empty"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setTeamDrawer({ open: true, targetTeam: teamId, mode: 'SEARCH' })}
+                                className="bg-gradient-to-br from-[#0A0A0A] to-[#111] rounded-[40px] border-2 border-dashed border-white/10 p-12 flex flex-col items-center justify-center cursor-pointer hover:border-white/20 transition-all min-h-[280px] active:scale-95"
                               >
-                                Manage Squad
-                              </motion.button>
-                            </motion.div>
-                          ) : (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="space-y-3"
-                            >
-                              <input
-                                type="text"
-                                placeholder={`Enter Team ${id} Name`}
-                                value={match.teams[id === 'A' ? 'teamA' : 'teamB'].name}
-                                onChange={(e) => {
-                                  const val = e.target.value.toUpperCase();
-                                  setMatch(m => ({
-                                    ...m,
-                                    teams: {
-                                      ...m.teams,
-                                      [id === 'A' ? 'teamA' : 'teamB']: { ...m.teams[id === 'A' ? 'teamA' : 'teamB'], name: val }
-                                    }
-                                  }));
-                                }}
-                                className="w-full bg-white/5 border border-white/10 rounded-[20px] p-4 text-white font-bold uppercase outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
-                              />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) {
-                                    const reader = new FileReader();
-                                    reader.onload = (event) => {
-                                      setMatch(m => ({
-                                        ...m,
-                                        teams: {
-                                          ...m.teams,
-                                          [id === 'A' ? 'teamA' : 'teamB']: { ...m.teams[id === 'A' ? 'teamA' : 'teamB'], logo: event.target?.result as string }
-                                        }
-                                      }));
-                                    };
-                                    reader.readAsDataURL(e.target.files[0]);
-                                  }
-                                }}
-                                className="w-full bg-white/5 border border-white/10 rounded-[20px] p-4 text-white font-bold outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10"
-                              />
-                            </motion.div>
-                          )}
+                                <motion.div
+                                  animate={{ scale: [1, 1.08, 1] }}
+                                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                                >
+                                  <Plus size={48} className="text-white/20 mb-4" />
+                                </motion.div>
+                                <p className="text-[10px] text-white/30 uppercase tracking-[0.2em]">Tap to select</p>
+                                <p className="text-[8px] text-white/15 uppercase tracking-widest small-caps mt-6 absolute top-6">Team {teamId}</p>
+                              </motion.div>
+                            ) : (
+                              // FILLED STATE
+                              <motion.div
+                                key="filled"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="bg-[#121212] border-2 border-[#39FF14]/30 rounded-[40px] p-6 space-y-4"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center space-x-4 flex-1">
+                                    <div className="relative">
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-xl font-black text-black overflow-hidden shadow-xl">
+                                        {team.logo ? (
+                                          <img src={team.logo} className="w-full h-full object-cover" alt={team.name} />
+                                        ) : (
+                                          getTeamInitials(team.name)
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-heading text-lg uppercase italic text-white truncate">{team.name}</h4>
+                                      <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">{(team.squad || []).length} Players</p>
+                                    </div>
+                                  </div>
+                                  <motion.button
+                                    onClick={() => setTeamDrawer({ open: true, targetTeam: teamId, mode: 'SEARCH' })}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="text-[#39FF14] text-xs uppercase font-black tracking-[0.1em] py-1 px-2 rounded-full hover:bg-white/5 transition-all"
+                                  >
+                                    Change
+                                  </motion.button>
+                                </div>
+
+                                <motion.button
+                                  onClick={() => setEditingTeamId(teamId)}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  className="w-full py-4 rounded-[24px] bg-[#4DB6AC] text-black font-black uppercase tracking-[0.2em] text-sm shadow-lg"
+                                >
+                                  Manage Squad
+                                </motion.button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </motion.div>
                       );
                     })}
                   </div>
 
-                  {/* VS DISPLAY */}
-                  {match.teams.teamA.name && match.teams.teamB.name && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center justify-center py-8"
-                    >
-                      <div className="font-heading text-4xl uppercase italic text-[#00F0FF] drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
-                        VS
-                      </div>
-                    </motion.div>
-                  )}
+                  {/* THE VS BADGE CLIMAX */}
+                  <div className="relative h-32 flex items-center justify-center">
+                    <AnimatePresence>
+                      {match.teams.teamA.name && match.teams.teamB.name && (
+                        <>
+                          <motion.div
+                            key="vs-badge"
+                            initial={{ scale: 0, rotate: -20 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                            onAnimationComplete={() => {
+                              setVsRevealed(true);
+                              try {
+                                window.navigator.vibrate?.(50);
+                              } catch {}
+                            }}
+                            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
+                          >
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center shadow-[0_0_40px_rgba(255,214,0,0.5)]">
+                              <span className="font-heading text-2xl text-black font-black italic">VS</span>
+                            </div>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* THE BOTTOM SHEET DRAWER */}
+                  <AnimatePresence>
+                    {teamDrawer.open && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[9500] bg-black/80 backdrop-blur-sm"
+                        onClick={() => setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' })}
+                      >
+                        <motion.div
+                          initial={{ y: '100%' }}
+                          animate={{ y: 0 }}
+                          exit={{ y: '100%' }}
+                          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute bottom-0 left-0 right-0 bg-[#0A0A0A] rounded-t-[40px] border-t border-white/10 max-h-[85vh] flex flex-col overflow-hidden"
+                        >
+                          {/* Drag handle */}
+                          <div className="flex justify-center pt-3 pb-2">
+                            <div className="w-10 h-1 rounded-full bg-white/20" />
+                          </div>
+
+                          {/* SEARCH MODE */}
+                          {teamDrawer.mode === 'SEARCH' ? (
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                              {/* Header */}
+                              <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
+                                <h3 className="font-heading text-2xl uppercase italic text-white">Select Team</h3>
+                                <button
+                                  onClick={() => setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' })}
+                                  className="p-2 text-white/40 hover:text-white transition-colors"
+                                >
+                                  <X size={20} />
+                                </button>
+                              </div>
+
+                              {/* Search Input */}
+                              <div className="p-6 border-b border-white/10 shrink-0">
+                                <div className="relative">
+                                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
+                                  <input
+                                    type="text"
+                                    placeholder="Search teams..."
+                                    value={teamSearchQuery}
+                                    onChange={(e) => setTeamSearchQuery(e.target.value)}
+                                    autoFocus
+                                    className="w-full bg-white/5 border border-white/10 rounded-[20px] pl-12 pr-4 py-3 text-white outline-none focus:border-[#00F0FF]/40 placeholder:text-white/20 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex-1 overflow-y-auto no-scrollbar">
+                                {(() => {
+                                  const recentTeams = getRecentTeams();
+                                  const filtered = recentTeams.filter(t =>
+                                    t.name.toUpperCase().includes(teamSearchQuery.toUpperCase())
+                                  );
+
+                                  if (filtered.length === 0 && teamSearchQuery === '') {
+                                    // No recent teams
+                                    return (
+                                      <div className="p-6 flex flex-col items-center justify-center min-h-[300px]">
+                                        <Shield size={48} className="text-white/10 mb-4" />
+                                        <p className="text-center text-white/50 text-sm mb-6">No teams yet. Your legacy starts here.</p>
+                                        <motion.button
+                                          onClick={() => {
+                                            setTeamSearchQuery('');
+                                            setTeamDrawer({ open: true, targetTeam: teamDrawer.targetTeam, mode: 'CREATE' });
+                                          }}
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                          className="flex items-center space-x-2 px-6 py-3 rounded-[20px] bg-[#39FF14] text-black font-black text-sm uppercase tracking-[0.1em]"
+                                        >
+                                          <Plus size={16} />
+                                          <span>Create Your First Team</span>
+                                        </motion.button>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (filtered.length === 0) {
+                                    return (
+                                      <div className="p-6 text-center text-white/40 text-sm">No teams match your search</div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div className="p-6 space-y-3">
+                                      {filtered.length > 0 && (
+                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">
+                                          YOUR RECENT TEAMS
+                                        </p>
+                                      )}
+                                      {filtered.map((team) => (
+                                        <motion.button
+                                          key={team.name}
+                                          onClick={() => {
+                                            setMatch(m => ({
+                                              ...m,
+                                              teams: {
+                                                ...m.teams,
+                                                [teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB']: {
+                                                  ...m.teams[teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB'],
+                                                  name: team.name,
+                                                  logo: team.logo || '',
+                                                  squad: team.squad || []
+                                                }
+                                              }
+                                            }));
+                                            setTeamSearchQuery('');
+                                            setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' });
+                                          }}
+                                          whileHover={{ scale: 1.02 }}
+                                          whileTap={{ scale: 0.98 }}
+                                          className="w-full flex items-center space-x-4 p-4 rounded-[24px] bg-white/5 border border-white/10 hover:border-[#39FF14]/40 transition-all"
+                                        >
+                                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-sm font-black text-black flex-shrink-0">
+                                            {team.logo ? (
+                                              <img src={team.logo} className="w-full h-full object-cover rounded-full" alt={team.name} />
+                                            ) : (
+                                              getTeamInitials(team.name)
+                                            )}
+                                          </div>
+                                          <div className="flex-1 text-left min-w-0">
+                                            <p className="font-black text-white text-sm truncate">{team.name}</p>
+                                            <p className="text-[10px] text-white/40">{team.squad.length} Players</p>
+                                          </div>
+                                        </motion.button>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+
+                              {/* Footer - Create New */}
+                              <div className="p-6 border-t border-white/10 shrink-0">
+                                <motion.button
+                                  onClick={() => {
+                                    setTeamSearchQuery('');
+                                    setTeamDrawer({ open: true, targetTeam: teamDrawer.targetTeam, mode: 'CREATE' });
+                                  }}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  className="w-full flex items-center justify-center space-x-2 py-4 rounded-[24px] bg-white/5 border border-white/10 font-black text-white text-sm uppercase tracking-[0.1em] hover:bg-white/10 transition-all"
+                                >
+                                  <Plus size={16} />
+                                  <span>Create New Team</span>
+                                </motion.button>
+                              </div>
+                            </div>
+                          ) : (
+                            // CREATE MODE
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                              {/* Header */}
+                              <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
+                                <div className="flex items-center space-x-3">
+                                  <button
+                                    onClick={() => setTeamDrawer({ open: true, targetTeam: teamDrawer.targetTeam, mode: 'SEARCH' })}
+                                    className="p-2 text-white/40 hover:text-white transition-colors"
+                                  >
+                                    <ChevronLeft size={20} />
+                                  </button>
+                                  <h3 className="font-heading text-2xl uppercase italic text-white">Create Team</h3>
+                                </div>
+                                <button
+                                  onClick={() => setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' })}
+                                  className="p-2 text-white/40 hover:text-white transition-colors"
+                                >
+                                  <X size={20} />
+                                </button>
+                              </div>
+
+                              {/* Form */}
+                              <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
+                                {/* Team Name Input */}
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Team Name</label>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter team name"
+                                    value={teamCreateName}
+                                    onChange={(e) => setTeamCreateName(e.target.value.toUpperCase())}
+                                    autoFocus
+                                    className="w-full bg-white/5 border border-white/10 rounded-[20px] px-4 py-3 text-white font-black uppercase outline-none focus:border-[#00F0FF]/40 placeholder:text-white/10 text-sm"
+                                  />
+                                </div>
+
+                                {/* Logo Upload */}
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Team Logo</label>
+                                  <motion.label
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className="flex flex-col items-center justify-center p-8 rounded-[24px] border-2 border-dashed border-white/10 cursor-pointer hover:border-white/20 transition-all"
+                                  >
+                                    <Camera size={32} className="text-white/30 mb-2" />
+                                    <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">Tap to upload logo (optional)</p>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        if (e.target.files?.[0]) {
+                                          const reader = new FileReader();
+                                          reader.onload = (event) => {
+                                            setMatch(m => ({
+                                              ...m,
+                                              teams: {
+                                                ...m.teams,
+                                                [teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB']: {
+                                                  ...m.teams[teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB'],
+                                                  name: teamCreateName,
+                                                  logo: event.target?.result as string,
+                                                  squad: []
+                                                }
+                                              }
+                                            }));
+                                            setTeamCreateName('');
+                                            setTeamSearchQuery('');
+                                            setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' });
+                                          };
+                                          reader.readAsDataURL(e.target.files[0]);
+                                        }
+                                      }}
+                                      className="hidden"
+                                    />
+                                  </motion.label>
+                                </div>
+                              </div>
+
+                              {/* Footer - Create Button */}
+                              <div className="p-6 border-t border-white/10 shrink-0">
+                                <motion.button
+                                  onClick={() => {
+                                    if (teamCreateName.trim()) {
+                                      setMatch(m => ({
+                                        ...m,
+                                        teams: {
+                                          ...m.teams,
+                                          [teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB']: {
+                                            ...m.teams[teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB'],
+                                            name: teamCreateName,
+                                            squad: []
+                                          }
+                                        }
+                                      }));
+                                      setTeamCreateName('');
+                                      setTeamSearchQuery('');
+                                      setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' });
+                                    }
+                                  }}
+                                  disabled={!teamCreateName.trim()}
+                                  whileHover={teamCreateName.trim() ? { scale: 1.02 } : {}}
+                                  whileTap={teamCreateName.trim() ? { scale: 0.98 } : {}}
+                                  className={`w-full py-4 rounded-[24px] font-black uppercase tracking-[0.2em] text-sm transition-all ${
+                                    teamCreateName.trim()
+                                      ? 'bg-[#39FF14] text-black shadow-[0_0_30px_rgba(57,255,20,0.3)]'
+                                      : 'bg-white/5 text-white/30 cursor-not-allowed'
+                                  }`}
+                                >
+                                  Create Team
+                                </motion.button>
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1399,15 +1690,20 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   Next
                 </motion.button>
               ) : (
-                <MotionButton
-                  disabled={!isConfigValid()}
-                  onClick={checkTeamConflicts}
-                  className={`flex-1 py-6 !rounded-[24px] font-black uppercase tracking-[0.3em] text-sm transition-all ${
-                    isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/10'
-                  }`}
+                <motion.div
+                  animate={isConfigValid() ? { scale: [1, 1.05, 1] } : {}}
+                  transition={{ duration: 0.4, delay: 0.3 }}
                 >
-                  Proceed to Toss
-                </MotionButton>
+                  <MotionButton
+                    disabled={!isConfigValid()}
+                    onClick={checkTeamConflicts}
+                    className={`flex-1 py-6 !rounded-[24px] font-black uppercase tracking-[0.3em] text-sm transition-all ${
+                      isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/10'
+                    }`}
+                  >
+                    Proceed to Toss
+                  </MotionButton>
+                </motion.div>
               )}
             </div>
           </div>
