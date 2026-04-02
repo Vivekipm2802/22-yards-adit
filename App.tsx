@@ -20,10 +20,7 @@ import {
   Sun,
   Moon,
   Smartphone,
-  ArrowRight,
-  Lock,
-  Check,
-  Loader2
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,7 +35,7 @@ import Tournaments from './pages/Tournaments';
 import Profile from './pages/Profile';
 import { AuthContext } from './AuthContext';
 import LiveScoreboard from './pages/LiveScoreboard';
-import { fetchMatchById, supabase } from './lib/supabase';
+import { fetchMatchById } from './lib/supabase';
 
 export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'PROFILE';
 
@@ -55,23 +52,18 @@ const App: React.FC = () => {
   const [resumeMatchId] = useState<string | null>(() => {
     try { return new URLSearchParams(window.location.search).get('resume'); } catch { return null; }
   });
-  /* —— URL params: ?join=CODE&pass=PASS for device handoff —— */
-  const [joinCode] = useState<string | null>(() => {
-    try { return new URLSearchParams(window.location.search).get('join'); } catch { return null; }
-  });
-  const [joinPass] = useState<string | null>(() => {
-    try { return new URLSearchParams(window.location.search).get('pass'); } catch { return null; }
+  /* —— URL params: ?transfer=BASE64_MATCH_STATE for device handoff —— */
+  const [transferData] = useState<string | null>(() => {
+    try { return new URLSearchParams(window.location.search).get('transfer'); } catch { return null; }
   });
   /* —— URL params: ?spectate=CODE for spectator mode —— */
   const [spectateCode] = useState<string | null>(() => {
     try { return new URLSearchParams(window.location.search).get('spectate'); } catch { return null; }
   });
-  /* —— Join Match UI state (shown on dashboard) —— */
-  const [showJoinMatch, setShowJoinMatch] = useState(false);
-  const [joinMatchCode, setJoinMatchCode] = useState('');
-  const [joinMatchPasscode, setJoinMatchPasscode] = useState('');
-  const [joinStatus, setJoinStatus] = useState<'IDLE' | 'JOINING' | 'SUCCESS' | 'ERROR'>('IDLE');
-  const [joinError, setJoinError] = useState('');
+  /* —— Transfer Confirmation state —— */
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [transferMatchInfo, setTransferMatchInfo] = useState<any>(null);
+  const [transferAccepted, setTransferAccepted] = useState(false);
 
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
@@ -141,67 +133,49 @@ const App: React.FC = () => {
     setActivePage('DUGOUT');
   };
 
-  /* —— Join match handler: fetch match state from Supabase using code + passcode —— */
-  const handleJoinMatch = async (code?: string, pass?: string) => {
-    const useCode = (code || joinMatchCode).trim().toUpperCase();
-    const usePass = (pass || joinMatchPasscode).trim();
-    if (!useCode || !usePass) {
-      setJoinError('Enter both Match Code and Passcode');
-      setJoinStatus('ERROR');
-      return;
-    }
-    setJoinStatus('JOINING');
-    setJoinError('');
+  /* —— Decode transfer data from URL and show confirmation —— */
+  useEffect(() => {
+    if (!transferData || !userData) return;
     try {
-      if (!supabase) throw new Error('offline');
-      const { data, error } = await supabase
-        .from('match_transfers')
-        .select('*')
-        .eq('match_code', useCode)
-        .eq('passcode', usePass)
-        .single();
-      if (error || !data) {
-        setJoinError('Invalid code or passcode. Check and try again.');
-        setJoinStatus('ERROR');
-        return;
+      const json = decodeURIComponent(escape(atob(transferData)));
+      const matchState = JSON.parse(json);
+      if (matchState && matchState.teams) {
+        setTransferMatchInfo(matchState);
+        setShowTransferConfirm(true);
       }
-      // Check expiry
-      if (new Date(data.expires_at) < new Date()) {
-        setJoinError('This transfer code has expired. Ask the scorer for a new one.');
-        setJoinStatus('ERROR');
-        return;
-      }
-      // Load the match state
-      localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(data.match_state));
-      // Update transfer status to CLAIMED
-      await supabase.from('match_transfers').update({ status: 'CLAIMED' }).eq('match_code', useCode);
-      // Clean URL params
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('join');
-        url.searchParams.delete('pass');
-        window.history.replaceState({}, '', url.toString());
-      } catch {}
-      setJoinStatus('SUCCESS');
-      setTimeout(() => {
-        setShowJoinMatch(false);
-        setActivePage('MATCH_CENTER');
-      }, 1000);
     } catch (e) {
-      setJoinError('Could not connect to server. Supabase may not be configured yet.');
-      setJoinStatus('ERROR');
+      console.error('Failed to decode transfer data:', e);
     }
+  }, [transferData, userData]);
+
+  const acceptTransfer = () => {
+    if (!transferMatchInfo) return;
+    // Save match state to localStorage
+    localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(transferMatchInfo));
+    setTransferAccepted(true);
+    // Clean URL params
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('transfer');
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+    // Navigate to Match Center after brief animation
+    setTimeout(() => {
+      setShowTransferConfirm(false);
+      setActivePage('MATCH_CENTER');
+    }, 1200);
   };
 
-  /* —— Auto-join if URL has ?join=CODE&pass=PASS —— */
-  useEffect(() => {
-    if (joinCode && joinPass && userData) {
-      setJoinMatchCode(joinCode);
-      setJoinMatchPasscode(joinPass);
-      setShowJoinMatch(true);
-      handleJoinMatch(joinCode, joinPass);
-    }
-  }, [joinCode, joinPass, userData]);
+  const declineTransfer = () => {
+    setShowTransferConfirm(false);
+    setTransferMatchInfo(null);
+    // Clean URL
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('transfer');
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  };
 
   if (!isReady) {
     return <SplashScreen onComplete={() => setIsReady(true)} />;
@@ -403,135 +377,94 @@ const App: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* JOIN MATCH floating button — shown on all pages except MATCH_CENTER */}
-        {activePage !== 'MATCH_CENTER' && (
-          <button
-            onClick={() => { setShowJoinMatch(true); setJoinStatus('IDLE'); setJoinError(''); }}
-            className="fixed bottom-24 right-4 z-[200] bg-[#00F0FF] text-black w-14 h-14 rounded-full shadow-lg shadow-[#00F0FF]/30 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
-            title="Join Match"
-          >
-            <Smartphone size={22} />
-          </button>
-        )}
-
-        {/* JOIN MATCH MODAL */}
+        {/* TRANSFER SCORING CONFIRMATION — shown when receiver opens ?transfer= URL */}
         <AnimatePresence>
-          {showJoinMatch && (
+          {showTransferConfirm && transferMatchInfo && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => { setShowJoinMatch(false); setJoinStatus('IDLE'); }}
-              className="fixed inset-0 z-[6000] bg-black/90 flex items-center justify-center p-4"
+              className="fixed inset-0 z-[6000] bg-black/95 flex items-center justify-center p-4"
             >
               <motion.div
-                initial={{ scale: 0.9, opacity: 0, y: 30 }}
+                initial={{ scale: 0.85, opacity: 0, y: 40 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 30 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden"
+                className="w-full max-w-sm bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden"
               >
-                {/* Header */}
-                <div className="p-5 border-b border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#00F0FF]/10 flex items-center justify-center">
-                      <Smartphone size={18} className="text-[#00F0FF]" />
-                    </div>
-                    <div>
-                      <h3 className="font-heading text-lg uppercase italic text-[#00F0FF]">Join Match</h3>
-                      <p className="text-[9px] text-white/40 uppercase tracking-wider">Take over scoring from another device</p>
-                    </div>
-                  </div>
-                  <button onClick={() => { setShowJoinMatch(false); setJoinStatus('IDLE'); }} className="p-2 text-white/40 hover:text-white">
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="p-5 space-y-4">
-                  {/* Match Code Input */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/50 uppercase tracking-[0.15em] flex items-center gap-2">
-                      <Swords size={12} /> Match Code
-                    </label>
-                    <input
-                      type="text"
-                      value={joinMatchCode}
-                      onChange={(e) => setJoinMatchCode(e.target.value.toUpperCase().slice(0, 6))}
-                      placeholder="e.g. AB3K7X"
-                      maxLength={6}
-                      className="w-full px-4 py-4 rounded-[16px] bg-white/5 border border-white/10 text-white text-center text-2xl font-heading tracking-[0.3em] placeholder:text-white/15 placeholder:text-base placeholder:tracking-normal focus:outline-none focus:border-[#00F0FF]/50"
-                      disabled={joinStatus === 'JOINING'}
-                    />
-                  </div>
-
-                  {/* Passcode Input */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/50 uppercase tracking-[0.15em] flex items-center gap-2">
-                      <Lock size={12} /> Passcode
-                    </label>
-                    <input
-                      type="text"
-                      value={joinMatchPasscode}
-                      onChange={(e) => setJoinMatchPasscode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      placeholder="4-digit passcode"
-                      maxLength={4}
-                      inputMode="numeric"
-                      className="w-full px-4 py-4 rounded-[16px] bg-white/5 border border-white/10 text-white text-center text-2xl font-heading tracking-[0.3em] placeholder:text-white/15 placeholder:text-base placeholder:tracking-normal focus:outline-none focus:border-[#FFD600]/50"
-                      disabled={joinStatus === 'JOINING'}
-                    />
-                  </div>
-
-                  {/* Error message */}
-                  {joinError && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-[12px] bg-[#FF003C]/10 border border-[#FF003C]/20"
-                    >
-                      <p className="text-[11px] text-[#FF003C] font-bold">{joinError}</p>
-                    </motion.div>
-                  )}
-
-                  {/* Success message */}
-                  {joinStatus === 'SUCCESS' && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="p-4 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/20 text-center"
-                    >
-                      <Check size={24} className="text-[#39FF14] mx-auto mb-2" />
-                      <p className="text-[12px] text-[#39FF14] font-black uppercase tracking-wider">Match Joined!</p>
-                      <p className="text-[10px] text-white/40 mt-1">Loading scoring interface...</p>
-                    </motion.div>
-                  )}
-
-                  {/* Join Button */}
-                  <button
-                    onClick={() => handleJoinMatch()}
-                    disabled={joinStatus === 'JOINING' || joinStatus === 'SUCCESS' || joinMatchCode.length < 4 || joinMatchPasscode.length < 4}
-                    className={`w-full py-4 rounded-[20px] font-black text-[12px] uppercase tracking-wider transition-all flex items-center justify-center gap-3 ${
-                      joinStatus === 'JOINING' ? 'bg-[#00F0FF]/20 text-[#00F0FF]/60' :
-                      joinStatus === 'SUCCESS' ? 'bg-[#39FF14]/20 text-[#39FF14]' :
-                      (joinMatchCode.length >= 4 && joinMatchPasscode.length >= 4) ? 'bg-[#00F0FF] text-black hover:bg-[#00F0FF]/90 active:scale-[0.98]' :
-                      'bg-white/5 text-white/20 cursor-not-allowed'
-                    }`}
+                {/* Header icon */}
+                <div className="pt-8 pb-4 flex justify-center">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-16 h-16 rounded-full bg-[#00F0FF]/10 border-2 border-[#00F0FF]/30 flex items-center justify-center"
                   >
-                    {joinStatus === 'JOINING' ? (
-                      <><Loader2 size={18} className="animate-spin" /> Connecting...</>
-                    ) : joinStatus === 'SUCCESS' ? (
-                      <><Check size={18} /> Connected!</>
-                    ) : (
-                      <><ArrowRight size={18} /> Join Match</>
-                    )}
-                  </button>
-
-                  {/* Info text */}
-                  <p className="text-[9px] text-white/20 text-center leading-relaxed">
-                    Get the Match Code and Passcode from the current scorer's device.
-                    They can find it in Settings → Transfer Scoring.
-                  </p>
+                    <Smartphone size={28} className="text-[#00F0FF]" />
+                  </motion.div>
                 </div>
+
+                <div className="px-6 pb-2 text-center">
+                  <h3 className="font-heading text-xl uppercase italic text-white">Take Over Scoring?</h3>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1">Someone wants to hand off this match to you</p>
+                </div>
+
+                {/* Match info card */}
+                <div className="mx-6 my-4 p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-3">
+                  <div className="text-center">
+                    <p className="font-heading text-lg text-white uppercase">
+                      {transferMatchInfo.teams?.teamA?.name || 'Team A'}
+                    </p>
+                    <p className="text-[9px] text-white/30 uppercase tracking-widest my-1">vs</p>
+                    <p className="font-heading text-lg text-white uppercase">
+                      {transferMatchInfo.teams?.teamB?.name || 'Team B'}
+                    </p>
+                  </div>
+                  <div className="h-px bg-white/10" />
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-[9px] text-white/40 uppercase">Score</p>
+                      <p className="font-heading text-2xl text-[#00F0FF]">
+                        {transferMatchInfo.liveScore?.runs || 0}/{transferMatchInfo.liveScore?.wickets || 0}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] text-white/40 uppercase">Overs</p>
+                      <p className="font-heading text-2xl text-white">
+                        {Math.floor((transferMatchInfo.liveScore?.balls || 0) / 6)}.{(transferMatchInfo.liveScore?.balls || 0) % 6}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Accepted state */}
+                {transferAccepted ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mx-6 mb-6 p-4 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/20 text-center"
+                  >
+                    <Check size={28} className="text-[#39FF14] mx-auto mb-2" />
+                    <p className="text-[13px] text-[#39FF14] font-black uppercase tracking-wider">Scoring Transferred!</p>
+                    <p className="text-[10px] text-white/40 mt-1">Loading match...</p>
+                  </motion.div>
+                ) : (
+                  /* Yes / No buttons */
+                  <div className="px-6 pb-6 space-y-3">
+                    <button
+                      onClick={acceptTransfer}
+                      className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black text-[13px] uppercase tracking-wider hover:bg-[#00F0FF]/90 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                    >
+                      <Check size={18} /> Yes, Take Over Scoring
+                    </button>
+                    <button
+                      onClick={declineTransfer}
+                      className="w-full py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/50 font-black text-[11px] uppercase tracking-wider hover:bg-white/10 transition-all"
+                    >
+                      No, Cancel
+                    </button>
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           )}

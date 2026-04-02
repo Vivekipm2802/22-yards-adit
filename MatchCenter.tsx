@@ -189,10 +189,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   // Transfer Scoring / Device Handoff
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferTab, setTransferTab] = useState<'HANDOFF' | 'SPECTATOR'>('HANDOFF');
-  const [matchCode, setMatchCode] = useState('');
-  const [matchPasscode, setMatchPasscode] = useState('');
   const [transferLinkCopied, setTransferLinkCopied] = useState(false);
-  const [transferCodeCopied, setTransferCodeCopied] = useState(false);
   const [transferStatus, setTransferStatus] = useState<'IDLE' | 'WAITING' | 'TRANSFERRED'>('IDLE');
 
   // Player ID search dropdown
@@ -1448,74 +1445,62 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
-  // Generate a 6-char alphanumeric match code
-  const generateMatchCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0/1/I to avoid confusion
-    let code = '';
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    return code;
-  };
-
-  // Generate a 4-digit passcode
-  const generatePasscode = () => {
-    return String(Math.floor(1000 + Math.random() * 9000));
-  };
-
-  const getTransferUrl = (code: string, pass: string) => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}?join=${code}&pass=${pass}`;
-  };
-
   const getQRCodeUrl = (data: string) => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=000000&margin=10`;
   };
 
+  // Compress match state to a URL-safe base64 string
+  const compressMatchState = () => {
+    try {
+      const matchState = JSON.parse(localStorage.getItem('22YARDS_ACTIVE_MATCH') || '{}');
+      // Strip heavy fields to keep QR scannable — keep only what's needed to resume scoring
+      const slim = {
+        ...matchState,
+        // Remove history array items' heavy fields if too many
+        history: (matchState.history || []).map((h: any) => ({
+          runs: h.runs, extras: h.extras, wicket: h.wicket,
+          batsmanId: h.batsmanId, bowlerId: h.bowlerId,
+          overNum: h.overNum, ballNum: h.ballNum,
+          isBoundary: h.isBoundary, isExtra: h.isExtra,
+          extraType: h.extraType, timestamp: h.timestamp
+        }))
+      };
+      const json = JSON.stringify(slim);
+      // Use btoa with URI encoding for safety
+      const b64 = btoa(unescape(encodeURIComponent(json)));
+      return b64;
+    } catch (e) {
+      console.error('Failed to compress match state:', e);
+      return null;
+    }
+  };
+
+  const getTransferUrl = () => {
+    const b64 = compressMatchState();
+    if (!b64) return null;
+    const baseUrl = window.location.origin;
+    return `${baseUrl}?transfer=${b64}`;
+  };
+
   const openTransferModal = () => {
-    const code = generateMatchCode();
-    const pass = generatePasscode();
-    setMatchCode(code);
-    setMatchPasscode(pass);
     setTransferStatus('WAITING');
     setTransferTab('HANDOFF');
+    setMatchCode(''); // Not needed for direct transfer
+    setMatchPasscode('');
     setShowTransferModal(true);
-
-    // Push match state to Supabase with the transfer code
-    // This will work once Supabase env vars are set
-    const pushTransferState = async () => {
-      try {
-        if (!supabase || !match) return;
-        const matchState = JSON.parse(localStorage.getItem('22YARDS_ACTIVE_MATCH') || '{}');
-        const { error } = await supabase
-          .from('match_transfers')
-          .upsert({
-            match_code: code,
-            passcode: pass,
-            match_state: matchState,
-            scorer_name: match.config?.scorerName || 'Unknown',
-            created_at: new Date().toISOString(),
-            status: 'WAITING', // WAITING → CLAIMED → ACTIVE
-            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 min expiry
-          }, { onConflict: 'match_code' });
-        if (error) console.log('Transfer push (offline mode):', error.message);
-      } catch (e) {
-        console.log('Transfer: running in offline mode');
-      }
-    };
-    pushTransferState();
   };
 
   const copyTransferCode = () => {
-    const text = `Match Code: ${matchCode}\nPasscode: ${matchPasscode}`;
-    navigator.clipboard.writeText(text);
-    setTransferCodeCopied(true);
-    setTimeout(() => setTransferCodeCopied(false), 2000);
+    // Not applicable for direct transfer mode
   };
 
   const copyTransferLink = () => {
-    const link = getTransferUrl(matchCode, matchPasscode);
-    navigator.clipboard.writeText(link);
-    setTransferLinkCopied(true);
-    setTimeout(() => setTransferLinkCopied(false), 2000);
+    const link = getTransferUrl();
+    if (link) {
+      navigator.clipboard.writeText(link);
+      setTransferLinkCopied(true);
+      setTimeout(() => setTransferLinkCopied(false), 2000);
+    }
   };
 
   const isAddPlayerDisabled = !newName.trim();
@@ -5198,77 +5183,69 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <div className="p-3 rounded-[16px] bg-[#00F0FF]/5 border border-[#00F0FF]/10">
                       <p className="text-[10px] text-[#00F0FF]/70 font-bold uppercase tracking-wider mb-2">How it works</p>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] text-white/50">1. Share the QR code or Match Code below</p>
-                        <p className="text-[11px] text-white/50">2. New scorer opens 22 Yards → Join Match</p>
-                        <p className="text-[11px] text-white/50">3. They enter the code + passcode</p>
-                        <p className="text-[11px] text-white/50">4. Scoring transfers to their device</p>
+                        <p className="text-[11px] text-white/50">1. Show this QR to the new scorer</p>
+                        <p className="text-[11px] text-white/50">2. They scan it with their phone camera</p>
+                        <p className="text-[11px] text-white/50">3. They confirm "Take over scoring"</p>
+                        <p className="text-[11px] text-white/50">4. Match continues on their device instantly</p>
                       </div>
                     </div>
 
-                    {/* QR Code */}
-                    <div className="flex justify-center">
-                      <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#00F0FF]/10">
-                        <img
-                          src={getQRCodeUrl(getTransferUrl(matchCode, matchPasscode))}
-                          alt="Scan to take over scoring"
-                          className="w-48 h-48 rounded-[12px]"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[9px] text-white/30 text-center uppercase tracking-widest">Scan QR on new device</p>
+                    {/* QR Code — encodes full transfer URL with match state */}
+                    {(() => {
+                      const transferUrl = getTransferUrl();
+                      return transferUrl ? (
+                        <>
+                          <div className="flex justify-center">
+                            <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#00F0FF]/10">
+                              <img
+                                src={getQRCodeUrl(transferUrl)}
+                                alt="Scan to take over scoring"
+                                className="w-48 h-48 rounded-[12px]"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-white/30 text-center uppercase tracking-widest">Scan with phone camera or QR app</p>
 
-                    {/* Match Code + Passcode */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-4 rounded-[16px] bg-white/5 border border-white/10 text-center">
-                        <p className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Match Code</p>
-                        <p className="font-heading text-2xl text-[#00F0FF] tracking-[0.25em]">{matchCode}</p>
-                      </div>
-                      <div className="p-4 rounded-[16px] bg-white/5 border border-white/10 text-center">
-                        <p className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Passcode</p>
-                        <p className="font-heading text-2xl text-[#FFD600] tracking-[0.25em]">{matchPasscode}</p>
-                      </div>
-                    </div>
+                          {/* Match info display */}
+                          <div className="p-4 rounded-[16px] bg-white/5 border border-white/10 text-center">
+                            <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Transferring Match</p>
+                            <p className="font-heading text-lg text-white">
+                              {match.teams?.teamA?.name || 'Team A'} vs {match.teams?.teamB?.name || 'Team B'}
+                            </p>
+                            <p className="text-[10px] text-[#00F0FF] mt-1">
+                              {match.liveScore?.runs || 0}/{match.liveScore?.wickets || 0} ({Math.floor((match.liveScore?.balls || 0) / 6)}.{(match.liveScore?.balls || 0) % 6} ov)
+                            </p>
+                          </div>
 
-                    {/* Status indicator */}
-                    <div className="flex items-center justify-center gap-2 py-2">
-                      <div className={`w-2 h-2 rounded-full ${transferStatus === 'WAITING' ? 'bg-[#FFD600] animate-pulse' : transferStatus === 'TRANSFERRED' ? 'bg-[#39FF14]' : 'bg-white/20'}`} />
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider">
-                        {transferStatus === 'WAITING' ? 'Waiting for new device to connect...' : transferStatus === 'TRANSFERRED' ? 'Scoring transferred!' : 'Ready to transfer'}
-                      </p>
-                    </div>
-
-                    {/* Copy buttons */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={copyTransferCode}
-                        className="py-3 rounded-[16px] bg-white/5 border border-white/10 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-                      >
-                        {transferCodeCopied ? <><Check size={14} className="text-[#39FF14]" /> Copied!</> : <><ClipboardList size={14} /> Copy Code</>}
-                      </button>
-                      <button
-                        onClick={copyTransferLink}
-                        className="py-3 rounded-[16px] bg-[#00F0FF] text-black font-black text-[11px] uppercase tracking-wider hover:bg-[#00F0FF]/90 transition-all flex items-center justify-center gap-2"
-                      >
-                        {transferLinkCopied ? <><Check size={14} /> Copied!</> : <><Share2 size={14} /> Copy Link</>}
-                      </button>
-                    </div>
-
-                    {/* Expiry notice */}
-                    <p className="text-[9px] text-white/20 text-center">Code expires in 30 minutes. Generate a new one if needed.</p>
+                          {/* Copy link button */}
+                          <button
+                            onClick={copyTransferLink}
+                            className="w-full py-3 rounded-[16px] bg-[#00F0FF] text-black font-black text-[11px] uppercase tracking-wider hover:bg-[#00F0FF]/90 transition-all flex items-center justify-center gap-2"
+                          >
+                            {transferLinkCopied ? <><Check size={14} /> Link Copied!</> : <><Share2 size={14} /> Copy Transfer Link</>}
+                          </button>
+                          <p className="text-[9px] text-white/20 text-center">Or share the link via WhatsApp, message, etc.</p>
+                        </>
+                      ) : (
+                        <div className="p-6 text-center">
+                          <p className="text-[11px] text-[#FF003C]">Could not generate transfer data. Try again.</p>
+                        </div>
+                      );
+                    })()}
                   </>
                 ) : (
                   <>
                     {/* Spectator mode info */}
                     <div className="p-3 rounded-[16px] bg-[#BC13FE]/5 border border-[#BC13FE]/10">
                       <p className="text-[10px] text-[#BC13FE]/70 font-bold uppercase tracking-wider mb-2">Spectator Mode</p>
-                      <p className="text-[11px] text-white/50">Share this link so others can watch the match live without scoring access. They'll see real-time scores as a read-only view.</p>
+                      <p className="text-[11px] text-white/50">Share this link so others can watch the match live. They'll see a read-only view of the scores.</p>
                     </div>
 
-                    {/* Spectator QR */}
+                    {/* Spectator QR — just the app URL for now */}
                     <div className="flex justify-center">
                       <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#BC13FE]/10">
                         <img
-                          src={getQRCodeUrl(`${window.location.origin}?spectate=${matchCode}`)}
+                          src={getQRCodeUrl(`${window.location.origin}`)}
                           alt="Spectator QR"
                           className="w-48 h-48 rounded-[12px]"
                         />
@@ -5278,7 +5255,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     {/* Spectator link copy */}
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}?spectate=${matchCode}`);
+                        navigator.clipboard.writeText(window.location.origin);
                         setTransferLinkCopied(true);
                         setTimeout(() => setTransferLinkCopied(false), 2000);
                       }}
