@@ -3753,7 +3753,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])]
                             .map(p => ({
                               ...p,
-                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10
+                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10 + (p.stumpings || 0) * 10 + (p.run_outs || 0) * 10
                             }))
                             .sort((a, b) => b.impact - a.impact)
                             .slice(0, 4);
@@ -3978,13 +3978,18 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                               'Extras': 0
                             };
                             history.forEach(b => {
-                              if (b.runsScored === 0) counts['Dots']++;
-                              else if (b.runsScored === 1) counts['1s']++;
-                              else if (b.runsScored === 2) counts['2s']++;
-                              else if (b.runsScored === 3) counts['3s']++;
-                              else if (b.runsScored === 4) counts['4s']++;
-                              else if (b.runsScored === 6) counts['6s']++;
-                              if (b.type === 'WD' || b.type === 'NB' || b.type === 'BYE' || b.type === 'LB') counts['Extras']++;
+                              const isExtra = b.type === 'WD' || b.type === 'NB' || b.type === 'BYE' || b.type === 'LB';
+                              if (isExtra) {
+                                if (b.type === 'WD' || b.type === 'NB') counts['Extras'] += 1 + (b.runsScored || 0);
+                                else counts['Extras'] += (b.runsScored || 0);
+                              } else {
+                                if (b.runsScored === 0) counts['Dots']++;
+                                else if (b.runsScored === 1) counts['1s']++;
+                                else if (b.runsScored === 2) counts['2s']++;
+                                else if (b.runsScored === 3) counts['3s']++;
+                                else if (b.runsScored === 4) counts['4s']++;
+                                else if (b.runsScored === 6) counts['6s']++;
+                              }
                             });
                             return Object.entries(counts).map(([type, count]) => ({ type, count }));
                           };
@@ -4217,7 +4222,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           const mvpList = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])]
                             .map(p => ({
                               ...p,
-                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10
+                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10 + (p.stumpings || 0) * 10 + (p.run_outs || 0) * 10
                             }))
                             .sort((a, b) => b.impact - a.impact);
 
