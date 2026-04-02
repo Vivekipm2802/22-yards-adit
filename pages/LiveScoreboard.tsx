@@ -15,7 +15,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
   const prevRunsRef  = useRef<number | null>(null);
   const prevBallsRef = useRef<number | null>(null);
 
-  // Shared state-update logic â used by both Realtime and polling paths
+  // Shared state-update logic - used by both Realtime and polling paths
   const applyNewState = (state: any, triggerFlash = true) => {
     if (!state) return;
     const newRuns  = state.liveScore?.runs  ?? 0;
@@ -34,7 +34,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
     setLastUpdated(new Date());
   };
 
-  // Manual / fallback poll â always flashes when the score actually changes
+  // Manual / fallback poll - always flashes when the score actually changes
   const refresh = async (isManual = false) => {
     if (isManual) setRefreshing(true);
     try {
@@ -60,7 +60,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
       setLoading(false);
     })();
 
-    // 2a. Supabase Broadcast â PRIMARY real-time path.
+    // 2a. Supabase Broadcast - PRIMARY real-time path.
     //     The scorer app sends state through channel `live:<matchId>` after every ball.
     //     This works instantly (~50 ms) with zero Postgres/replication configuration.
     //     Channel name MUST match the one used in MatchCenter.tsx.
@@ -74,9 +74,9 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
         setRealtimeConnected(status === 'SUBSCRIBED');
       });
 
-    // 2b. Supabase postgres_changes â SECONDARY path.
+    // 2b. Supabase postgres_changes - SECONDARY path.
     //     Listens for INSERTs into the matches table (live-state rows pushed by
-    //     pushLiveMatchState use key `${matchId}_t${ts}` â always INSERT, never UPDATE).
+    //     pushLiveMatchState use key `${matchId}_t${ts}` - always INSERT, never UPDATE).
     //     Also listens for the completed-match UPDATE on the original match_id row.
     //     Requires the `matches` table to be in the supabase_realtime publication.
     const dbChannel = supabase
@@ -105,7 +105,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
       )
       .subscribe();
 
-    // 3. Fallback poll every 5 s â catches DB updates when broadcast is unavailable
+    // 3. Fallback poll every 5 s - catches DB updates when broadcast is unavailable
     //    (WebSocket blocked by network, old client tab, etc.)
     intervalRef.current = setInterval(() => refresh(false), 5000);
 
@@ -122,7 +122,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
         <Activity size={36} className="text-[#CC1010]" />
       </motion.div>
-      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Loading Live Matchâ¦</p>
+      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Loading Live Match...</p>
     </div>
   );
 
@@ -233,7 +233,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
       <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4 pb-20"
            style={{ scrollbarWidth: 'none' }}>
 
-        {/* Score card â flashes on every score update */}
+        {/* Score card - flashes on every score update */}
         <motion.div
           animate={scoreFlash ? { scale: [1, 1.03, 1], borderColor: ['rgba(204,16,16,0.1)', 'rgba(204,16,16,0.6)', 'rgba(204,16,16,0.1)'] } : {}}
           transition={{ duration: 0.5 }}
@@ -242,7 +242,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
           <div className="absolute top-0 right-0 p-4 opacity-5"><Activity size={80} /></div>
 
           <p className="text-[8px] font-black text-white/30 uppercase tracking-widest relative z-10">
-            {battingTeam?.name ?? ''} â INN {currentInnings}
+            {battingTeam?.name ?? ''} - INN {currentInnings}
           </p>
 
           <div className="flex justify-between items-baseline relative z-10">
@@ -295,7 +295,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
           {currentInnings === 2 && config?.innings1Score !== undefined && (
             <div className="pt-2 border-t border-white/5 relative z-10">
               <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">
-                {inn1TeamName} INN 1 Â· {config.innings1Score}/{config.innings1Wickets ?? ''}
+                {inn1TeamName} INN 1 | {config.innings1Score}/{config.innings1Wickets ?? ''}
                 {' '}({Math.floor((config.innings1Balls || 0) / 6)}.{(config.innings1Balls || 0) % 6} ov)
               </p>
             </div>
@@ -343,7 +343,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
             </div>
             <div className="text-right">
               <span className="font-numbers text-lg font-black text-white/50">{bowler.wickets || 0}</span>
-              <span className="font-numbers text-sm text-white/20 mx-1">â</span>
+              <span className="font-numbers text-sm text-white/20 mx-1">-</span>
               <span className="font-numbers text-lg font-black text-white/40">{bowler.runs_conceded || 0}</span>
               <span className="font-numbers text-xs text-white/30 ml-1">
                 ({Math.floor((bowler.balls_bowled || 0) / 6)}.{(bowler.balls_bowled || 0) % 6})
@@ -371,7 +371,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
               {/* empty placeholders for remaining balls in over */}
               {Array.from({ length: Math.max(0, 6 - recentBalls.length) }).map((_, i) => (
                 <div key={`empty-${i}`} className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center">
-                  <span className="font-numbers text-xs text-white/10">Â·</span>
+                  <span className="font-numbers text-xs text-white/10">|</span>
                 </div>
               ))}
             </div>
@@ -508,7 +508,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
         <div className="py-6 text-center space-y-1">
           <p className="font-heading text-xl italic text-white/20 uppercase tracking-widest">22YARDS</p>
           <p className="text-[7px] font-black text-white/10 uppercase tracking-widest">
-            Real-time Â· Powered by 22YARDS
+            Real-time | Powered by 22YARDS
           </p>
         </div>
       </div>

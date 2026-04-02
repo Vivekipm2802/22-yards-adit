@@ -53,27 +53,18 @@ const Archive: React.FC = () => {
           const uniqueTeamsMap = new Map();
           hist.forEach(m => {
             if (m.fullScorecard) {
-              // Extract batting team (innings-1 batting team)
-              if (m.fullScorecard.battingTeam) {
-                const tName = m.fullScorecard.battingTeam.name;
-                if (!uniqueTeamsMap.has(tName)) {
-                  uniqueTeamsMap.set(tName, {
-                    id: m.id,
-                    name: tName,
-                    players: m.fullScorecard.battingTeam.squad
-                  });
-                }
+              const sc = m.fullScorecard;
+              // Support both old format (battingTeam/bowlingTeam) and new format (innings1/innings2)
+              const team1Name = sc.battingTeam?.name || sc.innings1?.teamName;
+              const team1Squad = sc.battingTeam?.squad || sc.innings1?.batters;
+              const team2Name = sc.bowlingTeam?.name || sc.innings2?.teamName;
+              const team2Squad = sc.bowlingTeam?.squad || sc.innings2?.batters;
+
+              if (team1Name && !uniqueTeamsMap.has(team1Name)) {
+                uniqueTeamsMap.set(team1Name, { id: m.id, name: team1Name, players: team1Squad || [] });
               }
-              // B-13 fix: also extract bowling team so both teams appear in Squads tab
-              if (m.fullScorecard.bowlingTeam) {
-                const bName = m.fullScorecard.bowlingTeam.name;
-                if (!uniqueTeamsMap.has(bName)) {
-                  uniqueTeamsMap.set(bName, {
-                    id: m.id + '_bowl',
-                    name: bName,
-                    players: m.fullScorecard.bowlingTeam.squad
-                  });
-                }
+              if (team2Name && !uniqueTeamsMap.has(team2Name)) {
+                uniqueTeamsMap.set(team2Name, { id: m.id + '_bowl', name: team2Name, players: team2Squad || [] });
               }
             }
           });
@@ -81,14 +72,15 @@ const Archive: React.FC = () => {
         }
 
         const syncedTeams = rawTeams.map(team => {
-           // Look for this team reference in historical match scorecard for name/roster refresh
            const matchingMatch = hist.find(m => m.id === team.id);
            if (matchingMatch && matchingMatch.fullScorecard) {
-              const matchedName = matchingMatch.fullScorecard.battingTeam.name;
-              return { 
-                ...team, 
+              const sc = matchingMatch.fullScorecard;
+              const matchedName = sc.battingTeam?.name || sc.innings1?.teamName;
+              const matchedSquad = sc.battingTeam?.squad || sc.innings1?.batters;
+              return {
+                ...team,
                 name: matchedName || team.name,
-                players: matchingMatch.fullScorecard.battingTeam.squad || team.players
+                players: matchedSquad || team.players
               };
            }
            return team;
@@ -620,7 +612,15 @@ const generateScorecardPDF = async (match: any) => {
 
 const ScorecardView = ({ match, onBack }) => {
   const [scTab, setScTab] = useState<'PERSONAL' | 'TEAM_A' | 'TEAM_B'>('PERSONAL');
-  const scorecard = match.fullScorecard || null;
+  // Normalize scorecard to always have battingTeam/bowlingTeam (supports both old and new format)
+  const rawSc = match.fullScorecard || null;
+  const scorecard = rawSc ? {
+    ...rawSc,
+    battingTeam: rawSc.battingTeam || { name: rawSc.innings1?.teamName || 'TEAM A', squad: rawSc.innings1?.batters || [] },
+    bowlingTeam: rawSc.bowlingTeam || { name: rawSc.innings2?.teamName || 'TEAM B', squad: rawSc.innings2?.batters || [] },
+    inn1Total: rawSc.inn1Total || { runs: rawSc.innings1?.runs || match.myTeamScore || 0, wickets: rawSc.innings1?.wickets || match.myTeamWickets || 0, balls: rawSc.innings1?.balls || 0 },
+    inn2Total: rawSc.inn2Total || { runs: rawSc.innings2?.runs || match.oppTeamScore || 0, wickets: rawSc.innings2?.wickets || match.oppTeamWickets || 0, balls: rawSc.innings2?.balls || 0 },
+  } : null;
   const target = match.targetScore || match.target || (match.innings1Score ? match.innings1Score + 1 : null);
 
   const getWicketDetailHistorical = (player) => {
@@ -686,8 +686,8 @@ const ScorecardView = ({ match, onBack }) => {
         <ScTabBtn active={scTab === 'PERSONAL'} onClick={() => setScTab('PERSONAL')} icon={Target} label="PERSONAL IMPACT" />
         {scorecard && (
           <>
-            <ScTabBtn active={scTab === 'TEAM_A'} onClick={() => setScTab('TEAM_A')} icon={Swords} label={scorecard.battingTeam.name} />
-            <ScTabBtn active={scTab === 'TEAM_B'} onClick={() => setScTab('TEAM_B')} icon={Disc} label={scorecard.bowlingTeam.name} />
+            <ScTabBtn active={scTab === 'TEAM_A'} onClick={() => setScTab('TEAM_A')} icon={Swords} label={scorecard?.battingTeam?.name || scorecard?.innings1?.teamName || 'TEAM A'} />
+            <ScTabBtn active={scTab === 'TEAM_B'} onClick={() => setScTab('TEAM_B')} icon={Disc} label={scorecard?.bowlingTeam?.name || scorecard?.innings2?.teamName || 'TEAM B'} />
           </>
         )}
       </div>

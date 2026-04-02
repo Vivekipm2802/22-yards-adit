@@ -488,27 +488,35 @@
         html[data-theme="light"] .bg-\[\#FF003C\].hover\:bg-\[\#FF003C\]\/90:hover { background-color: rgba(204,16,16,0.9) !important; }
         html[data-theme="light"] .border-\[\#FF003C\]\/60 { border-color: rgba(204,16,16,0.6) !important; }
 
-        /* --- SCORING BUTTONS in Fire/Ice mode: need much stronger contrast --- */
+        /* --- SCORING BUTTONS in Fire/Ice mode: strong contrast for light mode --- */
         /* 0/1/2/3/5/7 buttons use bg-white/10 which is nearly invisible on warm/cool bg */
         html[data-theme="light"] .bg-\[\#1a0500\] .bg-white\/10,
         html[data-theme="light"] .bg-\[\#000a1a\] .bg-white\/10 {
-            background-color: rgba(15,23,42,0.18) !important;
-            border-color: rgba(15,23,42,0.25) !important;
+            background-color: rgba(15,23,42,0.32) !important;
+            border-color: rgba(15,23,42,0.40) !important;
         }
         html[data-theme="light"] .bg-\[\#1a0500\] .hover\:bg-white\/20:hover,
         html[data-theme="light"] .bg-\[\#000a1a\] .hover\:bg-white\/20:hover {
-            background-color: rgba(15,23,42,0.25) !important;
+            background-color: rgba(15,23,42,0.42) !important;
         }
         html[data-theme="light"] .bg-\[\#1a0500\] .border-white\/20,
         html[data-theme="light"] .bg-\[\#000a1a\] .border-white\/20 {
-            border-color: rgba(15,23,42,0.2) !important;
+            border-color: rgba(15,23,42,0.35) !important;
         }
         html[data-theme="light"] .bg-\[\#1a0500\] .border-white\/10,
         html[data-theme="light"] .bg-\[\#000a1a\] .border-white\/10 {
-            border-color: rgba(15,23,42,0.15) !important;
+            border-color: rgba(15,23,42,0.30) !important;
         }
         /* General hover override */
-        html[data-theme="light"] .hover\:bg-white\/20:hover { background-color: rgba(15,23,42,0.12) !important; }
+        html[data-theme="light"] .hover\:bg-white\/20:hover { background-color: rgba(15,23,42,0.20) !important; }
+
+        /* --- Scoring button TEXT inside fire/ice mode: ensure dark readable text --- */
+        html[data-theme="light"] .bg-\[\#1a0500\] .bg-white\/10 .text-white,
+        html[data-theme="light"] .bg-\[\#000a1a\] .bg-white\/10 .text-white,
+        html[data-theme="light"] .bg-\[\#1a0500\] .text-white\/90,
+        html[data-theme="light"] .bg-\[\#000a1a\] .text-white\/90 {
+            color: rgba(15,23,42,0.85) !important;
+        }
 
         /* --- Next Bowler / Over popup inside fire/ice mode --- */
         html[data-theme="light"] .bg-\[\#1a0500\] .bg-\[\#0A0A0A\],

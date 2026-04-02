@@ -391,7 +391,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     const totalOversCompleted = Math.floor(match.liveScore.balls / 6);
     const ballsInCurrentOver = match.liveScore.balls % 6;
     if (match.liveScore.wickets >= allOutWickets) return;
-    if (totalOversCompleted >= match.config.overs && ballsInCurrentOver === 0 && match.liveScore.balls > 0) return;
+    if (match.liveScore.balls >= match.config.overs * 6) return;
     if (match.status === 'COMPLETED' || match.status === 'INNINGS_BREAK') return;
 
     // Lock scoring
@@ -633,6 +633,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         overs: finalMatchState.config.overs,
         // Full scorecard with innings totals
         fullScorecard: {
+          // Legacy format (battingTeam/bowlingTeam) — used by Archive.tsx ScorecardView & PDF
+          battingTeam: {
+            name: finalMatchState.teams[inn1BattingKey].name,
+            squad: finalMatchState.teams[inn1BattingKey].squad || [],
+          },
+          bowlingTeam: {
+            name: finalMatchState.teams[inn1BowlingKey].name,
+            squad: finalMatchState.teams[inn1BowlingKey].squad || [],
+          },
+          // New format with per-innings totals
           innings1: {
             teamName: finalMatchState.teams[inn1BattingKey].name,
             batters: finalMatchState.teams[inn1BattingKey].squad || [],
@@ -651,6 +661,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             balls: inn2Balls,
             overs: formatOvers(inn2Balls),
           },
+          inn1Total: { runs: inn1Score, wickets: inn1Wickets, balls: inn1Balls },
+          inn2Total: { runs: inn2Score, wickets: inn2Wickets, balls: inn2Balls },
           matchResult: winnerName ? `${winnerName} - ${winnerMargin}` : result,
           target: finalMatchState.config.target || inn1Score + 1,
         },
@@ -757,9 +769,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       const _sqSize = (m.teams[_bKey]?.squad || []).length;
       const _allOut = Math.max(1, _sqSize - 1);
       if (m.liveScore.wickets >= _allOut) return m;
-      const _totalOvers = Math.floor(m.liveScore.balls / 6);
-      const _ballsInOver = m.liveScore.balls % 6;
-      if (_totalOvers >= m.config.overs && _ballsInOver === 0 && m.liveScore.balls > 0) return m;
+      if (m.liveScore.balls >= m.config.overs * 6) return m;
 
       const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
       const bowlingTeamKey = m.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
