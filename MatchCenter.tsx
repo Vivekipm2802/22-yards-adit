@@ -127,6 +127,8 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [editingTeamNameId, setEditingTeamNameId] = useState<TeamID | null>(null);
   const [tossCall, setTossCall] = useState<{ teamA: 'HEADS' | 'TAILS'; teamB: 'HEADS' | 'TAILS' }>({ teamA: 'HEADS', teamB: 'TAILS' });
   const [tossResult, setTossResult] = useState<'HEADS' | 'TAILS' | null>(null);
+  const [tossPhase, setTossPhase] = useState<'CALL' | 'FLIP' | 'WINNER' | 'DECISION' | 'RESULT'>('CALL');
+  const [tossCaller, setTossCaller] = useState<'A' | 'B' | null>(null);
 
   // NEW: Config flow step tracking (1: format, 2: details, 3: teams)
   const [configStep, setConfigStep] = useState(1);
@@ -1777,7 +1779,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           )}
         </AnimatePresence>
 
-        {/* TOSS FLIP SCREEN */}
+        {/* TOSS FLIP SCREEN - NEW 5-PHASE EXPERIENCE */}
         {status === 'TOSS_FLIP' && (
           <div className="flex-1 flex flex-col items-center justify-center h-full overflow-hidden relative bg-[#050505]">
             <style>{`
@@ -1796,9 +1798,11 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               }
               @keyframes coinGlow { 0%, 100% { box-shadow: 0 0 30px rgba(255, 214, 0, 0.3), 0 0 60px rgba(255, 214, 0, 0.1); } 50% { box-shadow: 0 0 50px rgba(255, 214, 0, 0.6), 0 0 100px rgba(255, 214, 0, 0.3), 0 0 150px rgba(255, 214, 0, 0.1); } }
               @keyframes coinShadow { 0% { transform: scaleX(1); opacity: 0.3; } 40% { transform: scaleX(0.4); opacity: 0.1; } 100% { transform: scaleX(1); opacity: 0.3; } }
-              .coin-flip-active { animation: coinFlip 2.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+              @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+              .coin-flip-active { animation: coinFlip 2.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
               .coin-glow { animation: coinGlow 1.5s ease-in-out infinite; }
-              .coin-shadow { animation: coinShadow 2.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+              .coin-shadow { animation: coinShadow 2.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+              .pulse-text { animation: pulse 1.2s ease-in-out infinite; }
             `}</style>
 
             <div className="absolute inset-0 overflow-hidden">
@@ -1809,124 +1813,207 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               />
             </div>
 
-            <div className="relative z-10 text-center space-y-8 max-w-2xl mx-auto px-6">
-              {/* PHASE 1: WAITING */}
-              {tossFlipPhase === 'WAITING' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-8"
-                >
-                  <div className="space-y-3">
-                    <h2 className="font-heading text-5xl uppercase italic text-[#00F0FF]">Toss Time</h2>
-                    <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em]">Decide who bats first</p>
-                  </div>
-
-                  {/* Team cards at top */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      className="p-4 bg-white/5 border border-white/20 rounded-[24px]"
-                    >
-                      <div className="text-[32px] font-black text-[#FFD600]">A</div>
-                      <p className="text-[12px] font-black uppercase text-white mt-2">{match.teams.teamA.name}</p>
-                    </motion.div>
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      className="p-4 bg-white/5 border border-white/20 rounded-[24px]"
-                    >
-                      <div className="text-[32px] font-black text-[#00F0FF]">B</div>
-                      <p className="text-[12px] font-black uppercase text-white mt-2">{match.teams.teamB.name}</p>
-                    </motion.div>
-                  </div>
-
-                  {/* Large golden coin */}
-                  <div className="py-12 flex justify-center">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FFA500] shadow-2xl flex items-center justify-center font-black text-[64px] text-black border-4 border-[#FFD600]/50">
-                      H
-                    </div>
-                  </div>
-
-                  {/* Heads/Tails call buttons */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setTossCall({ ...tossCall, teamA: 'HEADS' })}
-                      className={`py-4 rounded-[20px] font-black text-[12px] uppercase tracking-[0.2em] border-2 transition-all ${
-                        tossCall.teamA === 'HEADS'
-                          ? 'bg-[#00F0FF]/20 border-[#00F0FF] text-[#00F0FF]'
-                          : 'bg-white/5 border-white/20 text-white hover:border-white/40'
-                      }`}
-                    >
-                      {getTeamObj('A').name}: HEADS
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setTossCall({ ...tossCall, teamB: 'HEADS' })}
-                      className={`py-4 rounded-[20px] font-black text-[12px] uppercase tracking-[0.2em] border-2 transition-all ${
-                        tossCall.teamB === 'HEADS'
-                          ? 'bg-[#00F0FF]/20 border-[#00F0FF] text-[#00F0FF]'
-                          : 'bg-white/5 border-white/20 text-white hover:border-white/40'
-                      }`}
-                    >
-                      {getTeamObj('B').name}: HEADS
-                    </motion.button>
-                  </div>
-
-                  {/* Flip coin button */}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      setTossFlipPhase('FLIPPING');
-                      setTimeout(() => {
-                        const result = Math.random() > 0.5 ? 'HEADS' : 'TAILS';
-                        setTossResult(result);
-                        const winnerId = (result === tossCall.teamA) ? 'A' : 'B';
-                        setMatch(m => ({ ...m, toss: { ...m.toss, winnerId } }));
-                        setTossFlipPhase('CHOOSE');
-                      }, 3000);
-                    }}
-                    className="w-full py-6 rounded-[24px] bg-[#FFD600] text-black font-black uppercase tracking-[0.3em] shadow-[0_0_40px_rgba(255,214,0,0.4)]"
+            <div className="relative z-10 text-center space-y-8 max-w-2xl mx-auto px-6 w-full">
+              <AnimatePresence mode="wait">
+                {/* PHASE 1: CALL - Who called the toss? */}
+                {tossPhase === 'CALL' && (
+                  <motion.div
+                    key="call"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-8"
                   >
-                    Flip Coin
-                  </motion.button>
-                </motion.div>
-              )}
-
-              {/* PHASE 2: FLIPPING - Coin animation */}
-              {tossFlipPhase === 'FLIPPING' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-8"
-                >
-                  <div className="py-12 flex justify-center">
-                    <div className="coin-flip-active coin-glow w-32 h-32 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FFA500] shadow-2xl flex items-center justify-center font-black text-[64px] text-black border-4 border-[#FFD600]/50">
-                      {tossResult === 'HEADS' ? 'H' : tossResult === 'TAILS' ? 'T' : 'H'}
+                    {/* Teams header */}
+                    <div className="flex items-center justify-center gap-4">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-14 h-14 rounded-full bg-[#FFD600]/20 border-2 border-[#FFD600] flex items-center justify-center font-black text-[24px] text-[#FFD600]">
+                          A
+                        </div>
+                        <p className="text-[11px] font-black uppercase text-white">{match.teams.teamA.name}</p>
+                      </div>
+                      <p className="text-[20px] font-black text-white/30">VS</p>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-14 h-14 rounded-full bg-[#00F0FF]/20 border-2 border-[#00F0FF] flex items-center justify-center font-black text-[24px] text-[#00F0FF]">
+                          B
+                        </div>
+                        <p className="text-[11px] font-black uppercase text-white">{match.teams.teamB.name}</p>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
 
-              {/* PHASE 3: CHOOSE - Decision time */}
-              {tossFlipPhase === 'CHOOSE' && match.toss.winnerId && tossResult && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-8"
-                >
-                  <div className="space-y-3">
-                    <h3 className="font-heading text-4xl uppercase italic text-[#FFD600]">{tossResult}!</h3>
-                    <p className="text-[14px] font-black text-white uppercase tracking-[0.2em]">
-                      {getTeamObj(match.toss.winnerId).name} wins the toss
-                    </p>
-                  </div>
+                    <h2 className="font-heading text-4xl uppercase italic text-white">Who Called The Toss?</h2>
 
-                  {/* Bat First / Bowl First cards */}
-                  <div className="space-y-3">
+                    {/* Team A button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setTossCaller('A');
+                        setTossPhase('FLIP');
+                      }}
+                      className="w-full min-h-[80px] p-6 rounded-[24px] bg-gradient-to-r from-[#FFD600]/20 to-[#FFD600]/5 border-2 border-[#FFD600] flex flex-col items-center justify-center gap-3 hover:shadow-[0_0_30px_rgba(255,214,0,0.3)] transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-[#FFD600]/30 border border-[#FFD600] flex items-center justify-center font-black text-[20px] text-[#FFD600]">
+                        A
+                      </div>
+                      <p className="font-black text-[14px] uppercase text-[#FFD600]">{match.teams.teamA.name}</p>
+                    </motion.button>
+
+                    {/* Team B button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setTossCaller('B');
+                        setTossPhase('FLIP');
+                      }}
+                      className="w-full min-h-[80px] p-6 rounded-[24px] bg-gradient-to-r from-[#00F0FF]/20 to-[#00F0FF]/5 border-2 border-[#00F0FF] flex flex-col items-center justify-center gap-3 hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-[#00F0FF]/30 border border-[#00F0FF] flex items-center justify-center font-black text-[20px] text-[#00F0FF]">
+                        B
+                      </div>
+                      <p className="font-black text-[14px] uppercase text-[#00F0FF]">{match.teams.teamB.name}</p>
+                    </motion.button>
+                  </motion.div>
+                )}
+
+                {/* PHASE 2: FLIP - The 3D Coin Animation */}
+                {tossPhase === 'FLIP' && tossCaller && (
+                  <motion.div
+                    key="flip"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-8 py-12"
+                  >
+                    <h3 className="font-heading text-3xl uppercase italic text-[#FFD600]">
+                      {getTeamObj(tossCaller).name} calls it...
+                    </h3>
+
+                    {/* 3D Coin Flip */}
+                    <div style={{ perspective: '800px' }} className="flex justify-center py-8">
+                      <motion.div
+                        animate={{
+                          rotateY: [0, 1080],
+                          y: [0, -100, -140, -100, -40, 0],
+                          scale: [1, 1.1, 1.2, 1.15, 1.05, 1]
+                        }}
+                        transition={{ duration: 2.5, ease: [0.25, 0.1, 0.25, 1] }}
+                        onAnimationComplete={() => {
+                          const result = Math.random() > 0.5 ? 'HEADS' : 'TAILS';
+                          setTossResult(result);
+                          try { window.navigator.vibrate?.(80); } catch {}
+                          // Determine winner
+                          const callerChoice = tossCaller === 'A' ? tossCall.teamA : tossCall.teamB;
+                          const winnerId = (result === callerChoice) ? tossCaller : (tossCaller === 'A' ? 'B' : 'A');
+                          setMatch(m => ({ ...m, toss: { ...m.toss, winnerId } }));
+                          setTimeout(() => setTossPhase('WINNER'), 600);
+                        }}
+                        style={{ transformStyle: 'preserve-3d' }}
+                        className="w-36 h-36 rounded-full relative"
+                      >
+                        {/* Front face - HEADS */}
+                        <div
+                          className="absolute inset-0 rounded-full bg-gradient-to-br from-[#FFD600] via-[#FFA500] to-[#FFD600] flex items-center justify-center border-4 border-[#FFD600]/60 shadow-[0_0_60px_rgba(255,214,0,0.4)]"
+                          style={{ backfaceVisibility: 'hidden' }}
+                        >
+                          <span className="text-[60px] font-black text-black/80">H</span>
+                        </div>
+                        {/* Back face - TAILS */}
+                        <div
+                          className="absolute inset-0 rounded-full bg-gradient-to-br from-[#C0C0C0] via-[#E8E8E8] to-[#C0C0C0] flex items-center justify-center border-4 border-white/60 shadow-[0_0_60px_rgba(192,192,192,0.4)]"
+                          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                        >
+                          <span className="text-[60px] font-black text-black/60">T</span>
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    <p className="text-[13px] font-black text-white/60 uppercase tracking-[0.2em] pulse-text">Flipping...</p>
+                  </motion.div>
+                )}
+
+                {/* PHASE 3: WINNER - The Result Reveal */}
+                {tossPhase === 'WINNER' && match.toss.winnerId && tossResult && (
+                  <motion.div
+                    key="winner"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-8 py-12"
+                  >
+                    {/* Coin result static */}
+                    <div className="flex justify-center">
+                      <div className={`w-32 h-32 rounded-full flex items-center justify-center border-4 ${
+                        tossResult === 'HEADS'
+                          ? 'bg-gradient-to-br from-[#FFD600] via-[#FFA500] to-[#FFD600] border-[#FFD600]/60 shadow-[0_0_60px_rgba(255,214,0,0.4)]'
+                          : 'bg-gradient-to-br from-[#C0C0C0] via-[#E8E8E8] to-[#C0C0C0] border-white/60 shadow-[0_0_60px_rgba(192,192,192,0.4)]'
+                      }`}>
+                        <span className={`text-[60px] font-black ${tossResult === 'HEADS' ? 'text-black/80' : 'text-black/60'}`}>
+                          {tossResult === 'HEADS' ? 'H' : 'T'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className={`font-heading text-5xl uppercase italic ${tossResult === 'HEADS' ? 'text-[#FFD600]' : 'text-[#C0C0C0]'}`}>
+                      {tossResult}!
+                    </h3>
+
+                    {/* Winner reveal with spring animation */}
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.3 }}
+                      className="space-y-4"
+                    >
+                      <p className="text-[16px] font-black text-white uppercase tracking-[0.1em]">
+                        {getTeamObj(match.toss.winnerId).name}
+                      </p>
+                      <p className="text-[14px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">
+                        WINS THE TOSS
+                      </p>
+                    </motion.div>
+
+                    {/* Override button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        const newWinnerId = match.toss.winnerId === 'A' ? 'B' : 'A';
+                        setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: newWinnerId } }));
+                      }}
+                      className="text-[11px] font-black text-white/40 uppercase tracking-[0.1em] hover:text-white/60 transition-all"
+                    >
+                      Used a physical coin? Tap to change winner
+                    </motion.button>
+
+                    {/* Continue button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setTossPhase('DECISION')}
+                      className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[13px] tracking-[0.2em] shadow-[0_0_20px_rgba(0,240,255,0.3)]"
+                    >
+                      Continue
+                    </motion.button>
+                  </motion.div>
+                )}
+
+                {/* PHASE 4: DECISION - Bat or Bowl */}
+                {tossPhase === 'DECISION' && match.toss.winnerId && (
+                  <motion.div
+                    key="decision"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-8"
+                  >
+                    <h3 className="font-heading text-3xl uppercase italic text-white">
+                      {getTeamObj(match.toss.winnerId).name}
+                    </h3>
+                    <p className="text-[13px] font-black text-white/60 uppercase tracking-[0.2em]">What will they choose?</p>
+
+                    {/* Bat First card */}
                     <motion.button
                       initial={{ scale: 0.9, opacity: 0, y: 20 }}
                       animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1945,19 +2032,18 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             bowlingTeamId: loserId,
                           }
                         }));
-                        setTimeout(() => setStatus('OPENERS'), 800);
+                        setTossPhase('RESULT');
                       }}
-                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#39FF14]/20 to-[#39FF14]/5 border-2 border-[#39FF14] hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] transition-all"
+                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#39FF14]/20 to-[#39FF14]/5 border-2 border-[#39FF14] hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] transition-all space-y-3"
                     >
-                      <div className="flex items-center justify-center gap-3">
-                        <Zap size={24} className="text-[#39FF14]" />
-                        <div className="text-left">
-                          <p className="font-black text-[14px] text-[#39FF14] uppercase">Bat First</p>
-                          <p className="text-[10px] text-white/60 uppercase">Choose to bat</p>
-                        </div>
+                      <Zap size={32} className="text-[#39FF14] mx-auto" />
+                      <div>
+                        <p className="font-black text-[16px] text-[#39FF14] uppercase">Bat First</p>
+                        <p className="text-[11px] text-white/60 uppercase">Take first strike and set the target</p>
                       </div>
                     </motion.button>
 
+                    {/* Bowl First card */}
                     <motion.button
                       initial={{ scale: 0.9, opacity: 0, y: 20 }}
                       animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1976,21 +2062,104 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             bowlingTeamId: winnerId,
                           }
                         }));
-                        setTimeout(() => setStatus('OPENERS'), 800);
+                        setTossPhase('RESULT');
                       }}
-                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#BC13FE]/20 to-[#BC13FE]/5 border-2 border-[#BC13FE] hover:shadow-[0_0_30px_rgba(188,19,254,0.4)] transition-all"
+                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#BC13FE]/20 to-[#BC13FE]/5 border-2 border-[#BC13FE] hover:shadow-[0_0_30px_rgba(188,19,254,0.4)] transition-all space-y-3"
                     >
-                      <div className="flex items-center justify-center gap-3">
-                        <Disc size={24} className="text-[#BC13FE]" />
-                        <div className="text-left">
-                          <p className="font-black text-[14px] text-[#BC13FE] uppercase">Bowl First</p>
-                          <p className="text-[10px] text-white/60 uppercase">Choose to bowl</p>
-                        </div>
+                      <Disc size={32} className="text-[#BC13FE] mx-auto" />
+                      <div>
+                        <p className="font-black text-[16px] text-[#BC13FE] uppercase">Bowl First</p>
+                        <p className="text-[11px] text-white/60 uppercase">Put them under pressure, chase later</p>
                       </div>
                     </motion.button>
-                  </div>
-                </motion.div>
-              )}
+                  </motion.div>
+                )}
+
+                {/* PHASE 5: RESULT - The Broadcast Card */}
+                {tossPhase === 'RESULT' && match.toss.winnerId && match.toss.decision && (
+                  <motion.div
+                    key="result"
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -40 }}
+                    className="space-y-8 pb-8"
+                  >
+                    {/* Broadcast Card */}
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      className="p-6 rounded-[24px] bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-4"
+                    >
+                      <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">TOSS RESULT</p>
+
+                      {/* Teams vs */}
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 rounded-full bg-[#FFD600]/20 border border-[#FFD600] flex items-center justify-center font-black text-[16px] text-[#FFD600]">
+                            A
+                          </div>
+                          <p className="text-[10px] font-black text-white uppercase">{match.teams.teamA.name}</p>
+                        </div>
+                        <p className="text-[14px] font-black text-white/20">VS</p>
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center font-black text-[16px] text-[#00F0FF]">
+                            B
+                          </div>
+                          <p className="text-[10px] font-black text-white uppercase">{match.teams.teamB.name}</p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/5"></div>
+
+                      {/* Decision text */}
+                      <div className="space-y-2">
+                        <p className="text-[13px] font-black text-white uppercase">
+                          {getTeamObj(match.toss.winnerId).name} won the toss
+                        </p>
+                        <p className="text-[13px] font-black text-[#00F0FF] uppercase">
+                          and elected to {match.toss.decision === 'BAT' ? 'BAT' : 'BOWL'}
+                        </p>
+                      </div>
+
+                      <div className="border-t border-white/5"></div>
+
+                      {/* Location and date */}
+                      <div className="space-y-2 text-[11px] font-black text-white/60 uppercase tracking-[0.1em]">
+                        <p>📍 {match.config.ground || match.config.city}, {match.config.city}</p>
+                        <p>📅 {match.config.dateTime}</p>
+                      </div>
+                    </motion.div>
+
+                    {/* Share to WhatsApp button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        const text = `🏏 Toss Update!\n\n${getTeamObj(match.toss.winnerId).name} won the toss and elected to ${match.toss.decision === 'BAT' ? 'bat' : 'bowl'}.\n\nMatch starting now at ${match.config.ground || match.config.city}!\n\nFollow live: 22yards.app`;
+                        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+                      }}
+                      className="w-full py-4 rounded-[20px] bg-[#25D366] text-black font-black uppercase text-[13px] tracking-[0.2em] flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(37,211,102,0.3)]"
+                    >
+                      Share to WhatsApp
+                    </motion.button>
+
+                    {/* Start Match button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setStatus('OPENERS');
+                        setTossPhase('CALL');
+                        setTossCaller(null);
+                      }}
+                      className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[13px] tracking-[0.2em] shadow-[0_0_20px_rgba(0,240,255,0.3)] flex items-center justify-center gap-2"
+                    >
+                      Start Match <ArrowRight size={16} />
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         )}
@@ -2455,7 +2624,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       placeholder="Player name"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/30 outline-none"
+                      className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/30 outline-none"
                     />
                     {showPlayerDropdown && playerDropdownList.length > 0 && (
                       <motion.div
@@ -2483,28 +2652,36 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     placeholder="Phone (optional)"
                     value={phoneQuery}
                     onChange={(e) => setPhoneQuery(e.target.value)}
-                    className="w-full px-3 py-2 rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/30 outline-none"
+                    className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/30 outline-none"
                   />
                   <button
                     onClick={startQRScanner}
-                    className="w-full py-2 rounded-[12px] bg-white/10 border border-white/20 text-[12px] font-black text-[#00F0FF] uppercase hover:bg-white/15 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[12px] font-black text-[#00F0FF] uppercase hover:bg-white/15 transition-all flex items-center justify-center gap-2"
                   >
                     <Camera size={14} /> Scan QR
                   </button>
                 </div>
 
-                {/* Enlist Button */}
-                <button
-                  onClick={handleEnlistNewPlayer}
+                {/* Add Player Button */}
+                <motion.button
+                  onClick={() => {
+                    if (!isAddPlayerDisabled) {
+                      handleEnlistNewPlayer();
+                    }
+                  }}
                   disabled={isAddPlayerDisabled}
-                  className={`w-full py-3 rounded-[20px] font-black uppercase text-[12px] tracking-[0.2em] transition-all ${
+                  whileTap={!isAddPlayerDisabled ? { scale: 0.95 } : {}}
+                  whileHover={!isAddPlayerDisabled ? { scale: 1.02 } : {}}
+                  className={`w-full min-h-[56px] py-4 rounded-[20px] font-black uppercase text-[13px] tracking-[0.2em] transition-all flex items-center justify-center gap-2 select-none touch-manipulation ${
                     isAddPlayerDisabled
-                      ? 'bg-white/5 text-white/30'
-                      : 'bg-[#00F0FF] text-black hover:shadow-[0_0_20px_rgba(0,240,255,0.3)]'
+                      ? 'bg-white/5 text-white/20 cursor-not-allowed'
+                      : 'bg-[#00F0FF] text-black shadow-[0_4px_20px_rgba(0,240,255,0.3)] active:shadow-[0_0_10px_rgba(0,240,255,0.5)] cursor-pointer'
                   }`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  Enlist Personnel
-                </button>
+                  <Plus size={18} />
+                  <span>Add Player</span>
+                </motion.button>
               </div>
 
               <div className="p-6 border-t border-white/5 flex gap-3">
