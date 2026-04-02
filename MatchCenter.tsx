@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area
@@ -114,7 +115,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   });
 
   const [status, setStatus] = useState<string>(match.status === 'COMPLETED' ? 'SUMMARY' : match.status);
-  const [summaryTab, setSummaryTab] = useState<'OVERVIEW' | 'ANALYTICS' | 'SCORECARD'>('OVERVIEW');
+  const [summaryTab, setSummaryTab] = useState<'RESULT' | 'SCORECARD' | 'HIGHLIGHTS' | 'ANALYTICS' | 'PARTNERSHIPS' | 'OVER_BY_OVER'>('RESULT');
   const [overlayAnim, setOverlayAnim] = useState<'FOUR' | 'SIX' | 'WICKET' | 'FREE_HIT' | 'INNINGS_BREAK' | null>(null);
   const [winnerTeam, setWinnerTeam] = useState<{name: string, id: TeamID | null, margin: string} | null>(null);
   const [selectionTarget, setSelectionTarget] = useState<'STRIKER' | 'NON_STRIKER' | 'BOWLER' | 'NEW_BATSMAN' | 'NEXT_BOWLER' | 'FIELDER' | null>(null);
@@ -154,6 +155,11 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [scorecardReady, setScorecardReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const scorecardRef = useRef<HTMLDivElement>(null);
+
+  // FIRE MODE: Dynamic theme for hot run rates
+  const [fireMode, setFireMode] = useState(false);
+  const [fireModeBanner, setFireModeBanner] = useState(false);
+  const [fireModeDeclined, setFireModeDeclined] = useState(false);
 
   // QR Scanner
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -265,6 +271,21 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     };
     requestAnimationFrame(animate);
   }, [summaryPhase, match.config.innings1Score, match.liveScore.runs]);
+
+  // FIRE MODE: Monitor CRR during live scoring
+  useEffect(() => {
+    if (status !== 'LIVE') return;
+    const crr = match.liveScore.balls > 0 ? (match.liveScore.runs / match.liveScore.balls) * 6 : 0;
+
+    if (crr >= 15 && !fireMode && !fireModeDeclined && !fireModeBanner) {
+      setFireModeBanner(true);
+    }
+
+    // Auto-switch back when CRR drops below 15
+    if (crr < 15 && fireMode) {
+      setFireMode(false);
+    }
+  }, [match.liveScore.runs, match.liveScore.balls, status]);
 
   const getTeamObj = (id: TeamID) => id === 'A' ? match.teams.teamA : match.teams.teamB;
   const getPlayer = (id: PlayerID | null) => {
@@ -871,38 +892,326 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }, allPlayers[0] || {});
   };
 
-  const captureScorecard = async () => {
-    if (!scorecardRef.current || isCapturing) return;
+  const generateScorecardPDF = async () => {
+    if (isCapturing) return;
     setIsCapturing(true);
     try {
-      const canvas = await html2canvas(scorecardRef.current, {
-        backgroundColor: '#0A0A0A',
-        scale: 2,
-        useCORS: true,
-        logging: false,
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      const margin = 12;
+      let y = 15;
+
+      // Background
+      doc.setFillColor(10, 10, 10);
+      doc.rect(0, 0, pw, ph, 'F');
+
+      // 22 YARDS watermark (subtle, centered)
+      doc.setFontSize(60);
+      doc.setTextColor(255, 255, 255);
+      doc.setGState(new (doc as any).GState({ opacity: 0.03 }));
+      doc.text('22 YARDS', pw / 2, ph / 2, { align: 'center', angle: 30 });
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      // Branding top
+      doc.setFontSize(10);
+      doc.setTextColor(0, 240, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('22 YARDS', margin, y);
+      y += 4;
+      doc.setFontSize(6);
+      doc.setTextColor(150, 150, 150);
+      doc.text(match.config.dateTime || '', margin, y);
+      doc.text(match.config.ground || match.config.city || '', pw - margin, y, { align: 'right' });
+      y += 10;
+
+      // Title
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${match.teams.teamA.name} v/s ${match.teams.teamB.name}`, pw / 2, y, { align: 'center' });
+      y += 6;
+
+      // Result
+      if (winnerTeam) {
+        doc.setFontSize(10);
+        doc.setTextColor(57, 255, 20);
+        doc.text(`${winnerTeam.name} ${winnerTeam.margin}`, pw / 2, y, { align: 'center' });
+      }
+      y += 10;
+
+      // Helper to draw a table
+      const drawTable = (headers: string[], rows: string[][], startY: number, headerBg: [number, number, number] = [0, 100, 50]) => {
+        let ty = startY;
+        const colWidths = headers.map((_, i) => i === 0 ? 50 : (pw - 2 * margin - 50) / (headers.length - 1));
+        const rowH = 6;
+
+        // Header
+        doc.setFillColor(...headerBg);
+        doc.rect(margin, ty, pw - 2 * margin, rowH, 'F');
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        let x = margin + 2;
+        headers.forEach((h, i) => {
+          const align = i === 0 ? 'left' : 'right';
+          const xPos = i === 0 ? x : margin + colWidths.slice(0, i).reduce((a, b) => a + b, 0) + colWidths[i] - 2;
+          doc.text(h, xPos, ty + 4, { align });
+        });
+        ty += rowH;
+
+        // Rows
+        rows.forEach((row, ri) => {
+          if (ri % 2 === 0) {
+            doc.setFillColor(20, 20, 20);
+            doc.rect(margin, ty, pw - 2 * margin, rowH, 'F');
+          }
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6);
+          row.forEach((cell, i) => {
+            const isName = i === 0;
+            doc.setTextColor(isName ? 255 : 200, isName ? 255 : 200, isName ? 255 : 200);
+            const align = i === 0 ? 'left' : 'right';
+            const xPos = i === 0 ? margin + 2 : margin + colWidths.slice(0, i).reduce((a, b) => a + b, 0) + colWidths[i] - 2;
+            doc.text(String(cell), xPos, ty + 4, { align });
+          });
+          ty += rowH;
+        });
+        return ty;
+      };
+
+      // INNINGS 1
+      const inn1BattingTeamId = innings1TeamId;
+      const inn1BowlingTeamId = innings2TeamId;
+      const inn1BattingTeam = getTeamObj(inn1BattingTeamId);
+      const inn1BowlingTeam = getTeamObj(inn1BowlingTeamId);
+      const inn1Score = match.config.innings1Score || 0;
+      const inn1Wickets = match.config.innings1Wickets || 0;
+      const inn1Balls = match.config.innings1Balls || 0;
+      const inn1Overs = `${Math.floor(inn1Balls / 6)}.${inn1Balls % 6}`;
+
+      // Innings 1 header
+      doc.setFillColor(0, 80, 40);
+      doc.rect(margin, y, pw - 2 * margin, 7, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(inn1BattingTeam.name, margin + 2, y + 5);
+      doc.text(`${inn1Score}-${inn1Wickets} (${inn1Overs})`, pw - margin - 2, y + 5, { align: 'right' });
+      y += 9;
+
+      // Batting table
+      const inn1Batters = (inn1BattingTeam.squad || []).filter(p => (p.runs || 0) > 0 || (p.balls || 0) > 0 || p.isOut);
+      const battingHeaders = ['Batsman', 'R', 'B', '4s', '6s', 'SR'];
+      const battingRows = inn1Batters.map(p => {
+        const sr = (p.balls || 0) > 0 ? (((p.runs || 0) / (p.balls || 0)) * 100).toFixed(2) : '0.00';
+        return [p.name, String(p.runs || 0), String(p.balls || 0), String(p.fours || 0), String(p.sixes || 0), sr];
       });
-      const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/png'));
+      y = drawTable(battingHeaders, battingRows, y);
+
+      // Extras row
+      const inn1History = (match.history || []).filter(b => b.innings === 1);
+      const inn1Wides = inn1History.filter(b => b.type === 'WD').length;
+      const inn1NoBalls = inn1History.filter(b => b.type === 'NB').length;
+      const inn1Byes = inn1History.filter(b => b.type === 'BYE').reduce((s, b) => s + (b.runsScored || 0), 0);
+      const inn1LBs = inn1History.filter(b => b.type === 'LB').reduce((s, b) => s + (b.runsScored || 0), 0);
+      const inn1TotalExtras = inn1Wides + inn1NoBalls + inn1Byes + inn1LBs;
+
+      doc.setFillColor(25, 25, 25);
+      doc.rect(margin, y, pw - 2 * margin, 5.5, 'F');
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 180, 180);
+      doc.text('Extras', margin + 2, y + 4);
+      doc.text(`(${inn1TotalExtras}) ${inn1Byes} B, ${inn1LBs} LB, ${inn1Wides} WD, ${inn1NoBalls} NB`, pw - margin - 2, y + 4, { align: 'right' });
+      y += 6;
+
+      // Total
+      const inn1RR = inn1Balls > 0 ? ((inn1Score / inn1Balls) * 6).toFixed(2) : '0.00';
+      doc.setFillColor(25, 25, 25);
+      doc.rect(margin, y, pw - 2 * margin, 5.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total', margin + 2, y + 4);
+      doc.text(`${inn1Score}-${inn1Wickets} (${inn1Overs}) ${inn1RR}`, pw - margin - 2, y + 4, { align: 'right' });
+      y += 8;
+
+      // Bowling table
+      const inn1Bowlers = (inn1BowlingTeam.squad || []).filter(p => (p.balls_bowled || 0) > 0);
+      const bowlingHeaders = ['Bowler', 'O', 'M', 'R', 'W', 'ER'];
+      const inn1BowlingRows = inn1Bowlers.map(p => {
+        const ov = `${Math.floor((p.balls_bowled || 0) / 6)}.${(p.balls_bowled || 0) % 6}`;
+        const econ = (p.balls_bowled || 0) > 0 ? (((p.runs_conceded || 0) / (p.balls_bowled || 0)) * 6).toFixed(2) : '0.00';
+        return [p.name, ov, '0', String(p.runs_conceded || 0), String(p.wickets || 0), econ];
+      });
+      y = drawTable(bowlingHeaders, inn1BowlingRows, y);
+      y += 4;
+
+      // Fall of Wickets
+      const inn1FoW = inn1History.filter(b => b.isWicket).map((b, idx) => {
+        const batter = getPlayer(b.strikerId);
+        return { name: batter?.name || 'Unknown', score: `${b.teamTotalAtThisBall}/${idx + 1}`, over: `${b.overNumber}.${b.ballNumber}` };
+      });
+      if (inn1FoW.length > 0) {
+        const fowHeaders = ['Fall of wickets', 'Score', 'Over'];
+        const fowRows = inn1FoW.map(f => [f.name, f.score, f.over]);
+        y = drawTable(fowHeaders, fowRows, y, [80, 100, 60]);
+        y += 6;
+      }
+
+      // Check if we need a new page for innings 2
+      if (y > ph - 80) {
+        doc.addPage();
+        doc.setFillColor(10, 10, 10);
+        doc.rect(0, 0, pw, ph, 'F');
+        y = 15;
+      }
+
+      // INNINGS 2
+      const inn2BattingTeam = getTeamObj(match.teams.battingTeamId);
+      const inn2BowlingTeam = getTeamObj(match.teams.bowlingTeamId);
+      const inn2Score = match.liveScore.runs;
+      const inn2Wickets = match.liveScore.wickets;
+      const inn2Balls = match.liveScore.balls;
+      const inn2Overs = `${Math.floor(inn2Balls / 6)}.${inn2Balls % 6}`;
+
+      // Innings 2 header
+      doc.setFillColor(0, 80, 40);
+      doc.rect(margin, y, pw - 2 * margin, 7, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(inn2BattingTeam.name, margin + 2, y + 5);
+      doc.text(`${inn2Score}-${inn2Wickets} (${inn2Overs})`, pw - margin - 2, y + 5, { align: 'right' });
+      y += 9;
+
+      // Inn2 batting
+      const inn2Batters = (inn2BattingTeam.squad || []).filter(p => (p.runs || 0) > 0 || (p.balls || 0) > 0 || p.isOut);
+      const inn2BattingRows = inn2Batters.map(p => {
+        const sr = (p.balls || 0) > 0 ? (((p.runs || 0) / (p.balls || 0)) * 100).toFixed(2) : '0.00';
+        return [p.name, String(p.runs || 0), String(p.balls || 0), String(p.fours || 0), String(p.sixes || 0), sr];
+      });
+      y = drawTable(battingHeaders, inn2BattingRows, y);
+
+      // Inn2 extras
+      const inn2History = (match.history || []).filter(b => b.innings === 2);
+      const inn2Wides = inn2History.filter(b => b.type === 'WD').length;
+      const inn2NoBalls = inn2History.filter(b => b.type === 'NB').length;
+      const inn2Byes = inn2History.filter(b => b.type === 'BYE').reduce((s, b) => s + (b.runsScored || 0), 0);
+      const inn2LBs = inn2History.filter(b => b.type === 'LB').reduce((s, b) => s + (b.runsScored || 0), 0);
+      const inn2TotalExtras = inn2Wides + inn2NoBalls + inn2Byes + inn2LBs;
+
+      doc.setFillColor(25, 25, 25);
+      doc.rect(margin, y, pw - 2 * margin, 5.5, 'F');
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 180, 180);
+      doc.text('Extras', margin + 2, y + 4);
+      doc.text(`(${inn2TotalExtras}) ${inn2Byes} B, ${inn2LBs} LB, ${inn2Wides} WD, ${inn2NoBalls} NB`, pw - margin - 2, y + 4, { align: 'right' });
+      y += 6;
+
+      // Total
+      const inn2RR = inn2Balls > 0 ? ((inn2Score / inn2Balls) * 6).toFixed(2) : '0.00';
+      doc.setFillColor(25, 25, 25);
+      doc.rect(margin, y, pw - 2 * margin, 5.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total', margin + 2, y + 4);
+      doc.text(`${inn2Score}-${inn2Wickets} (${inn2Overs}) ${inn2RR}`, pw - margin - 2, y + 4, { align: 'right' });
+      y += 8;
+
+      // Inn2 bowling
+      const inn2Bowlers = (inn2BowlingTeam.squad || []).filter(p => (p.balls_bowled || 0) > 0);
+      const inn2BowlingRows = inn2Bowlers.map(p => {
+        const ov = `${Math.floor((p.balls_bowled || 0) / 6)}.${(p.balls_bowled || 0) % 6}`;
+        const econ = (p.balls_bowled || 0) > 0 ? (((p.runs_conceded || 0) / (p.balls_bowled || 0)) * 6).toFixed(2) : '0.00';
+        return [p.name, ov, '0', String(p.runs_conceded || 0), String(p.wickets || 0), econ];
+      });
+      y = drawTable(bowlingHeaders, inn2BowlingRows, y);
+      y += 4;
+
+      // Inn2 Fall of Wickets
+      const inn2FoW = inn2History.filter(b => b.isWicket).map((b, idx) => {
+        const batter = getPlayer(b.strikerId);
+        return { name: batter?.name || 'Unknown', score: `${b.teamTotalAtThisBall}/${idx + 1}`, over: `${b.overNumber}.${b.ballNumber}` };
+      });
+      if (inn2FoW.length > 0) {
+        const fowHeaders = ['Fall of wickets', 'Score', 'Over'];
+        const fowRows = inn2FoW.map(f => [f.name, f.score, f.over]);
+        y = drawTable(fowHeaders, fowRows, y, [80, 100, 60]);
+        y += 6;
+      }
+
+      // HIGHLIGHTS section
+      if (y > ph - 40) { doc.addPage(); doc.setFillColor(10, 10, 10); doc.rect(0, 0, pw, ph, 'F'); y = 15; }
+
+      doc.setDrawColor(0, 240, 255);
+      doc.line(margin, y, pw - margin, y);
+      y += 6;
+      doc.setFontSize(9);
+      doc.setTextColor(255, 214, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('HIGHLIGHTS', pw / 2, y, { align: 'center' });
+      y += 6;
+
+      const motm = calculateMOTM();
+      const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])];
+      const topScorer = allPlayers.reduce((b, p) => (p.runs || 0) > (b.runs || 0) ? p : b, allPlayers[0] || {});
+      const topBowler = allPlayers.filter(p => (p.wickets || 0) > 0).reduce((b, p) => (p.wickets || 0) > (b.wickets || 0) ? p : b, {} as any);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(200, 200, 200);
+      if (topScorer?.name) {
+        doc.text(`Top Scorer: ${topScorer.name} - ${topScorer.runs}(${topScorer.balls})`, margin + 2, y);
+        y += 5;
+      }
+      if (topBowler?.name) {
+        doc.text(`Best Bowler: ${topBowler.name} - ${topBowler.wickets}-${topBowler.runs_conceded}`, margin + 2, y);
+        y += 5;
+      }
+      if (motm?.name) {
+        doc.setTextColor(255, 214, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Man of the Match: ${motm.name}`, margin + 2, y);
+        y += 5;
+      }
+
+      // Footer branding
+      y = ph - 8;
+      doc.setDrawColor(0, 240, 255);
+      doc.line(margin, y - 3, pw - margin, y - 3);
+      doc.setFontSize(7);
+      doc.setTextColor(0, 240, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('22 YARDS', pw / 2 - 15, y);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Scored on 22yards', pw / 2 + 3, y);
+
+      // Save and share
+      const pdfBlob = doc.output('blob');
+      const fileName = `${match.teams.teamA.name}_vs_${match.teams.teamB.name}_${Date.now()}.pdf`;
 
       if (navigator.share && navigator.canShare) {
-        const file = new File([blob], '22yards-scorecard.png', { type: 'image/png' });
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: '22 Yards Match Card' });
+          await navigator.share({ files: [file], title: '22 Yards Scorecard' });
           setIsCapturing(false);
           return;
         }
       }
       // Fallback: download
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = '22yards-scorecard.png';
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('Capture failed:', e);
-    }
+    } catch (e) { console.error('PDF generation failed:', e); }
     setIsCapturing(false);
   };
+
 
   // Squad Editor Modal Helper Functions
   const handleEnlistNewPlayer = () => {
@@ -2348,7 +2657,55 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           const nonStrikerSR = nonStriker && (nonStriker.balls || 0) > 0 ? (((nonStriker.runs || 0) / (nonStriker.balls || 0)) * 100).toFixed(0) : '0';
 
           return (
-            <div className="flex-1 flex flex-col overflow-hidden bg-black">
+            <div className={`flex-1 flex flex-col overflow-hidden relative ${fireMode ? 'bg-[#1a0500]' : 'bg-black'}`}>
+              {/* Fire mode ambient effects */}
+              {fireMode && (
+                <>
+                  <div className="absolute inset-0 z-0 pointer-events-none opacity-20" style={{
+                    background: 'radial-gradient(ellipse at bottom, rgba(255,109,0,0.4) 0%, rgba(255,0,60,0.2) 40%, transparent 70%)'
+                  }} />
+                  <div className="absolute bottom-0 left-0 right-0 h-32 z-0 pointer-events-none opacity-30" style={{
+                    background: 'linear-gradient(to top, rgba(255,109,0,0.5), transparent)'
+                  }} />
+                </>
+              )}
+
+              {/* FIRE MODE BANNER */}
+              <AnimatePresence>
+                {fireModeBanner && (
+                  <motion.div
+                    initial={{ y: -80, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -80, opacity: 0 }}
+                    className="absolute top-0 left-0 right-0 z-[100] p-3 bg-gradient-to-r from-[#FF003C] via-[#FF6D00] to-[#FFD600] shadow-[0_4px_20px_rgba(255,109,0,0.5)]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Flame size={20} className="text-white animate-pulse" />
+                        <div>
+                          <p className="text-[11px] font-black text-white uppercase">Run Rate on Fire!</p>
+                          <p className="text-[8px] text-white/80">Switch to BLAZE MODE?</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setFireMode(true); setFireModeBanner(false); }}
+                          className="px-4 py-2 rounded-lg bg-white text-black font-black text-[10px] uppercase active:scale-95"
+                        >
+                          LET'S GO
+                        </button>
+                        <button
+                          onClick={() => { setFireModeBanner(false); setFireModeDeclined(true); }}
+                          className="px-3 py-2 rounded-lg bg-black/30 text-white font-black text-[10px] uppercase active:scale-95"
+                        >
+                          NAH
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* TOP STATUS BAR */}
               <div className="shrink-0 px-4 py-3 bg-black/60 backdrop-blur border-b border-white/5">
                 <div className="flex items-center justify-between mb-2">
@@ -2356,10 +2713,10 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     {getTeamInitials(battingTeamName)}
                   </div>
                   <div className="text-center">
-                    <div className="font-numbers text-2xl font-black text-[#00F0FF]">
+                    <div className={`font-numbers text-2xl font-black ${fireMode ? 'text-[#FF6D00]' : 'text-[#00F0FF]'}`}>
                       {match.liveScore.runs}/{match.liveScore.wickets}
                     </div>
-                    <div className="text-[9px] text-white/50">
+                    <div className={`text-[9px] ${fireMode ? 'text-[#FF6D00]/60' : 'text-white/50'}`}>
                       {overs}.{ballsInOver} | CRR {crr}
                     </div>
                   </div>
@@ -3136,6 +3493,9 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       }));
                       setSelectionTarget('STRIKER');
                       setStatus('OPENERS');
+                      setFireMode(false);
+                      setFireModeBanner(false);
+                      setFireModeDeclined(false);
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.95 }}
@@ -3184,115 +3544,6 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               }
             `}</style>
 
-            {/* HIDDEN SCORECARD CAPTURE DIV */}
-            <div
-              ref={scorecardRef}
-              style={{
-                position: 'absolute',
-                left: '-9999px',
-                top: 0,
-                width: '400px',
-                aspectRatio: '9 / 16',
-                backgroundColor: '#0A0A0A',
-                color: 'white',
-                fontFamily: 'system-ui, monospace',
-                padding: '20px',
-                boxSizing: 'border-box',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              {/* Top branding */}
-              <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#00F0FF', marginBottom: '10px' }}>
-                22 YARDS
-              </div>
-
-              {/* Match result */}
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#FFD600', marginBottom: '8px' }}>
-                  ★ MATCH RESULT ★
-                </div>
-                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#39FF14', marginBottom: '6px' }}>
-                  {winnerTeam?.name || 'Match Complete'} {winnerTeam?.margin ? `(${winnerTeam.margin})` : ''}
-                </div>
-              </div>
-
-              {/* Innings 1 */}
-              <div style={{ marginBottom: '15px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#00F0FF', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '8px' }}>
-                  ─── INNINGS 1 ─ {getTeamObj(innings1TeamId).name} ───
-                </div>
-                <div style={{ fontSize: '10px', marginBottom: '6px' }}>
-                  Score: {match.config.innings1Score || 0}/{match.config.innings1Wickets || 0} ({Math.floor((match.config.innings1Balls || 0) / 6)}.{(match.config.innings1Balls || 0) % 6} ov)
-                </div>
-                <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse', marginBottom: '8px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #333' }}>
-                      <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Batsman</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>R</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>B</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>4s</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>6s</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(getTeamObj(innings1TeamId).squad || []).slice(0, 4).map((p) => (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                        <td style={{ paddingTop: '2px', paddingBottom: '2px' }}>{p.name.slice(0, 10)}</td>
-                        <td style={{ textAlign: 'right' }}>{p.runs || 0}</td>
-                        <td style={{ textAlign: 'right' }}>{p.balls || 0}</td>
-                        <td style={{ textAlign: 'right' }}>{p.fours || 0}</td>
-                        <td style={{ textAlign: 'right', color: '#FF6D00' }}>{p.sixes || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Innings 2 */}
-              <div style={{ marginBottom: '15px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#00F0FF', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '8px' }}>
-                  ─── INNINGS 2 ─ {getTeamObj(innings2TeamId).name} ───
-                </div>
-                <div style={{ fontSize: '10px', marginBottom: '6px' }}>
-                  Score: {match.liveScore.runs}/{match.liveScore.wickets} ({Math.floor(match.liveScore.balls / 6)}.{match.liveScore.balls % 6} ov)
-                </div>
-                <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #333' }}>
-                      <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Batsman</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>R</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>B</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>4s</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>6s</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(getTeamObj(innings2TeamId).squad || []).slice(0, 4).map((p) => (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                        <td style={{ paddingTop: '2px', paddingBottom: '2px' }}>{p.name.slice(0, 10)}</td>
-                        <td style={{ textAlign: 'right' }}>{p.runs || 0}</td>
-                        <td style={{ textAlign: 'right' }}>{p.balls || 0}</td>
-                        <td style={{ textAlign: 'right' }}>{p.fours || 0}</td>
-                        <td style={{ textAlign: 'right', color: '#FF6D00' }}>{p.sixes || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Highlights */}
-              <div style={{ fontSize: '10px', color: '#FFD600', textAlign: 'center', paddingTop: '10px', borderTop: '1px solid #333' }}>
-                ★ HIGHLIGHTS ★
-              </div>
-
-              {/* Footer */}
-              <div style={{ fontSize: '8px', color: '#666', textAlign: 'center', borderTop: '1px solid #333', paddingTop: '8px', marginTop: '10px' }}>
-                22 YARDS • Scored on 22yards
-              </div>
-            </div>
-
             {/* VISIBLE SUMMARY SCREEN */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Notification Banner */}
@@ -3306,7 +3557,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </motion.div>
               )}
 
-              <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-20">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-24">
                 {/* Phase 1: Skeleton Shimmer */}
                 {summaryPhase === 'SKELETON' && (
                   <div className="space-y-4">
@@ -3319,7 +3570,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   </div>
                 )}
 
-                {/* Phase 2-3: Result + Scorecard */}
+                {/* Phase 2-3: Result + Tabs */}
                 {summaryPhase !== 'SKELETON' && (
                   <>
                     {/* Result Banner */}
@@ -3342,29 +3593,13 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       )}
                     </motion.div>
 
-                    {/* Tabs */}
-                    <div className="flex gap-2 p-1 bg-white/5 rounded-[20px]">
-                      {['OVERVIEW', 'ANALYTICS', 'SCORECARD'].map((tab) => (
-                        <button
-                          key={tab}
-                          onClick={() => setSummaryTab(tab as any)}
-                          className={`flex-1 py-3 rounded-[16px] font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-                            summaryTab === tab ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.3)]' : 'text-white/40'
-                          }`}
-                        >
-                          {tab}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Tab Content */}
-                    {summaryTab === 'OVERVIEW' && (
+                    {/* Score Cards */}
+                    {summaryTab === 'RESULT' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-6"
                       >
-                        {/* Counting Numbers */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 text-center space-y-3">
                             <p className="text-[10px] font-black text-white/40 uppercase">{getTeamObj(innings1TeamId).name}</p>
@@ -3381,58 +3616,19 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             </p>
                           </div>
                         </div>
-
-                        {/* Highlights */}
-                        <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 space-y-4">
-                          <h3 className="text-[12px] font-black text-[#FFD600] uppercase text-center">Highlights</h3>
-                          <div className="space-y-3 text-[10px]">
-                            {(() => {
-                              const topScorer = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.runs || 0) > (best.runs || 0) ? p : best, {});
-                              const bestBowler = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.wickets || 0) > (best.wickets || 0) ? p : best, {});
-                              const motm = calculateMOTM();
-                              return (
-                                <>
-                                  {topScorer?.name && (
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-white/40">Top Scorer:</span>
-                                      <span className="text-[#00F0FF] font-black">{topScorer.name} {topScorer.runs}({topScorer.balls})</span>
-                                    </div>
-                                  )}
-                                  {bestBowler?.name && (
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-white/40">Best Bowler:</span>
-                                      <span className="text-[#FF6D00] font-black">{bestBowler.name} {bestBowler.wickets}-{bestBowler.runs_conceded}</span>
-                                    </div>
-                                  )}
-                                  {motm?.name && (
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-white/40">Man of Match:</span>
-                                      <span className="text-[#FFD600] font-black">{motm.name}</span>
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </div>
                       </motion.div>
                     )}
 
-                    {summaryTab === 'ANALYTICS' && (
-                      <div className="space-y-4 text-[10px] text-white/40 text-center py-12">
-                        <p>Detailed analytics coming soon</p>
-                      </div>
-                    )}
-
+                    {/* Scorecard Tab */}
                     {summaryTab === 'SCORECARD' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-6"
                       >
-                        {/* Innings 1 */}
+                        {/* Innings 1 Batting */}
                         <div className="space-y-3">
-                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name}</p>
+                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Batting</p>
                           <div className="space-y-2">
                             {(getTeamObj(innings1TeamId).squad || []).map((player) => (
                               <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
@@ -3448,9 +3644,27 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           </div>
                         </div>
 
-                        {/* Innings 2 */}
+                        {/* Innings 1 Bowling */}
                         <div className="space-y-3">
-                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name}</p>
+                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name} - Bowling</p>
+                          <div className="space-y-2">
+                            {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                              <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
+                                <div className="flex justify-between items-start mb-1">
+                                  <p className="text-[9px] font-black text-white">{player.name}</p>
+                                  <p className="text-[9px] font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                                </div>
+                                <p className="text-[8px] text-white/40">
+                                  {Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Innings 2 Batting */}
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name} - Batting</p>
                           <div className="space-y-2">
                             {(getTeamObj(innings2TeamId).squad || []).map((player) => (
                               <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
@@ -3465,19 +3679,292 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             ))}
                           </div>
                         </div>
+
+                        {/* Innings 2 Bowling */}
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Bowling</p>
+                          <div className="space-y-2">
+                            {(getTeamObj(innings1TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                              <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
+                                <div className="flex justify-between items-start mb-1">
+                                  <p className="text-[9px] font-black text-white">{player.name}</p>
+                                  <p className="text-[9px] font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                                </div>
+                                <p className="text-[8px] text-white/40">
+                                  {Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </motion.div>
                     )}
+
+                    {/* Highlights Tab */}
+                    {summaryTab === 'HIGHLIGHTS' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-6"
+                      >
+                        <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 space-y-4">
+                          <h3 className="text-[12px] font-black text-[#FFD600] uppercase text-center">Key Stats</h3>
+                          <div className="space-y-3 text-[10px]">
+                            {(() => {
+                              const topScorer = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.runs || 0) > (best.runs || 0) ? p : best, {});
+                              const bestBowler = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.wickets || 0) > (best.wickets || 0) ? p : best, {});
+                              const motm = calculateMOTM();
+                              const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])];
+                              const bestCatch = allPlayers.reduce((best, p) => (p.catches || 0) > (best.catches || 0) ? p : best, {});
+                              return (
+                                <>
+                                  {topScorer?.name && (
+                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-white/5">
+                                      <span className="text-white/40">Top Scorer:</span>
+                                      <span className="text-[#00F0FF] font-black">{topScorer.name}</span>
+                                    </div>
+                                  )}
+                                  {bestBowler?.name && (
+                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-white/5">
+                                      <span className="text-white/40">Best Bowler:</span>
+                                      <span className="text-[#FF6D00] font-black">{bestBowler.name}</span>
+                                    </div>
+                                  )}
+                                  {bestCatch?.name && (bestCatch?.catches || 0) > 0 && (
+                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-white/5">
+                                      <span className="text-white/40">Most Catches:</span>
+                                      <span className="text-[#4DB6AC] font-black">{bestCatch.name}</span>
+                                    </div>
+                                  )}
+                                  {motm?.name && (
+                                    <div className="flex justify-between items-center p-3 rounded-[12px] bg-[#FFD600]/10 border border-[#FFD600]/30">
+                                      <span className="text-white/40">Man of Match:</span>
+                                      <span className="text-[#FFD600] font-black">{motm.name}</span>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Analytics Tab */}
+                    {summaryTab === 'ANALYTICS' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-6"
+                      >
+                        {(() => {
+                          const inn1History = (match.history || []).filter(b => b.innings === 1);
+                          const inn2History = (match.history || []).filter(b => b.innings === 2);
+                          
+                          const buildRunRateData = (history: any[]) => {
+                            const overs: {over: string, runs: number}[] = [];
+                            let currentOver = -1;
+                            let currentRuns = 0;
+                            history.forEach(b => {
+                              if (b.overNumber !== currentOver) {
+                                if (currentOver >= 0) overs.push({ over: `${currentOver}`, runs: currentRuns });
+                                currentOver = b.overNumber;
+                                currentRuns = 0;
+                              }
+                              currentRuns += b.runsScored || 0;
+                              if (b.type === 'WD' || b.type === 'NB') currentRuns += 1;
+                            });
+                            if (currentOver >= 0) overs.push({ over: `${currentOver}`, runs: currentRuns });
+                            return overs;
+                          };
+
+                          const inn1RR = buildRunRateData(inn1History);
+                          const inn2RR = buildRunRateData(inn2History);
+
+                          return (
+                            <>
+                              {inn1RR.length > 0 && (
+                                <div className="space-y-3">
+                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} - Run Rate</p>
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <AreaChart data={inn1RR} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                      <defs>
+                                        <linearGradient id="colorRuns1" x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.3}/>
+                                          <stop offset="95%" stopColor="#00F0FF" stopOpacity={0}/>
+                                        </linearGradient>
+                                      </defs>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
+                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #00F0FF', borderRadius: '8px' }} />
+                                      <Area type="monotone" dataKey="runs" stroke="#00F0FF" fillOpacity={1} fill="url(#colorRuns1)" />
+                                    </AreaChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                              {inn2RR.length > 0 && (
+                                <div className="space-y-3">
+                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name} - Run Rate</p>
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <AreaChart data={inn2RR} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                      <defs>
+                                        <linearGradient id="colorRuns2" x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor="#39FF14" stopOpacity={0.3}/>
+                                          <stop offset="95%" stopColor="#39FF14" stopOpacity={0}/>
+                                        </linearGradient>
+                                      </defs>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
+                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #39FF14', borderRadius: '8px' }} />
+                                      <Area type="monotone" dataKey="runs" stroke="#39FF14" fillOpacity={1} fill="url(#colorRuns2)" />
+                                    </AreaChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </motion.div>
+                    )}
+
+                    {/* Partnerships Tab */}
+                    {summaryTab === 'PARTNERSHIPS' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-6"
+                      >
+                        {(() => {
+                          const inn1History = (match.history || []).filter(b => b.innings === 1);
+                          const partnerships = [];
+                          let currentPartners = { id1: null, id2: null, runs: 0, balls: 0 };
+                          
+                          inn1History.forEach(b => {
+                            if (!currentPartners.id1 || !currentPartners.id2) {
+                              currentPartners.id1 = b.strikerId;
+                              currentPartners.id2 = b.nonStrikerId;
+                            }
+                            if (b.strikerId === currentPartners.id1 || b.strikerId === currentPartners.id2) {
+                              currentPartners.runs += b.runsScored || 0;
+                              currentPartners.balls += 1;
+                            }
+                            if (b.isWicket) {
+                              if (currentPartners.runs > 0) partnerships.push({...currentPartners});
+                              currentPartners = { id1: null, id2: null, runs: 0, balls: 0 };
+                            }
+                          });
+                          if (currentPartners.runs > 0) partnerships.push({...currentPartners});
+
+                          return (
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-black text-[#00F0FF] uppercase">Innings 1 Partnerships</p>
+                              {partnerships.length > 0 ? partnerships.map((p, idx) => (
+                                <div key={idx} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <p className="text-[9px] font-black text-white">Partnership {idx + 1}</p>
+                                    <p className="text-[9px] font-numbers text-[#00F0FF]">{p.runs} ({p.balls})</p>
+                                  </div>
+                                </div>
+                              )) : (
+                                <p className="text-[10px] text-white/40 text-center">No partnership data</p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </motion.div>
+                    )}
+
+                    {/* Over by Over Tab */}
+                    {summaryTab === 'OVER_BY_OVER' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-6"
+                      >
+                        {(() => {
+                          const buildOBOData = (history: any[]) => {
+                            const overs: {over: string, runs: number}[] = [];
+                            let currentOver = -1;
+                            let currentRuns = 0;
+                            history.forEach(b => {
+                              if (b.overNumber !== currentOver) {
+                                if (currentOver >= 0) overs.push({ over: `${currentOver}`, runs: currentRuns });
+                                currentOver = b.overNumber;
+                                currentRuns = 0;
+                              }
+                              currentRuns += b.runsScored || 0;
+                              if (b.type === 'WD' || b.type === 'NB') currentRuns += 1;
+                            });
+                            if (currentOver >= 0) overs.push({ over: `${currentOver}`, runs: currentRuns });
+                            return overs;
+                          };
+
+                          const inn1Data = buildOBOData((match.history || []).filter(b => b.innings === 1));
+                          const inn2Data = buildOBOData((match.history || []).filter(b => b.innings === 2));
+
+                          return (
+                            <>
+                              {inn1Data.length > 0 && (
+                                <div className="space-y-3">
+                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name}</p>
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <BarChart data={inn1Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
+                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #00F0FF', borderRadius: '8px' }} />
+                                      <Bar dataKey="runs" fill="#00F0FF" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                              {inn2Data.length > 0 && (
+                                <div className="space-y-3">
+                                  <p className="text-[10px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings2TeamId).name}</p>
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <BarChart data={inn2Data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="white/10" />
+                                      <XAxis dataKey="over" stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <YAxis stroke="white/30" style={{ fontSize: '10px' }} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #39FF14', borderRadius: '8px' }} />
+                                      <Bar dataKey="runs" fill="#39FF14" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </motion.div>
+                    )}
+
+                    {/* Tab Buttons */}
+                    <div className="flex gap-2 p-2 bg-white/5 rounded-[20px] overflow-x-auto">
+                      {['RESULT', 'SCORECARD', 'HIGHLIGHTS', 'ANALYTICS', 'PARTNERSHIPS', 'OVER_BY_OVER'].map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setSummaryTab(tab as any)}
+                          className={`px-3 py-2 rounded-[12px] font-black text-[9px] uppercase tracking-[0.15em] transition-all whitespace-nowrap ${
+                            summaryTab === tab ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.3)]' : 'text-white/40'
+                          }`}
+                        >
+                          {tab.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
 
                     {/* Share buttons */}
                     <div className="space-y-3 pt-4">
                       <button
                         type="button"
-                        onClick={captureScorecard}
+                        onClick={generateScorecardPDF}
                         disabled={isCapturing}
                         className="w-full py-4 rounded-[20px] bg-[#39FF14] text-black font-black uppercase text-[12px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
                       >
                         <Share2 size={16} />
-                        {isCapturing ? 'Capturing...' : 'Share Full Card'}
+                        {isCapturing ? 'Generating...' : 'Share Full Scorecard'}
                       </button>
 
                       <button
@@ -3520,7 +4007,7 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           setConfigStep(1);
                           setVsRevealed(false);
                           setOverlayAnim(null);
-                          setSummaryTab('OVERVIEW');
+                          setSummaryTab('RESULT');
                         }}
                         className="w-full py-4 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase text-[12px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all"
                       >
