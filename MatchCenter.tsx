@@ -150,6 +150,11 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [shareCopied, setShareCopied] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
+  // Add Player Mid-Match
+  const [showAddPlayer, setShowAddPlayer] = useState<{ open: boolean; team: 'batting' | 'bowling' | null }>({ open: false, team: null });
+  const [addPlayerName, setAddPlayerName] = useState('');
+  const [addPlayerPhone, setAddPlayerPhone] = useState('');
+
   // Summary reveal animation state
   const [summaryPhase, setSummaryPhase] = useState<'SKELETON' | 'COUNTING' | 'REVEAL' | 'READY'>('SKELETON');
   const [countingRuns, setCountingRuns] = useState({ inn1: 0, inn2: 0 });
@@ -1249,6 +1254,30 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     setNewName('');
     setPhoneQuery('');
     setSelectedVaultPlayer(null);
+  };
+
+  // Add player mid-match
+  const handleAddPlayerMidMatch = () => {
+    if (!addPlayerName.trim() || !showAddPlayer.team) return;
+    const teamKey = showAddPlayer.team === 'batting'
+      ? (match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB')
+      : (match.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB');
+    const newPlayer = {
+      id: generatePlayerId(addPlayerPhone || `${Date.now()}`),
+      name: addPlayerName.trim(),
+      phone: addPlayerPhone.trim(),
+      isCaptain: false,
+      isWicketKeeper: false,
+      runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false,
+      wickets: 0, runs_conceded: 0, balls_bowled: 0, catches: 0, stumpings: 0, run_outs: 0,
+    };
+    setMatch(m => ({
+      ...m,
+      teams: { ...m.teams, [teamKey]: { ...m.teams[teamKey], squad: [...(m.teams[teamKey].squad || []), newPlayer] } }
+    }));
+    setAddPlayerName('');
+    setAddPlayerPhone('');
+    setShowAddPlayer({ open: false, team: null });
   };
 
   const handleSetCaptain = (playerId: PlayerID) => {
@@ -4583,7 +4612,16 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
               {/* Batting Team */}
               <div className="space-y-3">
-                <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">Batting</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">Batting</p>
+                  <button
+                    onClick={() => { setShowLiveScorecard(false); setShowAddPlayer({ open: true, team: 'batting' }); }}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] text-[9px] font-black uppercase tracking-wider active:scale-95 transition-all"
+                  >
+                    <UserPlus size={12} />
+                    Add Player
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {(match.teams[match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB']?.squad || []).map((player) => (
                     <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 flex justify-between items-center">
@@ -4596,7 +4634,16 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
               {/* Bowling Team */}
               <div className="space-y-3">
-                <p className="text-[11px] font-black text-[#39FF14] uppercase tracking-[0.2em]">Bowling</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-black text-[#39FF14] uppercase tracking-[0.2em]">Bowling</p>
+                  <button
+                    onClick={() => { setShowLiveScorecard(false); setShowAddPlayer({ open: true, team: 'bowling' }); }}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[9px] font-black uppercase tracking-wider active:scale-95 transition-all"
+                  >
+                    <UserPlus size={12} />
+                    Add Player
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {(match.teams[match.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB']?.squad || []).map((player) => (
                     <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 flex justify-between items-center">
@@ -4646,6 +4693,86 @@ const MatchCenter: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   {shareCopied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ADD PLAYER MID-MATCH MODAL */}
+      <AnimatePresence>
+        {showAddPlayer.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => { setShowAddPlayer({ open: false, team: null }); setAddPlayerName(''); setAddPlayerPhone(''); }}
+            className="fixed inset-0 z-[5000] bg-black/90 flex items-end justify-center"
+          >
+            <motion.div
+              initial={{ y: 300, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 300, opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-[#0A0A0A] border-t border-white/10 rounded-t-[32px] p-6 space-y-5"
+            >
+              {/* Handle bar */}
+              <div className="flex justify-center">
+                <div className="w-10 h-1 rounded-full bg-white/20" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading text-lg uppercase italic text-[#00F0FF]">
+                  Add to {showAddPlayer.team === 'batting' ? 'Batting' : 'Bowling'} Team
+                </h3>
+                <button
+                  onClick={() => { setShowAddPlayer({ open: false, team: null }); setAddPlayerName(''); setAddPlayerPhone(''); }}
+                  className="p-2 text-white/40 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Player Name */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-white/50 uppercase tracking-[0.15em]">Player Name *</label>
+                <input
+                  type="text"
+                  value={addPlayerName}
+                  onChange={(e) => setAddPlayerName(e.target.value)}
+                  placeholder="Enter player name"
+                  className="w-full px-4 py-3 rounded-[16px] bg-white/5 border border-white/10 text-white text-[13px] placeholder:text-white/20 focus:outline-none focus:border-[#00F0FF]/50"
+                  autoFocus
+                />
+              </div>
+
+              {/* Phone Number */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-white/50 uppercase tracking-[0.15em]">Phone Number (optional)</label>
+                <input
+                  type="tel"
+                  value={addPlayerPhone}
+                  onChange={(e) => setAddPlayerPhone(e.target.value)}
+                  placeholder="Enter phone number"
+                  className="w-full px-4 py-3 rounded-[16px] bg-white/5 border border-white/10 text-white text-[13px] placeholder:text-white/20 focus:outline-none focus:border-[#00F0FF]/50"
+                />
+              </div>
+
+              {/* Add Button */}
+              <button
+                onClick={handleAddPlayerMidMatch}
+                disabled={!addPlayerName.trim()}
+                className={`w-full py-4 rounded-[20px] font-black text-[13px] uppercase tracking-wider transition-all ${
+                  addPlayerName.trim()
+                    ? 'bg-[#00F0FF] text-black active:scale-[0.98]'
+                    : 'bg-white/5 text-white/20 cursor-not-allowed'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <UserPlus size={16} />
+                  Add Player
+                </div>
+              </button>
             </motion.div>
           </motion.div>
         )}
