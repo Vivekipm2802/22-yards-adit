@@ -5718,8 +5718,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
             </motion.div>
           </motion.div>
-      </AnimatePresence>
         )}
+      </AnimatePresence>
     </div>
   );
 };
