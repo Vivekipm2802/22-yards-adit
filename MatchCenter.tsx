@@ -432,17 +432,27 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     isProcessingBall.current = true;
     setTimeout(() => { isProcessingBall.current = false; }, 150);
 
-    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-    if (pendingExtra === 'NB') {
-       setOverlayAnim('FREE_HIT');
-       overlayTimerRef.current = setTimeout(() => setOverlayAnim(null), 2500);
-    } else if (runs === 4) {
-       setOverlayAnim('FOUR');
-       overlayTimerRef.current = setTimeout(() => setOverlayAnim(null), 1500);
-    } else if (runs === 6) {
-       setOverlayAnim('SIX');
-       overlayTimerRef.current = setTimeout(() => setOverlayAnim(null), 1500);
+    // Clear any existing overlay animation first to prevent stacking
+    if (overlayTimerRef.current) {
+      clearTimeout(overlayTimerRef.current);
+      overlayTimerRef.current = null;
     }
+    // Reset overlay before setting new one - forces AnimatePresence to re-trigger
+    setOverlayAnim(null);
+
+    // Use requestAnimationFrame to ensure the null state is committed before setting new animation
+    requestAnimationFrame(() => {
+      if (pendingExtra === 'NB') {
+        setOverlayAnim('FREE_HIT');
+        overlayTimerRef.current = setTimeout(() => { setOverlayAnim(null); overlayTimerRef.current = null; }, 2500);
+      } else if (runs === 4) {
+        setOverlayAnim('FOUR');
+        overlayTimerRef.current = setTimeout(() => { setOverlayAnim(null); overlayTimerRef.current = null; }, 1500);
+      } else if (runs === 6) {
+        setOverlayAnim('SIX');
+        overlayTimerRef.current = setTimeout(() => { setOverlayAnim(null); overlayTimerRef.current = null; }, 1500);
+      }
+    });
     commitBall(runs, pendingExtra);
     setPendingExtra(null);
   };
@@ -1616,8 +1626,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const openTransferModal = () => {
     setTransferStatus('WAITING');
     setTransferTab('HANDOFF');
-    setMatchCode(''); // Not needed for direct transfer
-    setMatchPasscode('');
     setShowTransferModal(true);
   };
 
@@ -2201,25 +2209,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           </AnimatePresence>
                         </motion.div>
                         {idx === 0 && (
-                          <div className="flex justify-center items-center py-2 lg:hidden">
-                            <AnimatePresence>
-                              {match.teams.teamA.name && match.teams.teamB.name && (
-                                <motion.div
-                                  key="vs-badge-mobile"
-                                  initial={{ scale: 0, rotate: -20 }}
-                                  animate={{ scale: 1, rotate: 0 }}
-                                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                  onAnimationComplete={() => {
-                                    setVsRevealed(true);
-                                    try { window.navigator.vibrate?.(50); } catch {}
-                                  }}
-                                >
-                                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center shadow-[0_0_40px_rgba(255,214,0,0.5)]">
-                                    <span className="font-heading text-xl text-black font-black italic">VS</span>
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                          <div className="flex justify-center items-center py-3 flex-shrink-0 lg:hidden" style={{minHeight: '62px'}}>
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center shadow-[0_0_40px_rgba(255,214,0,0.5)]">
+                              <span className="font-heading text-xl text-black font-black italic">VS</span>
+                            </div>
                           </div>
                         )}
                         </React.Fragment>
