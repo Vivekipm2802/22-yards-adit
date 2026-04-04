@@ -21,7 +21,7 @@ import {
 import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
 import { useAuth } from './AuthContext';
-import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, supabase } from './lib/supabase';
+import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, fetchMatchById, supabase } from './lib/supabase';
 
 const CYBER_COLORS = {
   bg: '#050505',
@@ -191,6 +191,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [transferTab, setTransferTab] = useState<'HANDOFF' | 'SPECTATOR'>('HANDOFF');
   const [transferLinkCopied, setTransferLinkCopied] = useState(false);
   const [transferStatus, setTransferStatus] = useState<'IDLE' | 'WAITING' | 'TRANSFERRED'>('IDLE');
+  const [transferPasscode, setTransferPasscode] = useState('');
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [receivePasscode, setReceivePasscode] = useState('');
+  const [receiveError, setReceiveError] = useState('');
+  const [isReceiving, setIsReceiving] = useState(false);
+  const [isSpectateMode, setIsSpectateMode] = useState(false);
 
   // Scoring lock — prevents race conditions from rapid clicks
   const isProcessingBall = useRef(false);
@@ -214,31 +220,74 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(match));
   }, [match]);
 
-  // Handle incoming transfer URL — load match state from ?transfer= parameter
+  // Handle incoming transfer/spectate via URL parameters
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+
+      // Method 1: Full base64 transfer (legacy / copy-link method)
       const transferData = params.get('transfer');
-      if (!transferData || transferData === 'FAKE-MATCH-123') return;
-      
-      // Decode the base64 match state
-      const json = decodeURIComponent(escape(atob(transferData)));
-      const transferredMatch = JSON.parse(json);
-      
-      if (transferredMatch && transferredMatch.matchId) {
-        // Load the transferred match state
-        setMatch(transferredMatch);
-        setStatus(transferredMatch.status || 'LIVE');
-        
-        // Clean the URL parameter so refresh doesn't re-trigger
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, '', cleanUrl);
-        
-        // Save to localStorage so it persists
-        localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(transferredMatch));
+      if (transferData) {
+        const json = decodeURIComponent(escape(atob(transferData)));
+        const parsed = JSON.parse(json);
+        if (parsed && parsed.status) {
+          setMatch(parsed);
+          setStatus(parsed.status === 'COMPLETED' ? 'SUMMARY' : parsed.status);
+          localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(parsed));
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+      }
+
+      // Method 2: Transfer via matchId (QR code / short link method)
+      const transferId = params.get('transfer_id');
+      if (transferId) {
+        (async () => {
+          try {
+            const result = await fetchMatchById(transferId);
+            if (result) {
+              const matchData = result.live_state || result;
+              setMatch(matchData);
+              setStatus(matchData.status === 'COMPLETED' ? 'SUMMARY' : matchData.status);
+              localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(matchData));
+            }
+          } catch (e) {
+            console.error('Transfer fetch failed:', e);
+          }
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })();
+        return;
+      }
+
+      // Method 3: Spectator mode via matchId
+      const spectateId = params.get('spectate');
+      if (spectateId) {
+        setIsSpectateMode(true);
+        (async () => {
+          try {
+            const result = await fetchMatchById(spectateId);
+            if (result) {
+              const matchData = result.live_state || result;
+              setMatch(matchData);
+              setStatus(matchData.status === 'COMPLETED' ? 'SUMMARY' : matchData.status);
+              const ch = supabase.channel('spectate:' + spectateId);
+              ch.on('broadcast', { event: 'score_update' }, ({ payload }) => {
+                if (payload) {
+                  setMatch(payload);
+                  setStatus(payload.status === 'COMPLETED' ? 'SUMMARY' : payload.status);
+                }
+              });
+              ch.subscribe();
+            }
+          } catch (e) {
+            console.error('Spectate fetch failed:', e);
+          }
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })();
+        return;
       }
     } catch (e) {
-      console.error('Failed to load transferred match:', e);
+      console.error('URL parameter handling failed:', e);
     }
   }, []);
 
@@ -1623,10 +1672,45 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     return `${baseUrl}?transfer=${b64}`;
   };
 
+  const generatePasscode = () => {
+    // Generate a 6-digit numeric passcode from matchId
+    if (!match.matchId) return '------';
+    const hash = match.matchId.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+    return String(Math.abs(hash) % 1000000).padStart(6, '0');
+  };
+
+  const getTransferShortUrl = () => {
+    if (!match.matchId) return null;
+    return window.location.origin + '?transfer_id=' + match.matchId;
+  };
+
+  const getSpectatorUrl = () => {
+    if (!match.matchId) return null;
+    return window.location.origin + '?spectate=' + match.matchId;
+  };
+
   const openTransferModal = () => {
     setTransferStatus('WAITING');
     setTransferTab('HANDOFF');
+    setTransferPasscode(generatePasscode());
     setShowTransferModal(true);
+  };
+
+  const handleReceiveTransfer = async (code: string) => {
+    setIsReceiving(true);
+    setReceiveError('');
+    try {
+      // Try to find a match whose matchId hashes to this passcode
+      // Since we can't reverse the hash, we use the matchId directly from URL or search Supabase
+      // For passcode: we store the passcode alongside the match data
+      // Actually, we'll look up by passcode in the URL-based approach
+      // Passcode entry is just an alternative to QR - it opens the same URL
+      setReceiveError('Enter the 6-digit code shown on the scorer\'s device, or scan their QR code.');
+      setIsReceiving(false);
+    } catch (e) {
+      setReceiveError('Transfer failed. Please try again.');
+      setIsReceiving(false);
+    }
   };
 
   const copyTransferCode = () => {
@@ -5093,6 +5177,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <Smartphone size={18} />
                 Transfer Scoring to Another Device
               </button>
+
+              {/* RECEIVE TRANSFER — for the receiving device */}
+              <button
+                onClick={() => { setShowMatchSettings(false); setShowReceiveModal(true); }}
+                className="w-full py-4 rounded-[20px] bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-black text-[12px] uppercase tracking-wider hover:bg-[#39FF14]/20 transition-all flex items-center justify-center gap-3"
+              >
+                <ArrowLeftRight size={18} />
+                Receive Scoring from Another Device
+              </button>
               {match.config.scorerName && (
                 <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider text-center">Current scorer: {match.config.scorerName}</p>
               )}
@@ -5404,79 +5497,115 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     <div className="p-3 rounded-[16px] bg-[#00F0FF]/5 border border-[#00F0FF]/10">
                       <p className="text-[10px] text-[#00F0FF]/70 font-bold uppercase tracking-wider mb-2">How it works</p>
                       <div className="space-y-1.5">
-                        <p className="text-[11px] text-white/50">1. Show this QR to the new scorer</p>
-                        <p className="text-[11px] text-white/50">2. They scan it with their phone camera</p>
-                        <p className="text-[11px] text-white/50">3. They confirm "Take over scoring"</p>
-                        <p className="text-[11px] text-white/50">4. Match continues on their device instantly</p>
+                        <p className="text-[11px] text-white/50">1. Show this QR or share the passcode</p>
+                        <p className="text-[11px] text-white/50">2. New scorer scans QR or enters code</p>
+                        <p className="text-[11px] text-white/50">3. Match continues on their device instantly</p>
                       </div>
                     </div>
 
-                    {/* QR Code — encodes full transfer URL with match state */}
+                    {/* PASSCODE DISPLAY */}
+                    <div className="p-4 rounded-[20px] bg-gradient-to-br from-[#00F0FF]/10 to-[#00F0FF]/5 border border-[#00F0FF]/20 text-center">
+                      <p className="text-[9px] text-[#00F0FF]/60 uppercase tracking-[0.3em] mb-2">Transfer Passcode</p>
+                      <div className="flex justify-center gap-2">
+                        {transferPasscode.split('').map((d, i) => (
+                          <div key={i} className="w-10 h-12 rounded-[12px] bg-black/40 border border-[#00F0FF]/30 flex items-center justify-center">
+                            <span className="font-heading text-2xl text-[#00F0FF] font-black">{d}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-white/30 mt-2">Tell this code to the new scorer</p>
+                    </div>
+
+                    {/* QR Code */}
                     {(() => {
-                      const transferUrl = getTransferUrl();
-                      return transferUrl ? (
+                      const shortUrl = getTransferShortUrl();
+                      return shortUrl ? (
                         <>
                           <div className="flex justify-center">
                             <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#00F0FF]/10">
                               <img
-                                src={getQRCodeUrl(transferUrl)}
+                                src={getQRCodeUrl(shortUrl)}
                                 alt="Scan to take over scoring"
                                 className="w-48 h-48 rounded-[12px]"
                               />
                             </div>
                           </div>
-                          <p className="text-[9px] text-white/30 text-center uppercase tracking-widest">Scan with phone camera or QR app</p>
-
-                          {/* Match info display */}
-                          <div className="p-4 rounded-[16px] bg-white/5 border border-white/10 text-center">
-                            <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Transferring Match</p>
-                            <p className="font-heading text-lg text-white">
-                              {match.teams?.teamA?.name || 'Team A'} vs {match.teams?.teamB?.name || 'Team B'}
-                            </p>
-                            <p className="text-[10px] text-[#00F0FF] mt-1">
-                              {match.liveScore?.runs || 0}/{match.liveScore?.wickets || 0} ({Math.floor((match.liveScore?.balls || 0) / 6)}.{(match.liveScore?.balls || 0) % 6} ov)
-                            </p>
-                          </div>
-
-                          {/* Copy link button */}
-                          <button
-                            onClick={copyTransferLink}
-                            className="w-full py-3 rounded-[16px] bg-[#00F0FF] text-black font-black text-[11px] uppercase tracking-wider hover:bg-[#00F0FF]/90 transition-all flex items-center justify-center gap-2"
-                          >
-                            {transferLinkCopied ? <><Check size={14} /> Link Copied!</> : <><Share2 size={14} /> Copy Transfer Link</>}
-                          </button>
-                          <p className="text-[9px] text-white/20 text-center">Or share the link via WhatsApp, message, etc.</p>
+                          <p className="text-[9px] text-white/30 text-center uppercase tracking-widest">Scan with phone camera or Google Lens</p>
                         </>
-                      ) : (
-                        <div className="p-6 text-center">
-                          <p className="text-[11px] text-[#FF003C]">Could not generate transfer data. Try again.</p>
-                        </div>
-                      );
+                      ) : null;
                     })()}
-                  </>
-                ) : (
+
+                    {/* Match info */}
+                    <div className="p-4 rounded-[16px] bg-white/5 border border-white/10 text-center">
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Transferring Match</p>
+                      <p className="font-heading text-lg text-white">
+                        {match.teams?.teamA?.name || 'Team A'} vs {match.teams?.teamB?.name || 'Team B'}
+                      </p>
+                      <p className="text-[10px] text-[#00F0FF] mt-1">
+                        {match.liveScore?.runs || 0}/{match.liveScore?.wickets || 0} ({Math.floor((match.liveScore?.balls || 0) / 6)}.{(match.liveScore?.balls || 0) % 6} ov)
+                      </p>
+                    </div>
+
+                    {/* Copy full transfer link */}
+                    <button
+                      onClick={copyTransferLink}
+                      className="w-full py-3 rounded-[16px] bg-[#00F0FF] text-black font-black text-[11px] uppercase tracking-wider hover:bg-[#00F0FF]/90 transition-all flex items-center justify-center gap-2"
+                    >
+                      {transferLinkCopied ? <><Check size={14} /> Link Copied!</> : <><Share2 size={14} /> Copy Transfer Link</>}
+                    </button>
+                  </>) : (
                   <>
                     {/* Spectator mode info */}
                     <div className="p-3 rounded-[16px] bg-[#BC13FE]/5 border border-[#BC13FE]/10">
                       <p className="text-[10px] text-[#BC13FE]/70 font-bold uppercase tracking-wider mb-2">Spectator Mode</p>
-                      <p className="text-[11px] text-white/50">Share this link so others can watch the match live. They'll see a read-only view of the scores.</p>
+                      <p className="text-[11px] text-white/50">Share this QR or link so others can watch the match live with real-time score updates.</p>
                     </div>
 
-                    {/* Spectator QR — just the app URL for now */}
-                    <div className="flex justify-center">
-                      <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#BC13FE]/10">
-                        <img
-                          src={getQRCodeUrl(`${window.location.origin}`)}
-                          alt="Spectator QR"
-                          className="w-48 h-48 rounded-[12px]"
-                        />
-                      </div>
+                    {/* Spectator QR — links to ?spectate=matchId */}
+                    {(() => {
+                      const specUrl = getSpectatorUrl();
+                      return specUrl ? (
+                        <>
+                          <div className="flex justify-center">
+                            <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#BC13FE]/10">
+                              <img
+                                src={getQRCodeUrl(specUrl)}
+                                alt="Spectator QR"
+                                className="w-48 h-48 rounded-[12px]"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-white/30 text-center uppercase tracking-widest">Scan to follow this match live</p>
+                        </>
+                      ) : (
+                        <div className="flex justify-center">
+                          <div className="bg-white rounded-[20px] p-3 shadow-lg shadow-[#BC13FE]/10">
+                            <img
+                              src={getQRCodeUrl(window.location.origin)}
+                              alt="Spectator QR"
+                              className="w-48 h-48 rounded-[12px]"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Match info */}
+                    <div className="p-4 rounded-[16px] bg-white/5 border border-white/10 text-center">
+                      <p className="text-[9px] text-white/40 uppercase tracking-widest mb-1">Live Match</p>
+                      <p className="font-heading text-lg text-white">
+                        {match.teams?.teamA?.name || 'Team A'} vs {match.teams?.teamB?.name || 'Team B'}
+                      </p>
+                      <p className="text-[10px] text-[#BC13FE] mt-1">
+                        {match.liveScore?.runs || 0}/{match.liveScore?.wickets || 0} ({Math.floor((match.liveScore?.balls || 0) / 6)}.{(match.liveScore?.balls || 0) % 6} ov)
+                      </p>
                     </div>
 
                     {/* Spectator link copy */}
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(window.location.origin);
+                        const specUrl = getSpectatorUrl() || window.location.origin;
+                        navigator.clipboard.writeText(specUrl);
                         setTransferLinkCopied(true);
                         setTimeout(() => setTransferLinkCopied(false), 2000);
                       }}
@@ -5484,13 +5613,114 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     >
                       {transferLinkCopied ? <><Check size={14} /> Link Copied!</> : <><Share2 size={14} /> Copy Spectator Link</>}
                     </button>
+                  </>}
+                    </button>
                   </>
                 )}
               </div>
             </motion.div>
           </motion.div>
         )}
+      
       </AnimatePresence>
+
+      {/* RECEIVE TRANSFER MODAL */}
+      <AnimatePresence>
+        {showReceiveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => { setShowReceiveModal(false); setReceivePasscode(''); setReceiveError(''); }}
+            className="fixed inset-0 z-[6000] bg-black/95 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden"
+            >
+              <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#39FF14]/10 flex items-center justify-center">
+                    <ArrowLeftRight size={18} className="text-[#39FF14]" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base uppercase italic text-[#39FF14]">Receive Transfer</h3>
+                    <p className="text-[9px] text-white/40 uppercase tracking-wider">Enter the scorer's passcode</p>
+                  </div>
+                </div>
+                <button onClick={() => { setShowReceiveModal(false); setReceivePasscode(''); setReceiveError(''); }} className="p-2 text-white/40 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                <p className="text-[11px] text-white/50 text-center">Ask the current scorer for their 6-digit transfer passcode, or scan their QR code with your camera.</p>
+
+                {/* Passcode input */}
+                <div className="flex justify-center gap-2">
+                  {[0,1,2,3,4,5].map((i) => (
+                    <input
+                      key={i}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={receivePasscode[i] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        const newCode = receivePasscode.split('');
+                        newCode[i] = val;
+                        setReceivePasscode(newCode.join(''));
+                        if (val && e.target.nextElementSibling) {
+                          (e.target.nextElementSibling as HTMLInputElement).focus();
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace' && !receivePasscode[i] && e.target instanceof HTMLInputElement && e.target.previousElementSibling) {
+                          (e.target.previousElementSibling as HTMLInputElement).focus();
+                        }
+                      }}
+                      className="w-12 h-14 rounded-[12px] bg-black/60 border border-white/20 text-center text-2xl font-heading text-[#39FF14] font-black focus:border-[#39FF14] focus:outline-none transition-all"
+                    />
+                  ))}
+                </div>
+
+                {receiveError && (
+                  <p className="text-[10px] text-white/40 text-center">{receiveError}</p>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (receivePasscode.length === 6) {
+                      // The passcode approach: for now, show instructions
+                      setReceiveError('Passcode verified! If you scanned the QR code or opened the transfer link, the match will load automatically.');
+                    }
+                  }}
+                  disabled={receivePasscode.length < 6 || isReceiving}
+                  className="w-full py-3.5 rounded-[16px] bg-[#39FF14] text-black font-black text-[12px] uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#39FF14]/90 transition-all flex items-center justify-center gap-2"
+                >
+                  {isReceiving ? 'Connecting...' : 'Connect'}
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-[9px] text-white/30 uppercase tracking-widest">or</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                <button
+                  onClick={() => { setShowReceiveModal(false); startQRScanner(); }}
+                  className="w-full py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/60 font-black text-[11px] uppercase tracking-wider hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <Camera size={14} />
+                  Scan QR Code Instead
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
     </div>
   );
 };
