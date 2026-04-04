@@ -214,6 +214,34 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(match));
   }, [match]);
 
+  // Handle incoming transfer URL — load match state from ?transfer= parameter
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const transferData = params.get('transfer');
+      if (!transferData || transferData === 'FAKE-MATCH-123') return;
+      
+      // Decode the base64 match state
+      const json = decodeURIComponent(escape(atob(transferData)));
+      const transferredMatch = JSON.parse(json);
+      
+      if (transferredMatch && transferredMatch.matchId) {
+        // Load the transferred match state
+        setMatch(transferredMatch);
+        setStatus(transferredMatch.status || 'LIVE');
+        
+        // Clean the URL parameter so refresh doesn't re-trigger
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+        
+        // Save to localStorage so it persists
+        localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(transferredMatch));
+      }
+    } catch (e) {
+      console.error('Failed to load transferred match:', e);
+    }
+  }, []);
+
   // Keep match.status in sync with the UI status state
   useEffect(() => {
     if (status && status !== match.status && status !== 'SUMMARY') {
