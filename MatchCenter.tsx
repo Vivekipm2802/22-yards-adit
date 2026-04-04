@@ -5613,8 +5613,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     >
                       {transferLinkCopied ? <><Check size={14} /> Link Copied!</> : <><Share2 size={14} /> Copy Spectator Link</>}
                     </button>
-                  </>}
-                    </button>
                   </>
                 )}
               </div>
