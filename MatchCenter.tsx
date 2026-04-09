@@ -4196,108 +4196,429 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-6"
                       >
-                        {/* Result Card */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 text-center space-y-3">
-                            <p className="text-[10px] font-black text-white/60 uppercase">{getTeamObj(innings1TeamId).name}</p>
-                            <p className="font-numbers text-4xl font-black text-[#00F0FF]">{countingRuns.inn1}</p>
-                            <p className="text-[8px] text-white/40">
-                              {match.config.innings1Wickets || 0} wickets
-                            </p>
-                          </div>
-                          <div className="p-6 rounded-[32px] bg-white/5 border border-white/10 text-center space-y-3">
-                            <p className="text-[10px] font-black text-white/60 uppercase">{getTeamObj(innings2TeamId).name}</p>
-                            <p className="font-numbers text-4xl font-black text-[#00F0FF]">{countingRuns.inn2}</p>
-                            <p className="text-[8px] text-white/40">
-                              {match.liveScore.wickets || 0} wickets
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Heroes of the Match Section */}
                         {(() => {
+                          const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])];
+                          const inn1History = (match.history || []).filter(b => b.innings === 1);
+                          const inn2History = (match.history || []).filter(b => b.innings === 2);
+                          const inn1Team = getTeamObj(innings1TeamId);
+                          const inn2Team = getTeamObj(innings2TeamId);
+                          const inn1Squad = inn1Team.squad || [];
+                          const inn2Squad = inn2Team.squad || [];
+
+                          // Innings stats helpers
+                          const calcInningsStats = (history: any[]) => {
+                            const legalBalls = history.filter(b => !b.type || b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB').length;
+                            const totalRuns = history.reduce((s, b) => s + (b.runsScored || 0) + ((b.type === 'WD' || b.type === 'NB') ? 1 : 0), 0);
+                            const dots = history.filter(b => (!b.type || b.type === 'LEGAL') && (b.runsScored || 0) === 0 && !b.isWicket).length;
+                            const fours = history.filter(b => (b.runsScored || 0) === 4 && b.type !== 'BYE' && b.type !== 'LB').length;
+                            const sixes = history.filter(b => (b.runsScored || 0) === 6 && b.type !== 'BYE' && b.type !== 'LB').length;
+                            const wides = history.filter(b => b.type === 'WD').length;
+                            const noBalls = history.filter(b => b.type === 'NB').length;
+                            const byes = history.filter(b => b.type === 'BYE').reduce((s, b) => s + (b.runsScored || 0), 0);
+                            const legByes = history.filter(b => b.type === 'LB').reduce((s, b) => s + (b.runsScored || 0), 0);
+                            const extras = wides + noBalls + byes + legByes;
+                            const wickets = history.filter(b => b.isWicket).length;
+                            const overs = Math.floor(legalBalls / 6);
+                            const ballsInOver = legalBalls % 6;
+                            const crr = legalBalls > 0 ? ((totalRuns / legalBalls) * 6).toFixed(2) : '0.00';
+                            const boundaries = fours + sixes;
+                            const boundaryRuns = (fours * 4) + (sixes * 6);
+                            const boundaryPct = totalRuns > 0 ? Math.round((boundaryRuns / totalRuns) * 100) : 0;
+                            const dotPct = legalBalls > 0 ? Math.round((dots / legalBalls) * 100) : 0;
+                            return { totalRuns, legalBalls, dots, fours, sixes, wides, noBalls, byes, legByes, extras, wickets, overs, ballsInOver, crr, boundaries, boundaryRuns, boundaryPct, dotPct };
+                          };
+
+                          const inn1Stats = calcInningsStats(inn1History);
+                          const inn2Stats = calcInningsStats(inn2History);
+
+                          // Best partnership per innings
+                          const calcBestPartnership = (history: any[]) => {
+                            if (history.length === 0) return null;
+                            const wicketIndices = history.map((b, i) => b.isWicket ? i : -1).filter(i => i >= 0);
+                            const segments: any[][] = [];
+                            let start = 0;
+                            wicketIndices.forEach(wi => {
+                              segments.push(history.slice(start, wi));
+                              start = wi + 1;
+                            });
+                            segments.push(history.slice(start));
+                            let best = { runs: 0, balls: 0, wicketNum: 0 };
+                            segments.forEach((seg, idx) => {
+                              const runs = seg.reduce((s, b) => s + (b.runsScored || 0) + ((b.type === 'WD' || b.type === 'NB') ? 1 : 0), 0);
+                              const balls = seg.filter(b => !b.type || b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB').length;
+                              if (runs > best.runs) best = { runs, balls, wicketNum: idx + 1 };
+                            });
+                            return best.runs > 0 ? best : null;
+                          };
+
+                          const inn1BestPartnership = calcBestPartnership(inn1History);
+                          const inn2BestPartnership = calcBestPartnership(inn2History);
+
+                          // Fall of wickets
+                          const calcFOW = (history: any[]) => {
+                            const fow: { wicketNum: number; score: number; over: string; playerName: string }[] = [];
+                            let totalRuns = 0;
+                            let legalBalls = 0;
+                            let wicketCount = 0;
+                            history.forEach(b => {
+                              totalRuns += (b.runsScored || 0) + ((b.type === 'WD' || b.type === 'NB') ? 1 : 0);
+                              const isLegal = !b.type || b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB';
+                              if (isLegal) legalBalls++;
+                              if (b.isWicket) {
+                                wicketCount++;
+                                const ov = Math.floor(legalBalls / 6);
+                                const bl = legalBalls % 6;
+                                const striker = allPlayers.find(p => p.id === b.strikerId);
+                                fow.push({ wicketNum: wicketCount, score: totalRuns, over: `${ov}.${bl}`, playerName: striker?.name || 'Unknown' });
+                              }
+                            });
+                            return fow;
+                          };
+
+                          const inn1FOW = calcFOW(inn1History);
+                          const inn2FOW = calcFOW(inn2History);
+
+                          // Key moments
+                          const keyMoments: { icon: string; text: string; over: string; innings: number }[] = [];
+                          const checkMilestones = (history: any[], innNum: number) => {
+                            const batRuns: Record<string, number> = {};
+                            let legalBalls = 0;
+                            let totalRuns = 0;
+                            history.forEach(b => {
+                              totalRuns += (b.runsScored || 0) + ((b.type === 'WD' || b.type === 'NB') ? 1 : 0);
+                              const isLegal = !b.type || b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB';
+                              if (isLegal) legalBalls++;
+                              const ov = `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`;
+                              // Track batter runs
+                              if (b.strikerId && b.type !== 'BYE' && b.type !== 'LB') {
+                                batRuns[b.strikerId] = (batRuns[b.strikerId] || 0) + (b.runsScored || 0);
+                                const player = allPlayers.find(p => p.id === b.strikerId);
+                                if (player) {
+                                  if (batRuns[b.strikerId] === 50 || (batRuns[b.strikerId] > 50 && batRuns[b.strikerId] - (b.runsScored || 0) < 50)) {
+                                    keyMoments.push({ icon: '🔥', text: `${player.name} reaches 50!`, over: ov, innings: innNum });
+                                  }
+                                  if (batRuns[b.strikerId] === 100 || (batRuns[b.strikerId] > 100 && batRuns[b.strikerId] - (b.runsScored || 0) < 100)) {
+                                    keyMoments.push({ icon: '💯', text: `${player.name} century!`, over: ov, innings: innNum });
+                                  }
+                                }
+                              }
+                              if (b.isWicket) {
+                                const striker = allPlayers.find(p => p.id === b.strikerId);
+                                keyMoments.push({ icon: '🏏', text: `${striker?.name || 'Batsman'} out — ${b.wicketType || 'Wicket'}`, over: ov, innings: innNum });
+                              }
+                              if ((b.runsScored || 0) === 6) {
+                                const striker = allPlayers.find(p => p.id === b.strikerId);
+                                keyMoments.push({ icon: '💥', text: `SIX by ${striker?.name || 'Batsman'}!`, over: ov, innings: innNum });
+                              }
+                            });
+                          };
+                          checkMilestones(inn1History, 1);
+                          checkMilestones(inn2History, 2);
+
+                          // Top fielders
+                          const fielders = allPlayers
+                            .map(p => ({ ...p, fieldingPts: (p.catches || 0) + (p.stumpings || 0) + (p.run_outs || 0) }))
+                            .filter(p => p.fieldingPts > 0)
+                            .sort((a, b) => b.fieldingPts - a.fieldingPts);
+
+                          // Head-to-head comparison
                           const motm = calculateMOTM();
-                          const topScorer = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.runs || 0) > (best.runs || 0) ? p : best, {});
-                          const bestBowler = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])].reduce((best, p) => (p.wickets || 0) > (best.wickets || 0) ? p : best, {});
+                          const topScorer = allPlayers.reduce((best, p) => (p.runs || 0) > (best.runs || 0) ? p : best, {} as any);
+                          const bestBowler = allPlayers.reduce((best, p) => (p.wickets || 0) > (best.wickets || 0) ? p : best, {} as any);
+                          const highestSR = allPlayers.filter(p => (p.balls || 0) >= 3).reduce((best, p) => {
+                            const sr = ((p.runs || 0) / (p.balls || 1)) * 100;
+                            const bestSr = ((best.runs || 0) / (best.balls || 1)) * 100;
+                            return sr > bestSr ? p : best;
+                          }, {} as any);
+                          const bestEconomy = allPlayers.filter(p => (p.balls_bowled || 0) >= 6).reduce((best, p) => {
+                            const econ = ((p.runs_conceded || 0) / (p.balls_bowled || 1)) * 6;
+                            const bestEcon = ((best.runs_conceded || 0) / (best.balls_bowled || 1)) * 6;
+                            return (!best.name || econ < bestEcon) ? p : best;
+                          }, {} as any);
 
                           return (
-                            <div className="space-y-4">
-                              <h3 className="text-[12px] font-black text-[#FFD600] uppercase tracking-[0.2em]">Heroes of the Match</h3>
-
-                              {/* MOTM Card - Large */}
-                              {motm?.name && (
-                                <div className="p-6 rounded-[24px] bg-gradient-to-br from-[#FFD600]/20 to-[#FF6D00]/10 border border-[#FFD600]/30 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-[10px] font-black text-[#FFD600] uppercase">Man of the Match</p>
-                                    <Trophy size={16} className="text-[#FFD600]" />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <p className="text-[14px] font-black text-white">{motm.name}</p>
-                                    <p className="text-[9px] text-white/50">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
-                                    <div className="flex gap-2 pt-1">
-                                      {motm.runs !== undefined && <span className="text-[10px] font-numbers text-[#00F0FF]">{motm.runs}R</span>}
-                                      {motm.wickets !== undefined && <span className="text-[10px] font-numbers text-[#FF6D00]">{motm.wickets}W</span>}
-                                    </div>
-                                  </div>
+                            <>
+                              {/* ═══ SCORE CARDS ═══ */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="p-5 rounded-[24px] bg-white/5 border border-white/10 text-center space-y-2">
+                                  <p className="text-[9px] font-black text-white/50 uppercase tracking-wider">{inn1Team.name}</p>
+                                  <p className="font-numbers text-3xl font-black text-[#00F0FF]">{countingRuns.inn1}<span className="text-lg text-white/30">/{inn1Stats.wickets}</span></p>
+                                  <p className="text-[8px] text-white/40 font-numbers">{inn1Stats.overs}.{inn1Stats.ballsInOver} ov · RR {inn1Stats.crr}</p>
                                 </div>
-                              )}
-
-                              {/* Best Batter & Best Bowler - Side by side */}
-                              <div className="grid grid-cols-2 gap-3">
-                                {topScorer?.name && (
-                                  <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
-                                    <p className="text-[9px] font-black text-[#00F0FF] uppercase">Best Batter</p>
-                                    <p className="text-[12px] font-black text-white">{topScorer.name}</p>
-                                    <p className="text-[8px] text-white/50">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
-                                    <div className="flex gap-1 text-[9px] font-numbers pt-1">
-                                      <span className="text-[#00F0FF]">{topScorer.runs || 0}R</span>
-                                      <span className="text-white/40">{topScorer.balls || 0}B</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {bestBowler?.name && (
-                                  <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
-                                    <p className="text-[9px] font-black text-[#FF6D00] uppercase">Best Bowler</p>
-                                    <p className="text-[12px] font-black text-white">{bestBowler.name}</p>
-                                    <p className="text-[8px] text-white/50">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
-                                    <div className="flex gap-1 text-[9px] font-numbers pt-1">
-                                      <span className="text-[#FF6D00]">{bestBowler.wickets || 0}W</span>
-                                      <span className="text-white/40">{bestBowler.runs_conceded || 0}R</span>
-                                    </div>
-                                  </div>
-                                )}
+                                <div className="p-5 rounded-[24px] bg-white/5 border border-white/10 text-center space-y-2">
+                                  <p className="text-[9px] font-black text-white/50 uppercase tracking-wider">{inn2Team.name}</p>
+                                  <p className="font-numbers text-3xl font-black text-[#39FF14]">{countingRuns.inn2}<span className="text-lg text-white/30">/{inn2Stats.wickets}</span></p>
+                                  <p className="text-[8px] text-white/40 font-numbers">{inn2Stats.overs}.{inn2Stats.ballsInOver} ov · RR {inn2Stats.crr}</p>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })()}
 
-                        {/* Star Performances Grid */}
-                        {(() => {
-                          const allPlayers = [...(match.teams.teamA.squad || []), ...(match.teams.teamB.squad || [])]
-                            .map(p => ({
-                              ...p,
-                              impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10 + (p.stumpings || 0) * 10 + (p.run_outs || 0) * 10
-                            }))
-                            .sort((a, b) => b.impact - a.impact)
-                            .slice(0, 4);
+                              {/* ═══ MATCH INFO ═══ */}
+                              <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-2">
+                                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Match Info</p>
+                                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[9px]">
+                                  <div className="flex justify-between"><span className="text-white/40">Format</span><span className="text-white/70 font-black">{match.config.overs} Overs</span></div>
+                                  <div className="flex justify-between"><span className="text-white/40">Ball</span><span className="text-white/70 font-black">{match.config.ballType || 'Tennis'}</span></div>
+                                  <div className="flex justify-between"><span className="text-white/40">Toss</span><span className="text-white/70 font-black">{getTeamObj(match.toss?.winnerId)?.name || '—'}</span></div>
+                                  <div className="flex justify-between"><span className="text-white/40">Elected</span><span className="text-white/70 font-black">{match.toss?.decision === 'BAT' ? 'Bat' : 'Bowl'}</span></div>
+                                </div>
+                              </div>
 
-                          return allPlayers.length > 0 ? (
-                            <div className="space-y-3">
-                              <h3 className="text-[12px] font-black text-[#FFD600] uppercase tracking-[0.2em]">Star Performances</h3>
+                              {/* ═══ HEAD-TO-HEAD COMPARISON ═══ */}
+                              <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-4">
+                                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Head to Head</p>
+                                {[
+                                  { label: 'Total Runs', v1: inn1Stats.totalRuns, v2: inn2Stats.totalRuns, color1: '#00F0FF', color2: '#39FF14' },
+                                  { label: 'Boundaries', v1: inn1Stats.boundaries, v2: inn2Stats.boundaries, color1: '#00F0FF', color2: '#39FF14' },
+                                  { label: 'Dot Balls', v1: inn1Stats.dots, v2: inn2Stats.dots, color1: '#00F0FF', color2: '#39FF14' },
+                                  { label: 'Extras', v1: inn1Stats.extras, v2: inn2Stats.extras, color1: '#00F0FF', color2: '#39FF14' },
+                                  { label: 'Wickets Lost', v1: inn1Stats.wickets, v2: inn2Stats.wickets, color1: '#00F0FF', color2: '#39FF14' },
+                                ].map(item => {
+                                  const max = Math.max(item.v1, item.v2, 1);
+                                  return (
+                                    <div key={item.label} className="space-y-1">
+                                      <div className="flex justify-between text-[8px]">
+                                        <span className="font-numbers font-black" style={{ color: item.color1 }}>{item.v1}</span>
+                                        <span className="text-white/40 uppercase tracking-wider">{item.label}</span>
+                                        <span className="font-numbers font-black" style={{ color: item.color2 }}>{item.v2}</span>
+                                      </div>
+                                      <div className="flex gap-1 h-2">
+                                        <div className="flex-1 flex justify-end"><div className="h-full rounded-l-full transition-all" style={{ width: `${(item.v1 / max) * 100}%`, backgroundColor: item.color1, opacity: 0.7 }} /></div>
+                                        <div className="flex-1"><div className="h-full rounded-r-full transition-all" style={{ width: `${(item.v2 / max) * 100}%`, backgroundColor: item.color2, opacity: 0.7 }} /></div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* ═══ INNINGS BREAKDOWN — BOUNDARIES & DOTS ═══ */}
                               <div className="grid grid-cols-2 gap-3">
-                                {allPlayers.map((player) => (
-                                  <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
-                                    <p className="text-[10px] font-black text-white truncate">{player.name}</p>
-                                    <p className="text-[8px] text-white/60">{getTeamObj(player.teamId || innings1TeamId).name}</p>
-                                    <div className="flex gap-1 text-[8px] font-numbers text-[#00F0FF]">
-                                      {player.runs > 0 && <span>{player.runs}R</span>}
-                                      {player.wickets > 0 && <span>{player.wickets}W</span>}
+                                {[{ team: inn1Team, stats: inn1Stats, color: '#00F0FF' }, { team: inn2Team, stats: inn2Stats, color: '#39FF14' }].map(({ team, stats, color }) => (
+                                  <div key={team.id} className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-3">
+                                    <p className="text-[8px] font-black uppercase tracking-wider" style={{ color }}>{team.name}</p>
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-[8px]"><span className="text-white/40">4s</span><span className="text-white font-black font-numbers">{stats.fours}</span></div>
+                                      <div className="flex justify-between text-[8px]"><span className="text-white/40">6s</span><span className="text-white font-black font-numbers">{stats.sixes}</span></div>
+                                      <div className="flex justify-between text-[8px]"><span className="text-white/40">Boundary %</span><span className="text-white font-black font-numbers">{stats.boundaryPct}%</span></div>
+                                      <div className="flex justify-between text-[8px]"><span className="text-white/40">Dot %</span><span className="text-white font-black font-numbers">{stats.dotPct}%</span></div>
+                                      <div className="flex justify-between text-[8px]"><span className="text-white/40">Extras</span><span className="text-white font-black font-numbers">{stats.extras}</span></div>
                                     </div>
                                   </div>
                                 ))}
                               </div>
-                            </div>
-                          ) : null;
+
+                              {/* ═══ EXTRAS BREAKDOWN ═══ */}
+                              <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-3">
+                                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Extras Breakdown</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  {[{ team: inn1Team, stats: inn1Stats, color: '#00F0FF' }, { team: inn2Team, stats: inn2Stats, color: '#39FF14' }].map(({ team, stats, color }) => (
+                                    <div key={team.id} className="space-y-1">
+                                      <p className="text-[8px] font-black uppercase" style={{ color }}>{team.name} — {stats.extras}</p>
+                                      <p className="text-[7px] text-white/40">WD {stats.wides} · NB {stats.noBalls} · B {stats.byes} · LB {stats.legByes}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* ═══ HEROES OF THE MATCH ═══ */}
+                              <div className="space-y-4">
+                                <p className="text-[9px] font-black text-[#FFD600] uppercase tracking-[0.2em]">Heroes of the Match</p>
+
+                                {/* MOTM Card */}
+                                {motm?.name && (
+                                  <div className="p-5 rounded-[24px] bg-gradient-to-br from-[#FFD600]/20 to-[#FF6D00]/10 border border-[#FFD600]/30 space-y-3 relative overflow-hidden">
+                                    <div className="absolute top-3 right-3 opacity-10 text-6xl">🏆</div>
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-[10px] font-black text-[#FFD600] uppercase tracking-wider">Man of the Match</p>
+                                      <Trophy size={16} className="text-[#FFD600]" />
+                                    </div>
+                                    <p className="text-[16px] font-black text-white">{motm.name}</p>
+                                    <p className="text-[9px] text-white/50">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
+                                    <div className="flex gap-3 pt-1">
+                                      {(motm.runs || 0) > 0 && <span className="text-[11px] font-numbers font-black text-[#00F0FF]">{motm.runs} runs ({motm.balls || 0}b)</span>}
+                                      {(motm.wickets || 0) > 0 && <span className="text-[11px] font-numbers font-black text-[#FF6D00]">{motm.wickets}W</span>}
+                                      {(motm.fours || 0) > 0 && <span className="text-[9px] font-numbers text-white/40">{motm.fours}×4</span>}
+                                      {(motm.sixes || 0) > 0 && <span className="text-[9px] font-numbers text-white/40">{motm.sixes}×6</span>}
+                                    </div>
+                                    {(motm.balls || 0) > 0 && <p className="text-[8px] text-white/30 font-numbers">SR {(((motm.runs || 0) / (motm.balls || 1)) * 100).toFixed(1)}</p>}
+                                  </div>
+                                )}
+
+                                {/* Award Cards Grid */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  {topScorer?.name && (
+                                    <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
+                                      <p className="text-[8px] font-black text-[#00F0FF] uppercase tracking-wider">🏏 Top Scorer</p>
+                                      <p className="text-[12px] font-black text-white">{topScorer.name}</p>
+                                      <p className="text-[8px] text-white/40">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
+                                      <div className="flex flex-wrap gap-1 text-[8px] font-numbers pt-1">
+                                        <span className="text-[#00F0FF] font-black">{topScorer.runs || 0}({topScorer.balls || 0})</span>
+                                        {(topScorer.fours || 0) > 0 && <span className="text-white/30">{topScorer.fours}×4</span>}
+                                        {(topScorer.sixes || 0) > 0 && <span className="text-white/30">{topScorer.sixes}×6</span>}
+                                      </div>
+                                      <p className="text-[7px] text-white/25 font-numbers">SR {(((topScorer.runs || 0) / (topScorer.balls || 1)) * 100).toFixed(1)}</p>
+                                    </div>
+                                  )}
+                                  {bestBowler?.name && (
+                                    <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
+                                      <p className="text-[8px] font-black text-[#FF6D00] uppercase tracking-wider">🎯 Best Bowler</p>
+                                      <p className="text-[12px] font-black text-white">{bestBowler.name}</p>
+                                      <p className="text-[8px] text-white/40">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
+                                      <div className="flex gap-1 text-[8px] font-numbers pt-1">
+                                        <span className="text-[#FF6D00] font-black">{bestBowler.wickets || 0}/{bestBowler.runs_conceded || 0}</span>
+                                        <span className="text-white/30">({Math.floor((bestBowler.balls_bowled || 0) / 6)}.{(bestBowler.balls_bowled || 0) % 6} ov)</span>
+                                      </div>
+                                      <p className="text-[7px] text-white/25 font-numbers">Econ {((bestBowler.runs_conceded || 0) / ((bestBowler.balls_bowled || 1) / 6)).toFixed(1)}</p>
+                                    </div>
+                                  )}
+                                  {highestSR?.name && (
+                                    <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
+                                      <p className="text-[8px] font-black text-[#BC13FE] uppercase tracking-wider">⚡ Fastest SR</p>
+                                      <p className="text-[12px] font-black text-white">{highestSR.name}</p>
+                                      <p className="text-[8px] text-white/40">{getTeamObj(highestSR.teamId || innings1TeamId).name}</p>
+                                      <p className="text-[10px] font-numbers font-black text-[#BC13FE]">{(((highestSR.runs || 0) / (highestSR.balls || 1)) * 100).toFixed(1)}</p>
+                                      <p className="text-[7px] text-white/25 font-numbers">{highestSR.runs || 0}({highestSR.balls || 0})</p>
+                                    </div>
+                                  )}
+                                  {bestEconomy?.name && (
+                                    <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
+                                      <p className="text-[8px] font-black text-[#4DB6AC] uppercase tracking-wider">🧊 Best Economy</p>
+                                      <p className="text-[12px] font-black text-white">{bestEconomy.name}</p>
+                                      <p className="text-[8px] text-white/40">{getTeamObj(bestEconomy.teamId || innings2TeamId).name}</p>
+                                      <p className="text-[10px] font-numbers font-black text-[#4DB6AC]">{((bestEconomy.runs_conceded || 0) / ((bestEconomy.balls_bowled || 1) / 6)).toFixed(1)}</p>
+                                      <p className="text-[7px] text-white/25 font-numbers">{bestEconomy.wickets || 0}/{bestEconomy.runs_conceded || 0}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* ═══ BEST PARTNERSHIP ═══ */}
+                              {(inn1BestPartnership || inn2BestPartnership) && (
+                                <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-3">
+                                  <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Best Partnership</p>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {inn1BestPartnership && (
+                                      <div className="space-y-1">
+                                        <p className="text-[8px] font-black text-[#00F0FF] uppercase">{inn1Team.name}</p>
+                                        <p className="text-[14px] font-numbers font-black text-white">{inn1BestPartnership.runs}<span className="text-[9px] text-white/30"> ({inn1BestPartnership.balls}b)</span></p>
+                                        <p className="text-[7px] text-white/40">{inn1BestPartnership.wicketNum}{inn1BestPartnership.wicketNum === 1 ? 'st' : inn1BestPartnership.wicketNum === 2 ? 'nd' : inn1BestPartnership.wicketNum === 3 ? 'rd' : 'th'} wkt</p>
+                                      </div>
+                                    )}
+                                    {inn2BestPartnership && (
+                                      <div className="space-y-1">
+                                        <p className="text-[8px] font-black text-[#39FF14] uppercase">{inn2Team.name}</p>
+                                        <p className="text-[14px] font-numbers font-black text-white">{inn2BestPartnership.runs}<span className="text-[9px] text-white/30"> ({inn2BestPartnership.balls}b)</span></p>
+                                        <p className="text-[7px] text-white/40">{inn2BestPartnership.wicketNum}{inn2BestPartnership.wicketNum === 1 ? 'st' : inn2BestPartnership.wicketNum === 2 ? 'nd' : inn2BestPartnership.wicketNum === 3 ? 'rd' : 'th'} wkt</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ═══ FALL OF WICKETS ═══ */}
+                              {(inn1FOW.length > 0 || inn2FOW.length > 0) && (
+                                <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-4">
+                                  <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Fall of Wickets</p>
+                                  {inn1FOW.length > 0 && (
+                                    <div className="space-y-2">
+                                      <p className="text-[8px] font-black text-[#00F0FF] uppercase">{inn1Team.name}</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {inn1FOW.map(f => (
+                                          <div key={f.wicketNum} className="px-3 py-2 rounded-xl bg-[#FF003C]/10 border border-[#FF003C]/20 text-center">
+                                            <p className="text-[10px] font-numbers font-black text-white">{f.score}/{f.wicketNum}</p>
+                                            <p className="text-[7px] text-white/30">{f.over} ov</p>
+                                            <p className="text-[6px] text-[#FF003C]/60 truncate max-w-[60px]">{f.playerName}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {inn2FOW.length > 0 && (
+                                    <div className="space-y-2">
+                                      <p className="text-[8px] font-black text-[#39FF14] uppercase">{inn2Team.name}</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {inn2FOW.map(f => (
+                                          <div key={f.wicketNum} className="px-3 py-2 rounded-xl bg-[#FF003C]/10 border border-[#FF003C]/20 text-center">
+                                            <p className="text-[10px] font-numbers font-black text-white">{f.score}/{f.wicketNum}</p>
+                                            <p className="text-[7px] text-white/30">{f.over} ov</p>
+                                            <p className="text-[6px] text-[#FF003C]/60 truncate max-w-[60px]">{f.playerName}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* ═══ KEY MOMENTS ═══ */}
+                              {keyMoments.length > 0 && (
+                                <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-3">
+                                  <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Key Moments</p>
+                                  <div className="space-y-2">
+                                    {keyMoments.slice(0, 12).map((m, idx) => (
+                                      <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                                        <span className="text-[14px]">{m.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[9px] font-black text-white truncate">{m.text}</p>
+                                          <p className="text-[7px] text-white/30">Inn {m.innings} · {m.over} ov</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ═══ FIELDING HIGHLIGHTS ═══ */}
+                              {fielders.length > 0 && (
+                                <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-3">
+                                  <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Fielding Highlights</p>
+                                  <div className="space-y-2">
+                                    {fielders.slice(0, 5).map(p => (
+                                      <div key={p.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                                        <div>
+                                          <p className="text-[9px] font-black text-white">{p.name}</p>
+                                          <p className="text-[7px] text-white/30">{getTeamObj(p.teamId || innings1TeamId).name}</p>
+                                        </div>
+                                        <div className="flex gap-2 text-[8px] font-numbers">
+                                          {(p.catches || 0) > 0 && <span className="text-[#4DB6AC]">{p.catches}c</span>}
+                                          {(p.stumpings || 0) > 0 && <span className="text-[#BC13FE]">{p.stumpings}st</span>}
+                                          {(p.run_outs || 0) > 0 && <span className="text-[#FF6D00]">{p.run_outs}ro</span>}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ═══ STAR PERFORMANCES ═══ */}
+                              {(() => {
+                                const stars = allPlayers
+                                  .map(p => ({ ...p, impact: (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10 + (p.stumpings || 0) * 10 + (p.run_outs || 0) * 10 }))
+                                  .sort((a, b) => b.impact - a.impact)
+                                  .slice(0, 6);
+                                return stars.length > 0 ? (
+                                  <div className="space-y-3">
+                                    <p className="text-[9px] font-black text-[#FFD600] uppercase tracking-[0.2em]">Star Performances</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      {stars.map((player) => (
+                                        <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
+                                          <p className="text-[10px] font-black text-white truncate">{player.name}</p>
+                                          <p className="text-[7px] text-white/40">{getTeamObj(player.teamId || innings1TeamId).name}</p>
+                                          <div className="flex flex-wrap gap-1 text-[8px] font-numbers">
+                                            {(player.runs || 0) > 0 && <span className="text-[#00F0FF]">{player.runs}({player.balls || 0})</span>}
+                                            {(player.wickets || 0) > 0 && <span className="text-[#FF6D00]">{player.wickets}W</span>}
+                                            {(player.catches || 0) > 0 && <span className="text-[#4DB6AC]">{player.catches}c</span>}
+                                          </div>
+                                          <div className="w-full bg-white/5 rounded-full h-1 mt-1">
+                                            <div className="h-full rounded-full bg-[#FFD600]" style={{ width: `${Math.min(100, (player.impact / (stars[0]?.impact || 1)) * 100)}%` }} />
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null;
+                              })()}
+                            </>
+                          );
                         })()}
                       </motion.div>
                     )}
