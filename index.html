@@ -622,14 +622,15 @@
         html[data-theme="light"] .bg-\[\#00F0FF\] { background-color: #CC1010 !important; }
         html[data-theme="light"] .shadow-\[\#00F0FF\]\/30 { box-shadow: 0 10px 15px -3px rgba(204,16,16,0.3) !important; }
 
-        /* ── Scoring buttons: black text in light mode ── */
-        html[data-theme="light"] .score-btn-plain {
+        /* ── Scoring buttons: black text + visible bg in light mode ── */
+        html[data-theme="light"] button.score-btn-plain,
+        html[data-theme="light"] button.score-btn-plain.text-white {
             color: #000000 !important;
-            background-color: rgba(15,23,42,0.08) !important;
-            border-color: rgba(15,23,42,0.20) !important;
+            background-color: #e2e8f0 !important;
+            border-color: #94a3b8 !important;
         }
-        html[data-theme="light"] .score-btn-plain:hover {
-            background-color: rgba(15,23,42,0.15) !important;
+        html[data-theme="light"] button.score-btn-plain:hover {
+            background-color: #cbd5e1 !important;
         }
 
         /* ── Openers hero banner: RED bg + WHITE text in light mode ── */
