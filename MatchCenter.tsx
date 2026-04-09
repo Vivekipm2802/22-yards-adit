@@ -1700,7 +1700,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   const getSpectatorUrl = () => {
     if (!match.matchId) return null;
-    return window.location.origin + '?spectate=' + match.matchId;
+    return window.location.origin + '?watch=' + match.matchId;
   };
 
   const openTransferModal = () => {
