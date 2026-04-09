@@ -75,6 +75,10 @@ export interface MatchState {
     reducedOvers2?: number; // reduced overs for innings 2
     isRainAffected?: boolean;
     dlsParScore?: number; // current par score during chase
+    youtubeStreamUrl?: string; // YouTube stream URL
+    youtubeEmbedUrl?: string; // YouTube embed URL for spectators
+    rtmpUrl?: string; // RTMP URL for streaming
+    streamKey?: string; // Stream key for RTMP
   };
   teams: {
     teamA: Team;

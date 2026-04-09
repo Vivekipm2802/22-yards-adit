@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Disc, Zap, Target, RefreshCcw, User, Wifi } from 'lucide-react';
 import { fetchMatchById, supabase } from '../lib/supabase';
+import { LiveStreamView, type LiveStreamConfig } from './LiveStream';
 
 const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
   const [matchState, setMatchState] = useState<any | null>(null);
@@ -232,6 +233,17 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
       {/* ââ Main scrollable ââ */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4 pb-20"
            style={{ scrollbarWidth: 'none' }}>
+
+        {/* YouTube Live Stream (if available) */}
+        {matchState?.config?.youtubeEmbedUrl && (
+          <LiveStreamView
+            config={{
+              youtubeEmbedUrl: matchState.config.youtubeEmbedUrl,
+              isStreaming: true,
+            } as LiveStreamConfig}
+            matchId={matchId}
+          />
+        )}
 
         {/* Score card - flashes on every score update */}
         <motion.div

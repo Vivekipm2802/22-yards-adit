@@ -16,7 +16,7 @@ import {
   ClipboardList, Search, RefreshCcw, ShieldAlert, Camera, HelpCircle,
   LayoutDashboard, PieChart, ZapOff, Calendar, Crown, Settings, Image as ImageIcon, Save,
   ChevronRight, Smartphone, Medal, Zap as Bolt, Crosshair, Edit2, Upload,
-  ArrowLeftRight, History, Coins
+  ArrowLeftRight, History, Coins, Video
 } from 'lucide-react';
 import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
@@ -25,6 +25,8 @@ import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, b
 import { calculateDLSTarget, getDLSParScore, getMatchStatus } from './lib/dls';
 import { createSuperOverState, updateSuperOverAfterBall, shouldEndSuperOverInnings, determineSuperOverResult, setSuperOverLineup, transitionSuperOverPhase, SuperOverState } from './lib/superOver';
 import LiveScoreboard from './pages/LiveScoreboard';
+import HighlightsPage from './pages/Highlights';
+import { CameraRecorder, YouTubeStreamModal, LiveStreamView, useCameraRecorder, type LiveStreamConfig } from './pages/LiveStream';
 
 const CYBER_COLORS = {
   bg: '#050505',
@@ -117,7 +119,21 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   });
 
   const [status, setStatus] = useState<string>(match.status === 'COMPLETED' ? 'SUMMARY' : match.status);
-  const [summaryTab, setSummaryTab] = useState<'SUMMARY' | 'SCORECARD' | 'COMMS' | 'ANALYSIS' | 'MVP'>('SUMMARY');
+  const [summaryTab, setSummaryTab] = useState<'SUMMARY' | 'SCORECARD' | 'COMMS' | 'ANALYSIS' | 'MVP' | 'HIGHLIGHTS'>('SUMMARY');
+
+  // YouTube Live Streaming state
+  const [showYouTubeModal, setShowYouTubeModal] = useState(false);
+  const [liveStreamConfig, setLiveStreamConfig] = useState<LiveStreamConfig>({
+    youtubeStreamUrl: match.config.youtubeStreamUrl,
+    youtubeEmbedUrl: match.config.youtubeEmbedUrl,
+    rtmpUrl: match.config.rtmpUrl,
+    streamKey: match.config.streamKey,
+    isStreaming: false,
+  });
+  const [showCameraRecorder, setShowCameraRecorder] = useState(false);
+
+  // Highlights state
+  const [showHighlights, setShowHighlights] = useState(false);
   const [overlayAnim, setOverlayAnim] = useState<'FOUR' | 'SIX' | 'WICKET' | 'FREE_HIT' | 'INNINGS_BREAK' | null>(null);
   const [winnerTeam, setWinnerTeam] = useState<{name: string, id: TeamID | null, margin: string} | null>(null);
   const [selectionTarget, setSelectionTarget] = useState<'STRIKER' | 'NON_STRIKER' | 'BOWLER' | 'NEW_BATSMAN' | 'NEXT_BOWLER' | 'FIELDER' | null>(null);
@@ -524,6 +540,25 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     setSquadConflict(null);
     setMatch(m => ({ ...m, toss: { winnerId: null, decision: null } }));
     setStatus('TOSS_FLIP');
+  };
+
+  const handleSaveYouTubeConfig = (config: LiveStreamConfig) => {
+    setLiveStreamConfig(config);
+    setMatch(m => ({
+      ...m,
+      config: {
+        ...m.config,
+        youtubeStreamUrl: config.youtubeStreamUrl,
+        youtubeEmbedUrl: config.youtubeEmbedUrl,
+        rtmpUrl: config.rtmpUrl,
+        streamKey: config.streamKey,
+      }
+    }));
+    setShowYouTubeModal(false);
+    // Broadcast to spectators
+    if (match.matchId) {
+      pushLiveMatchState(match);
+    }
   };
 
   const handleScore = (runs: number) => {
@@ -4429,7 +4464,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {summaryPhase !== 'SKELETON' && (
                 <div className="summary-tab-bar sticky top-0 z-40 bg-[#050505] border-b border-white/5 px-4 pt-4">
                   <div className="flex gap-1 overflow-x-auto no-scrollbar pb-4">
-                    {['SUMMARY', 'SCORECARD', 'COMMS', 'ANALYSIS', 'MVP'].map((tab) => (
+                    {['SUMMARY', 'SCORECARD', 'COMMS', 'ANALYSIS', 'MVP', 'HIGHLIGHTS'].map((tab) => (
                       <motion.button
                         key={tab}
                         whileTap={{ scale: 0.95 }}
@@ -5350,6 +5385,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     )}
 
                     {/* MVP TAB */}
+                    {summaryTab === 'HIGHLIGHTS' && (
+                      <HighlightsPage
+                        match={match}
+                        onBack={() => setSummaryTab('SUMMARY')}
+                      />
+                    )}
+
                     {summaryTab === 'MVP' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -5947,6 +5989,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <Users size={18} />
                 Spectator Link
               </button>
+
+              {/* GO LIVE — YouTube Streaming */}
+              <button
+                onClick={() => { setShowMatchSettings(false); setShowYouTubeModal(true); }}
+                className="w-full py-4 rounded-[20px] bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-black text-[12px] uppercase tracking-wider hover:bg-[#39FF14]/20 transition-all flex items-center justify-center gap-3"
+              >
+                <Video size={18} />
+                Go Live on YouTube
+              </button>
+
               {match.config.scorerName && (
                 <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider text-center">Current scorer: {match.config.scorerName}</p>
               )}
@@ -6900,6 +6952,20 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* YouTube Stream Modal */}
+      <YouTubeStreamModal
+        isOpen={showYouTubeModal}
+        onClose={() => setShowYouTubeModal(false)}
+        onSave={handleSaveYouTubeConfig}
+        currentConfig={liveStreamConfig}
+      />
+
+      {/* Camera Recorder PiP Overlay */}
+      <CameraRecorder
+        isActive={showCameraRecorder}
+        onClose={() => setShowCameraRecorder(false)}
+      />
     </div>
   );
 };
