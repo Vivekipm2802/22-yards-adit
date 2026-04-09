@@ -195,6 +195,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [receiveError, setReceiveError] = useState('');
   const [isReceiving, setIsReceiving] = useState(false);
   const [isSpectateMode, setIsSpectateMode] = useState(false);
+  const spectateChannelRef = useRef<any>(null);
 
   // Scoring lock — prevents race conditions from rapid clicks
   const isProcessingBall = useRef(false);
@@ -268,7 +269,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               const matchData = result.live_state || result;
               setMatch(matchData);
               setStatus(matchData.status === 'COMPLETED' ? 'SUMMARY' : matchData.status);
-              const ch = supabase.channel('spectate:' + spectateId);
+              // Clean up previous spectate channel if any
+              if (spectateChannelRef.current) {
+                supabase.removeChannel(spectateChannelRef.current);
+              }
+              const ch = supabase.channel('live:' + spectateId);
               ch.on('broadcast', { event: 'score_update' }, ({ payload }) => {
                 if (payload) {
                   setMatch(payload);
@@ -276,6 +281,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 }
               });
               ch.subscribe();
+              spectateChannelRef.current = ch;
             }
           } catch (e) {
             console.error('Spectate fetch failed:', e);
@@ -287,6 +293,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     } catch (e) {
       console.error('URL parameter handling failed:', e);
     }
+  }, []);
+
+  // Cleanup spectate channel on unmount
+  useEffect(() => {
+    return () => {
+      if (spectateChannelRef.current) {
+        supabase.removeChannel(spectateChannelRef.current);
+        spectateChannelRef.current = null;
+      }
+    };
   }, []);
 
   // Keep match.status in sync with the UI status state

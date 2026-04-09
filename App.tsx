@@ -207,7 +207,7 @@ const App: React.FC = () => {
   const [transferDirect, setTransferDirect] = useState(false);
 
   const acceptTransfer = () => {
-    if (!transferMatchInfo) return;
+    if (!transferMatchInfo || transferAccepted) return; // guard double-click
     // Save match state to localStorage so MatchCenter picks it up
     localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(transferMatchInfo));
     setTransferAccepted(true);
