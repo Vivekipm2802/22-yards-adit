@@ -50,7 +50,7 @@ export interface BallEvent {
 
 export interface MatchState {
   matchId: string;
-  status: 'CONFIG' | 'TOSS' | 'OPENERS' | 'LIVE' | 'INNINGS_BREAK' | 'COMPLETED';
+  status: 'CONFIG' | 'TOSS' | 'OPENERS' | 'LIVE' | 'INNINGS_BREAK' | 'SUPER_OVER' | 'COMPLETED';
   currentInnings: 1 | 2;
   toss: {
     winnerId: TeamID | null;
@@ -70,6 +70,11 @@ export interface MatchState {
     innings1Score?: number;
     innings1Wickets?: number;
     innings1Balls?: number;
+    dlsTarget?: number; // revised target after rain delay
+    reducedOvers1?: number; // reduced overs for innings 1
+    reducedOvers2?: number; // reduced overs for innings 2
+    isRainAffected?: boolean;
+    dlsParScore?: number; // current par score during chase
   };
   teams: {
     teamA: Team;
@@ -89,4 +94,5 @@ export interface MatchState {
     previousBowlerId: PlayerID | null;
   };
   history: BallEvent[];
+  superOver?: any; // SuperOverState from lib/superOver.ts — using any to avoid circular imports
 }

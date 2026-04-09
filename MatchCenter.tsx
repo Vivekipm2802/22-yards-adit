@@ -22,6 +22,8 @@ import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
 import { useAuth } from './AuthContext';
 import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, fetchMatchById, supabase } from './lib/supabase';
+import { calculateDLSTarget, getDLSParScore, getMatchStatus } from './lib/dls';
+import { createSuperOverState, updateSuperOverAfterBall, shouldEndSuperOverInnings, determineSuperOverResult, setSuperOverLineup, transitionSuperOverPhase, SuperOverState } from './lib/superOver';
 import LiveScoreboard from './pages/LiveScoreboard';
 
 const CYBER_COLORS = {
@@ -176,6 +178,18 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [showMatchSettings, setShowMatchSettings] = useState(false);
   const [abandonConfirm, setAbandonConfirm] = useState(false);
   const [abandonReason, setAbandonReason] = useState('');
+
+  // DLS (Rain Delay) state
+  const [showDLSModal, setShowDLSModal] = useState(false);
+  const [dlsReducedOvers, setDlsReducedOvers] = useState<number>(0);
+  const [dlsActive, setDlsActive] = useState(false);
+
+  // Super Over state
+  const [superOverState, setSuperOverState] = useState<SuperOverState | null>(null);
+  const [superOverPhase, setSuperOverPhase] = useState<string | null>(null); // 'SETUP_TEAM1' | 'BATTING_TEAM1' | etc
+  const [soSelectedBatsmen, setSoSelectedBatsmen] = useState<string[]>([]);
+  const [soSelectedBowler, setSoSelectedBowler] = useState<string | null>(null);
+  const [showSuperOverPrompt, setShowSuperOverPrompt] = useState(false);
 
   // QR Scanner
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -1023,7 +1037,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           const wicketsLeft = Math.max(0, battingSquadSize - 1 - newLiveScore.wickets);
           setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}` });
         } else if (inn2Score === inn1Score) {
-          setWinnerTeam({ name: 'Match Tied', id: null, margin: `Both teams scored ${inn1Score} runs` });
+          // Match tied — trigger Super Over prompt
+          setShowSuperOverPrompt(true);
         } else {
           const runDiff = inn1Score - inn2Score;
           setWinnerTeam({ name: bowlingTeamName, id: m.teams.bowlingTeamId, margin: `Won by ${runDiff} run${runDiff !== 1 ? 's' : ''}` });
@@ -1537,6 +1552,155 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     setAbandonConfirm(false);
     setAbandonReason('');
     setTimeout(() => setStatus('SUMMARY'), 100);
+  };
+
+  // SUPER OVER start handler
+  const startSuperOver = () => {
+    setShowSuperOverPrompt(false);
+    const soState = createSuperOverState(match.teams, match.history);
+    setSuperOverState(soState);
+    setSuperOverPhase('SETUP_TEAM1');
+    setMatch(m => ({ ...m, status: 'SUPER_OVER' as any, superOver: soState }));
+    setStatus('SUPER_OVER');
+  };
+
+  // Super Over: select lineup for a team
+  const confirmSuperOverLineup = (teamNumber: 1 | 2) => {
+    if (!superOverState) return;
+    if (soSelectedBatsmen.length < 2 || !soSelectedBowler) return; // need at least 2 batsmen + bowler (3 max)
+
+    const batsmen = soSelectedBatsmen.slice(0, 3);
+    const newState = setSuperOverLineup(superOverState, teamNumber, batsmen, soSelectedBowler);
+
+    // Set crease for first ball
+    if (teamNumber === 1) {
+      newState.crease = { strikerId: batsmen[0], nonStrikerId: batsmen[1] || null, bowlerId: null };
+    } else {
+      newState.crease = { strikerId: batsmen[0], nonStrikerId: batsmen[1] || null, bowlerId: null };
+    }
+
+    const transitioned = transitionSuperOverPhase(newState);
+    setSuperOverState(transitioned);
+    setSuperOverPhase(transitioned.phase);
+    setSoSelectedBatsmen([]);
+    setSoSelectedBowler(null);
+  };
+
+  // Super Over: record a ball
+  const recordSuperOverBall = (runs: number, isWicket: boolean = false, type: string = 'LEGAL') => {
+    if (!superOverState) return;
+
+    const currentTeam = superOverState.currentBatting;
+    const score = currentTeam === 1 ? superOverState.team1Score : superOverState.team2Score;
+
+    const ballEvent = {
+      ballNumber: score.balls + 1,
+      runs: type === 'WD' || type === 'NB' ? runs + 1 : runs,
+      runsScored: runs,
+      type,
+      wicket: isWicket,
+      strikerId: superOverState.crease.strikerId || '',
+      bowlerId: superOverState.crease.bowlerId || '',
+    };
+
+    const newState = updateSuperOverAfterBall(superOverState, ballEvent);
+
+    // Handle strike rotation on odd runs
+    if (runs % 2 === 1 && !isWicket) {
+      newState.crease = {
+        ...newState.crease,
+        strikerId: newState.crease.nonStrikerId,
+        nonStrikerId: newState.crease.strikerId,
+      };
+    }
+
+    // Handle wicket — bring in next batsman
+    if (isWicket) {
+      const batsmen = currentTeam === 1 ? newState.team1Batsmen : newState.team2Batsmen;
+      const history = currentTeam === 1 ? newState.team1History : newState.team2History;
+      const outBatsmen = history.filter(b => b.wicket).map(b => b.strikerId);
+      const nextBatsman = batsmen.find(b => !outBatsmen.includes(b) && b !== newState.crease.nonStrikerId);
+      if (nextBatsman) {
+        newState.crease.strikerId = nextBatsman;
+      }
+    }
+
+    setSuperOverState(newState);
+    setSuperOverPhase(newState.phase);
+
+    // Check if we need to transition phase
+    if (newState.phase === 'BREAK') {
+      // Set up for team 2 batting
+      setTimeout(() => setSuperOverPhase('SETUP_TEAM2'), 1500);
+    }
+
+    if (newState.phase === 'RESULT') {
+      // Determine result
+      const result = determineSuperOverResult(newState, match.teams);
+      const finalState = { ...newState, result };
+      setSuperOverState(finalState);
+
+      if (result.winnerId) {
+        const winnerName = result.winner;
+        setWinnerTeam({ name: winnerName, id: result.winnerId, margin: `${result.margin} (${result.method})` });
+      } else {
+        // Another super over needed — for now just show tied
+        setWinnerTeam({ name: 'Match Tied', id: null, margin: 'Super Over also tied' });
+      }
+      setMatch(m => ({ ...m, status: 'COMPLETED', superOver: finalState }));
+      setTimeout(() => setStatus('SUMMARY'), 2000);
+    }
+  };
+
+  // DLS RAIN DELAY handler
+  const handleDLSRainDelay = (newOvers: number) => {
+    if (newOvers <= 0 || newOvers >= match.config.overs) return;
+
+    const currentInnings = match.currentInnings;
+    const legalBalls = match.history.filter(b => b.innings === currentInnings && (b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB')).length;
+    const oversUsed = legalBalls / 6;
+
+    if (currentInnings === 1) {
+      // Rain during innings 1: reduce overs for innings 1
+      setMatch(m => ({
+        ...m,
+        config: { ...m.config, overs: newOvers, reducedOvers1: newOvers, isRainAffected: true }
+      }));
+    } else {
+      // Rain during innings 2: calculate DLS target
+      const inn1Score = match.config.innings1Score || 0;
+      const inn1Overs = match.config.overs;
+      const inn1Wickets = match.config.innings1Wickets || 0;
+      const inn1Balls = match.config.innings1Balls || 0;
+
+      const dlsResult = calculateDLSTarget({
+        team1Score: inn1Score,
+        team1OversAvailable: inn1Overs,
+        team1OversUsed: inn1Balls / 6,
+        team1WicketsAtInterruption: inn1Wickets,
+        team2OversAvailable: newOvers,
+        team2WicketsLost: match.liveScore.wickets,
+        team2BallsBowled: match.liveScore.balls,
+        matchOvers: inn1Overs,
+      });
+
+      setMatch(m => ({
+        ...m,
+        config: {
+          ...m.config,
+          overs: newOvers,
+          reducedOvers2: newOvers,
+          isRainAffected: true,
+          dlsTarget: dlsResult.revisedTarget,
+          target: dlsResult.revisedTarget,
+          dlsParScore: dlsResult.parScore,
+        }
+      }));
+    }
+
+    setDlsActive(true);
+    setShowDLSModal(false);
+    setShowMatchSettings(false);
   };
 
   const handleSetCaptain = (playerId: PlayerID) => {
@@ -3380,6 +3544,25 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 {match.currentInnings === 2 && target > 0 && (
                   <div className="text-[8px] text-white/70 uppercase tracking-wider text-center py-1 bg-white/[0.08] rounded">
                     Need {need} off {ballsRemaining}b | RRR: {rrr}
+                  </div>
+                )}
+
+                {/* DLS PAR SCORE */}
+                {dlsActive && match.currentInnings === 2 && match.config.isRainAffected && (
+                  <div className="dls-par-banner px-4 py-2 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-between mt-2">
+                    <span className="text-[9px] font-black text-[#FFD600]/60 uppercase tracking-wider">DLS Par</span>
+                    <span className="font-numbers text-sm font-black text-[#FFD600]">
+                      {getDLSParScore({
+                        team1Score: match.config.innings1Score || 0,
+                        matchOvers: match.config.reducedOvers2 || match.config.overs,
+                        team2OversRemaining: (match.config.reducedOvers2 || match.config.overs) - (match.liveScore.balls / 6),
+                        team2WicketsLost: match.liveScore.wickets,
+                        team2OversTotal: match.config.reducedOvers2 || match.config.overs,
+                      })}
+                    </span>
+                    <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: match.liveScore.runs >= getDLSParScore({ team1Score: match.config.innings1Score || 0, matchOvers: match.config.reducedOvers2 || match.config.overs, team2OversRemaining: (match.config.reducedOvers2 || match.config.overs) - (match.liveScore.balls / 6), team2WicketsLost: match.liveScore.wickets, team2OversTotal: match.config.reducedOvers2 || match.config.overs }) ? '#39FF14' : '#FF003C' }}>
+                      {match.liveScore.runs >= getDLSParScore({ team1Score: match.config.innings1Score || 0, matchOvers: match.config.reducedOvers2 || match.config.overs, team2OversRemaining: (match.config.reducedOvers2 || match.config.overs) - (match.liveScore.balls / 6), team2WicketsLost: match.liveScore.wickets, team2OversTotal: match.config.reducedOvers2 || match.config.overs }) ? 'AHEAD' : 'BEHIND'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -5717,6 +5900,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider text-center">Current scorer: {match.config.scorerName}</p>
               )}
 
+              {/* RAIN DELAY — DLS */}
+              <button
+                onClick={() => { setShowMatchSettings(false); setDlsReducedOvers(Math.max(1, match.config.overs - 2)); setShowDLSModal(true); }}
+                className="w-full py-4 rounded-[20px] bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-black text-[12px] uppercase tracking-wider hover:bg-[#FFD600]/20 transition-all flex items-center justify-center gap-3"
+              >
+                <Activity size={18} />
+                Rain Delay (DLS Method)
+              </button>
+
               {/* DIVIDER */}
               <div className="h-px bg-white/10" />
 
@@ -5779,6 +5971,434 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* DLS RAIN DELAY MODAL */}
+      {showDLSModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowDLSModal(false)}
+          className="fixed inset-0 z-[5000] bg-black/90 flex items-center justify-center p-6"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-[#0A0A0A] border border-[#FFD600]/20 rounded-[24px] p-6 space-y-5"
+          >
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 mx-auto rounded-full bg-[#FFD600]/10 flex items-center justify-center">
+                <Activity size={24} className="text-[#FFD600]" />
+              </div>
+              <h3 className="font-heading text-xl uppercase italic text-[#FFD600]">Rain Delay</h3>
+              <p className="text-[10px] text-white/50 font-bold">DLS Method will revise the target</p>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[9px] font-black text-white/40 uppercase tracking-[0.15em]">
+                {match.currentInnings === 1 ? 'Reduce Innings 1 to' : 'Reduce Innings 2 to'} (overs)
+              </label>
+              <div className="flex items-center gap-4 justify-center">
+                <button
+                  onClick={() => setDlsReducedOvers(v => Math.max(1, v - 1))}
+                  className="w-12 h-12 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center hover:bg-white/10"
+                >
+                  <Minus size={18} />
+                </button>
+                <span className="font-numbers text-4xl font-black text-[#FFD600] w-16 text-center">{dlsReducedOvers}</span>
+                <button
+                  onClick={() => setDlsReducedOvers(v => Math.min(match.config.overs - 1, v + 1))}
+                  className="w-12 h-12 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center hover:bg-white/10"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+              <p className="text-[9px] text-white/30 text-center">Original: {match.config.overs} overs → New: {dlsReducedOvers} overs</p>
+            </div>
+
+            {match.currentInnings === 2 && match.config.innings1Score !== undefined && (
+              <div className="p-4 rounded-[16px] bg-[#FFD600]/5 border border-[#FFD600]/10 text-center space-y-1">
+                <p className="text-[9px] text-white/40 font-black uppercase tracking-wider">Revised DLS Target</p>
+                <p className="font-numbers text-3xl font-black text-[#FFD600]">
+                  {(() => {
+                    const result = calculateDLSTarget({
+                      team1Score: match.config.innings1Score || 0,
+                      team1OversAvailable: match.config.overs,
+                      team1OversUsed: (match.config.innings1Balls || 0) / 6,
+                      team1WicketsAtInterruption: match.config.innings1Wickets || 0,
+                      team2OversAvailable: dlsReducedOvers,
+                      team2WicketsLost: match.liveScore.wickets,
+                      team2BallsBowled: match.liveScore.balls,
+                      matchOvers: match.config.overs,
+                    });
+                    return result.revisedTarget;
+                  })()}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDLSModal(false)}
+                className="flex-1 py-3 rounded-[16px] bg-white/5 border border-white/10 text-white text-[11px] font-black uppercase tracking-wider hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDLSRainDelay(dlsReducedOvers)}
+                className="flex-1 py-3 rounded-[16px] bg-[#FFD600] text-black text-[11px] font-black uppercase tracking-wider hover:bg-[#FFD600]/90 active:scale-[0.98]"
+              >
+                Apply DLS
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* SUPER OVER PROMPT */}
+      {showSuperOverPrompt && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-[6000] bg-black/95 flex items-center justify-center p-6"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 20 }}
+            className="w-full max-w-sm bg-[#0A0A0A] border border-[#FFD600]/30 rounded-[28px] p-8 space-y-6 text-center"
+          >
+            <div className="space-y-3">
+              <div className="w-16 h-16 mx-auto rounded-full bg-[#FFD600]/10 flex items-center justify-center">
+                <Swords size={28} className="text-[#FFD600]" />
+              </div>
+              <h2 className="font-heading text-3xl uppercase italic text-[#FFD600]">Match Tied!</h2>
+              <p className="text-[11px] text-white/50 font-bold">Both teams scored {match.config.innings1Score} runs</p>
+            </div>
+
+            <div className="space-y-3">
+              <motion.button
+                onClick={startSuperOver}
+                whileTap={{ scale: 0.95 }}
+                className="w-full py-5 rounded-[20px] bg-gradient-to-r from-[#FFD600] to-[#FF6D00] text-black font-black text-[13px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(255,214,0,0.3)]"
+              >
+                <Zap size={18} />
+                Start Super Over
+              </motion.button>
+
+              <button
+                onClick={() => {
+                  setShowSuperOverPrompt(false);
+                  setWinnerTeam({ name: 'Match Tied', id: null, margin: `Both teams scored ${match.config.innings1Score} runs` });
+                  setTimeout(() => setStatus('SUMMARY'), 100);
+                }}
+                className="w-full py-4 rounded-[20px] bg-white/5 border border-white/10 text-white/60 font-black text-[11px] uppercase tracking-wider"
+              >
+                End as Tie
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* SUPER OVER SCREEN */}
+      {(status === 'SUPER_OVER' && superOverState) && (
+        <div className="fixed inset-0 z-[5500] bg-[#050505] flex flex-col overflow-auto">
+          {/* Header */}
+          <div className="super-over-header h-14 flex items-center px-5 border-b border-white/5 bg-black/80 backdrop-blur-md shrink-0">
+            <div className="flex items-center gap-3 flex-1">
+              <Swords size={18} className="text-[#FFD600]" />
+              <span className="font-heading text-sm uppercase italic text-[#FFD600]">
+                Super Over {superOverState.superOverNumber > 1 ? `#${superOverState.superOverNumber}` : ''}
+              </span>
+            </div>
+            <div className="font-numbers text-xs text-white/40">
+              {superOverPhase === 'BATTING_TEAM1' || superOverPhase === 'BATTING_TEAM2' ? (
+                `${superOverState.currentBatting === 1 ? superOverState.team1Score.runs : superOverState.team2Score.runs}/${superOverState.currentBatting === 1 ? superOverState.team1Score.wickets : superOverState.team2Score.wickets} (${((superOverState.currentBatting === 1 ? superOverState.team1Score.balls : superOverState.team2Score.balls) / 6).toFixed(1)} ov)`
+              ) : ''}
+            </div>
+          </div>
+
+          {/* SETUP PHASE — Select batsmen & bowler */}
+          {(superOverPhase === 'SETUP_TEAM1' || superOverPhase === 'SETUP_TEAM2') && (() => {
+            const teamNum = superOverPhase === 'SETUP_TEAM1' ? 1 : 2;
+            const teamId = teamNum === 1 ? superOverState.team1Id : superOverState.team2Id;
+            const teamKey = teamId === 'A' ? 'teamA' : 'teamB';
+            const team = match.teams[teamKey];
+            const oppositeTeamId = teamNum === 1 ? superOverState.team2Id : superOverState.team1Id;
+            const oppositeKey = oppositeTeamId === 'A' ? 'teamA' : 'teamB';
+            const oppositeTeam = match.teams[oppositeKey];
+            const squad = team?.squad || [];
+            const oppositeSquad = oppositeTeam?.squad || [];
+
+            return (
+              <div className="flex-1 overflow-auto p-5 space-y-5">
+                <div className="text-center space-y-2">
+                  <h3 className="font-heading text-2xl uppercase italic text-white">{team?.name || 'Team'}</h3>
+                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+                    {teamNum === 1 ? 'Batting First' : 'Batting Second'} — Select Players
+                  </p>
+                </div>
+
+                {/* Select Batsmen (up to 3) */}
+                <div className="space-y-3">
+                  <p className="text-[9px] font-black text-[#00F0FF]/60 uppercase tracking-[0.2em]">
+                    Select Batsmen ({soSelectedBatsmen.length}/3)
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {squad.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          if (soSelectedBatsmen.includes(p.id)) {
+                            setSoSelectedBatsmen(prev => prev.filter(id => id !== p.id));
+                          } else if (soSelectedBatsmen.length < 3) {
+                            setSoSelectedBatsmen(prev => [...prev, p.id]);
+                          }
+                        }}
+                        className={`px-3 py-3 rounded-[14px] text-left text-[11px] font-bold border transition-all ${
+                          soSelectedBatsmen.includes(p.id)
+                            ? 'bg-[#00F0FF]/15 border-[#00F0FF]/50 text-[#00F0FF]'
+                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                        }`}
+                      >
+                        {p.name || 'Player'}
+                        {soSelectedBatsmen.includes(p.id) && <Check size={12} className="inline ml-2" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Select Bowler from opposing team */}
+                <div className="space-y-3">
+                  <p className="text-[9px] font-black text-[#FF003C]/60 uppercase tracking-[0.2em]">
+                    Select Bowler from {oppositeTeam?.name || 'Opposition'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {oppositeSquad.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSoSelectedBowler(soSelectedBowler === p.id ? null : p.id)}
+                        className={`px-3 py-3 rounded-[14px] text-left text-[11px] font-bold border transition-all ${
+                          soSelectedBowler === p.id
+                            ? 'bg-[#FF003C]/15 border-[#FF003C]/50 text-[#FF003C]'
+                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                        }`}
+                      >
+                        {p.name || 'Player'}
+                        {soSelectedBowler === p.id && <Check size={12} className="inline ml-2" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Confirm button */}
+                <motion.button
+                  onClick={() => {
+                    if (soSelectedBatsmen.length >= 2 && soSelectedBowler) {
+                      // Set bowler in crease
+                      const newState = { ...superOverState };
+                      newState.crease = { ...newState.crease, bowlerId: soSelectedBowler };
+                      setSuperOverState(newState);
+                      confirmSuperOverLineup(teamNum as 1 | 2);
+                    }
+                  }}
+                  disabled={soSelectedBatsmen.length < 2 || !soSelectedBowler}
+                  whileTap={{ scale: 0.95 }}
+                  className={`w-full py-5 rounded-[20px] font-black text-[13px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all ${
+                    soSelectedBatsmen.length >= 2 && soSelectedBowler
+                      ? 'bg-[#39FF14] text-black shadow-[0_0_30px_rgba(57,255,20,0.3)]'
+                      : 'bg-white/5 text-white/20 cursor-not-allowed'
+                  }`}
+                >
+                  <Check size={18} />
+                  Confirm Lineup
+                </motion.button>
+              </div>
+            );
+          })()}
+
+          {/* BATTING PHASE — Scoring keypad */}
+          {(superOverPhase === 'BATTING_TEAM1' || superOverPhase === 'BATTING_TEAM2') && (() => {
+            const teamNum = superOverState.currentBatting;
+            const teamId = teamNum === 1 ? superOverState.team1Id : superOverState.team2Id;
+            const teamKey = teamId === 'A' ? 'teamA' : 'teamB';
+            const team = match.teams[teamKey];
+            const score = teamNum === 1 ? superOverState.team1Score : superOverState.team2Score;
+            const history = teamNum === 1 ? superOverState.team1History : superOverState.team2History;
+            const striker = superOverState.crease.strikerId;
+            const nonStriker = superOverState.crease.nonStrikerId;
+            const allSquad = [...(match.teams.teamA?.squad || []), ...(match.teams.teamB?.squad || [])];
+            const strikerName = allSquad.find(p => p.id === striker)?.name || 'Striker';
+            const nonStrikerName = allSquad.find(p => p.id === nonStriker)?.name || 'Non-Striker';
+            const bowlerName = allSquad.find(p => p.id === superOverState.crease.bowlerId)?.name || 'Bowler';
+
+            // Target for team 2
+            const target2 = teamNum === 2 ? superOverState.team1Score.runs + 1 : null;
+            const needFromBalls = target2 ? `Need ${target2 - score.runs} from ${6 - score.balls} balls` : null;
+
+            return (
+              <div className="flex-1 overflow-auto p-5 space-y-4">
+                {/* Score display */}
+                <div className="text-center space-y-2 py-4">
+                  <p className="text-[9px] font-black text-[#FFD600]/60 uppercase tracking-[0.3em]">{team?.name || 'Team'}</p>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="font-numbers text-[56px] font-black text-white leading-none">{score.runs}</span>
+                    <span className="font-numbers text-[28px] font-black text-[#FF003C] leading-none">/{score.wickets}</span>
+                  </div>
+                  <p className="font-numbers text-sm text-white/40">{Math.floor(score.balls / 6)}.{score.balls % 6} overs</p>
+                  {needFromBalls && (
+                    <p className="text-[11px] font-black text-[#39FF14] uppercase tracking-wider">{needFromBalls}</p>
+                  )}
+                </div>
+
+                {/* Crease info */}
+                <div className="flex justify-between px-2 py-2 rounded-xl bg-white/5 border border-white/5">
+                  <div className="text-[10px]">
+                    <span className="text-[#00F0FF] font-black">⚡ {strikerName}</span>
+                  </div>
+                  <div className="text-[10px] text-white/40">{nonStrikerName}</div>
+                  <div className="text-[10px] text-[#FF003C]">🏐 {bowlerName}</div>
+                </div>
+
+                {/* Ball history */}
+                <div className="flex gap-2 px-1">
+                  {[0,1,2,3,4,5].map(i => {
+                    const ball = history[i];
+                    return (
+                      <div key={i} className={`flex-1 h-10 rounded-lg flex items-center justify-center font-numbers text-sm font-black ${
+                        ball ? (
+                          ball.wicket ? 'bg-[#FF003C]/20 text-[#FF003C] border border-[#FF003C]/30' :
+                          ball.runsScored === 4 ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/30' :
+                          ball.runsScored === 6 ? 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/30' :
+                          'bg-white/10 text-white border border-white/10'
+                        ) : 'bg-white/5 border border-white/5 text-white/20'
+                      }`}>
+                        {ball ? (ball.wicket ? 'W' : ball.type === 'WD' ? `${ball.runsScored}wd` : ball.type === 'NB' ? `${ball.runsScored}nb` : ball.runsScored) : i + 1}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Check if team 2 already won mid-over */}
+                {target2 && score.runs >= target2 ? (
+                  <div className="text-center py-6 space-y-3">
+                    <h3 className="font-heading text-2xl text-[#39FF14] uppercase italic">{team?.name} Wins!</h3>
+                    <p className="text-[10px] text-white/40 font-bold">by {2 - score.wickets} wicket{2 - score.wickets !== 1 ? 's' : ''} (Super Over)</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Scoring keypad */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[0, 1, 2, 3].map(r => (
+                        <motion.button
+                          key={r}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => recordSuperOverBall(r)}
+                          className="h-14 rounded-xl bg-white/5 border border-white/10 text-white font-numbers text-xl font-black hover:bg-white/10"
+                        >
+                          {r}
+                        </motion.button>
+                      ))}
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(4)}
+                        className="h-14 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-numbers text-xl font-black">
+                        4
+                      </motion.button>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(6)}
+                        className="h-14 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-numbers text-xl font-black">
+                        6
+                      </motion.button>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(1, false, 'WD')}
+                        className="h-14 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-numbers text-sm font-black">
+                        WD
+                      </motion.button>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(1, false, 'NB')}
+                        className="h-14 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-numbers text-sm font-black">
+                        NB
+                      </motion.button>
+                    </div>
+
+                    {/* Wicket button */}
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => recordSuperOverBall(0, true)}
+                      className="w-full py-4 rounded-[20px] bg-[#FF003C]/10 border border-[#FF003C]/30 text-[#FF003C] font-black text-[12px] uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <Target size={16} />
+                      Wicket
+                    </motion.button>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* BREAK PHASE */}
+          {superOverPhase === 'BREAK' && (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center space-y-6 max-w-sm"
+              >
+                <h2 className="font-heading text-3xl uppercase italic text-[#FFD600]">Super Over Break</h2>
+                <div className="p-6 rounded-[24px] bg-white/5 border border-white/10 space-y-3">
+                  <p className="text-[9px] font-black text-white/40 uppercase tracking-wider">{match.teams[superOverState.team1Id === 'A' ? 'teamA' : 'teamB']?.name || 'Team 1'} Scored</p>
+                  <p className="font-numbers text-5xl font-black text-white">{superOverState.team1Score.runs}<span className="text-[#FF003C]">/{superOverState.team1Score.wickets}</span></p>
+                  <p className="font-numbers text-sm text-white/30">{Math.floor(superOverState.team1Score.balls / 6)}.{superOverState.team1Score.balls % 6} overs</p>
+                </div>
+                <div className="p-4 rounded-[16px] bg-[#39FF14]/5 border border-[#39FF14]/20 text-center">
+                  <p className="text-[9px] text-[#39FF14]/60 font-black uppercase tracking-wider">Target</p>
+                  <p className="font-numbers text-3xl font-black text-[#39FF14]">{superOverState.team1Score.runs + 1}</p>
+                  <p className="text-[9px] text-white/30">from 6 balls</p>
+                </div>
+                <motion.button
+                  onClick={() => {
+                    setSoSelectedBatsmen([]);
+                    setSoSelectedBowler(null);
+                    setSuperOverPhase('SETUP_TEAM2');
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full py-5 rounded-[20px] bg-[#39FF14] text-black font-black text-[13px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(57,255,20,0.3)]"
+                >
+                  <Zap size={18} />
+                  Start {match.teams[superOverState.team2Id === 'A' ? 'teamA' : 'teamB']?.name || 'Team 2'} Innings
+                </motion.button>
+              </motion.div>
+            </div>
+          )}
+
+          {/* RESULT PHASE */}
+          {superOverPhase === 'RESULT' && superOverState.result && (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', damping: 15 }}
+                className="text-center space-y-6 max-w-sm"
+              >
+                <Trophy size={48} className="text-[#FFD600] mx-auto" />
+                <h2 className="font-heading text-4xl uppercase italic text-[#39FF14]">{superOverState.result.winner}</h2>
+                <p className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">{superOverState.result.margin}</p>
+                <p className="text-[9px] text-white/30 font-bold">via {superOverState.result.method}</p>
+
+                <div className="flex gap-4">
+                  <div className="flex-1 p-4 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
+                    <p className="text-[8px] text-white/30 font-black uppercase">{match.teams[superOverState.team1Id === 'A' ? 'teamA' : 'teamB']?.name}</p>
+                    <p className="font-numbers text-2xl font-black text-white">{superOverState.team1Score.runs}/{superOverState.team1Score.wickets}</p>
+                  </div>
+                  <div className="flex-1 p-4 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
+                    <p className="text-[8px] text-white/30 font-black uppercase">{match.teams[superOverState.team2Id === 'A' ? 'teamA' : 'teamB']?.name}</p>
+                    <p className="font-numbers text-2xl font-black text-white">{superOverState.team2Score.runs}/{superOverState.team2Score.wickets}</p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ADD PLAYER MID-MATCH MODAL */}
       <AnimatePresence>
