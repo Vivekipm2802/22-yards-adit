@@ -1,5 +1,27 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
+
+// Error Boundary to catch MatchCenter crashes
+class MCErrorBoundary extends Component {
+  state = { error: null, errorInfo: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, errorInfo) {
+    console.error('[MCErrorBoundary] MatchCenter crashed:', error?.message, error?.stack?.substring(0, 500));
+    this.setState({ error, errorInfo });
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, color: 'red', background: '#111', minHeight: '100vh', fontFamily: 'monospace' }}>
+          <h2>MatchCenter Crash</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{this.state.error?.message}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 10, color: '#888', marginTop: 20 }}>{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import {
   LayoutDashboard,
   Swords,
@@ -274,7 +296,7 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (activePage) {
       case 'DUGOUT': return <Dugout onNavigate={setActivePage} onUpgrade={() => setShowUpgradeModal(true)} />;
-      case 'MATCH_CENTER': return <MatchCenter onBack={() => setActivePage('DUGOUT')} onNavigate={(page) => setActivePage(page as Page)} />;
+      case 'MATCH_CENTER': return <MCErrorBoundary><MatchCenter onBack={() => setActivePage('DUGOUT')} onNavigate={(page) => setActivePage(page as Page)} /></MCErrorBoundary>;
       case 'PERFORMANCE': return <Performance userAvatar={userData.avatar} />;
       case 'ARENA': return <Arena />;
       case 'HISTORY': return <Archive />;
