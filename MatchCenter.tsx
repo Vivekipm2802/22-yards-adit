@@ -1749,7 +1749,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       <input type="file" ref={logoInputRef} onChange={handleLogoFileChange} className="hidden" accept="image/*" />
 
       {/* HEADER */}
-      <div className="h-14 flex items-center px-6 border-b border-white/5 bg-black/50 backdrop-blur-md z-[100] shrink-0">
+      <div className="main-header h-14 flex items-center px-6 border-b border-white/5 bg-black/50 backdrop-blur-md z-[100] shrink-0">
         <button onClick={() => {
           if (status === 'LIVE' || status === 'INNINGS_BREAK' || status === 'OPENERS') {
             if (!window.confirm('Match in progress! Are you sure you want to leave? Your match is auto-saved and you can resume later.')) return;
@@ -4149,7 +4149,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
               {/* TAB BAR - Sticky at top */}
               {summaryPhase !== 'SKELETON' && (
-                <div className="sticky top-0 z-40 bg-[#050505] border-b border-white/5 px-4 pt-4">
+                <div className="summary-tab-bar sticky top-0 z-40 bg-[#050505] border-b border-white/5 px-4 pt-4">
                   <div className="flex gap-1 overflow-x-auto no-scrollbar pb-4">
                     {['SUMMARY', 'SCORECARD', 'COMMS', 'ANALYSIS', 'MVP'].map((tab) => (
                       <motion.button
