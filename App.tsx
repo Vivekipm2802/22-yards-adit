@@ -6,7 +6,7 @@ class MCErrorBoundary extends Component {
   state = { error: null, errorInfo: null };
   static getDerivedStateFromError(error) { return { error }; }
   componentDidCatch(error, errorInfo) {
-    console.error('[MCErrorBoundary] MatchCenter crashed:', error?.message, error?.stack?.substring(0, 500));
+    console.error('[MCErrorBoundary]', error?.message);
     this.setState({ error, errorInfo });
   }
   render() {
@@ -203,12 +203,13 @@ const App: React.FC = () => {
     }
   }, [transferData, userData]);
 
+  /* —— Transfer accepted: two-phase navigation to avoid AnimatePresence race —— */
+  const [transferDirect, setTransferDirect] = useState(false);
+
   const acceptTransfer = () => {
-    if (!transferMatchInfo) { console.error('[XFER] acceptTransfer: transferMatchInfo is null!'); return; }
-    console.log('[XFER] acceptTransfer: saving match to localStorage', transferMatchInfo.matchId, transferMatchInfo.status);
-    // Save match state to localStorage
+    if (!transferMatchInfo) return;
+    // Save match state to localStorage so MatchCenter picks it up
     localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(transferMatchInfo));
-    console.log('[XFER] localStorage saved. Verify:', !!localStorage.getItem('22YARDS_ACTIVE_MATCH'));
     setTransferAccepted(true);
     // Clean URL params
     try {
@@ -217,10 +218,11 @@ const App: React.FC = () => {
       url.searchParams.delete('transfer_id');
       window.history.replaceState({}, '', url.toString());
     } catch {}
-    // Navigate to Match Center after brief animation
+    // Phase 1: Show "Scoring Transferred!" for 1s, then navigate directly
+    // We use transferDirect to bypass AnimatePresence entirely
     setTimeout(() => {
-      console.log('[XFER] Timeout fired. About to setActivePage MATCH_CENTER. localStorage check:', !!localStorage.getItem('22YARDS_ACTIVE_MATCH'));
       setShowTransferConfirm(false);
+      setTransferDirect(true);   // renders MatchCenter directly, no AnimatePresence
       setActivePage('MATCH_CENTER');
     }, 1200);
   };
@@ -357,18 +359,31 @@ const App: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-hidden relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activePage}
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="h-full w-full"
-            >
-              {renderPage()}
-            </motion.div>
-          </AnimatePresence>
+          {transferDirect && activePage === 'MATCH_CENTER' ? (
+            /* Transfer bypass: render MatchCenter directly without AnimatePresence
+               to avoid the race condition between overlay exit and page transition */
+            <div className="h-full w-full">
+              <MCErrorBoundary>
+                <MatchCenter
+                  onBack={() => { setTransferDirect(false); setActivePage('DUGOUT'); }}
+                  onNavigate={(page) => { setTransferDirect(false); setActivePage(page as Page); }}
+                />
+              </MCErrorBoundary>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activePage}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="h-full w-full"
+              >
+                {renderPage()}
+              </motion.div>
+            </AnimatePresence>
+          )}
         </main>
 
         {/* Bottom Tab Bar */}
