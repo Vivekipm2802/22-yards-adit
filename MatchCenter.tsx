@@ -5658,13 +5658,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 Transfer Scoring to Another Device
               </button>
 
-              {/* RECEIVE TRANSFER — for the receiving device */}
+              {/* SPECTATOR LINK — share live view */}
               <button
-                onClick={() => { setShowMatchSettings(false); setShowReceiveModal(true); }}
-                className="w-full py-4 rounded-[20px] bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-black text-[12px] uppercase tracking-wider hover:bg-[#39FF14]/20 transition-all flex items-center justify-center gap-3"
+                onClick={() => { setShowMatchSettings(false); setTransferTab('SPECTATOR'); pushLiveMatchState(match); setShowTransferModal(true); }}
+                className="w-full py-4 rounded-[20px] bg-[#BC13FE]/10 border border-[#BC13FE]/30 text-[#BC13FE] font-black text-[12px] uppercase tracking-wider hover:bg-[#BC13FE]/20 transition-all flex items-center justify-center gap-3"
               >
-                <ArrowLeftRight size={18} />
-                Receive Scoring from Another Device
+                <Users size={18} />
+                Spectator Link
               </button>
               {match.config.scorerName && (
                 <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider text-center">Current scorer: {match.config.scorerName}</p>
@@ -5932,41 +5932,23 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden max-h-[90vh] overflow-y-auto"
             >
-              {/* Header */}
+              {/* Header — changes based on which mode */}
               <div className="p-5 border-b border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#00F0FF]/10 flex items-center justify-center">
-                    <Smartphone size={18} className="text-[#00F0FF]" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transferTab === 'SPECTATOR' ? 'bg-[#BC13FE]/10' : 'bg-[#00F0FF]/10'}`}>
+                    {transferTab === 'SPECTATOR' ? <Users size={18} className="text-[#BC13FE]" /> : <Smartphone size={18} className="text-[#00F0FF]" />}
                   </div>
                   <div>
-                    <h3 className="font-heading text-base uppercase italic text-[#00F0FF]">Transfer Scoring</h3>
-                    <p className="text-[9px] text-white/40 uppercase tracking-wider">Hand off to another device</p>
+                    <h3 className={`font-heading text-base uppercase italic ${transferTab === 'SPECTATOR' ? 'text-[#BC13FE]' : 'text-[#00F0FF]'}`}>
+                      {transferTab === 'SPECTATOR' ? 'Spectator Link' : 'Transfer Scoring'}
+                    </h3>
+                    <p className="text-[9px] text-white/40 uppercase tracking-wider">
+                      {transferTab === 'SPECTATOR' ? 'Share live match view' : 'Hand off to another device'}
+                    </p>
                   </div>
                 </div>
                 <button onClick={() => { setShowTransferModal(false); setTransferStatus('IDLE'); }} className="p-2 text-white/40 hover:text-white">
                   <X size={18} />
-                </button>
-              </div>
-
-              {/* Tab Selector */}
-              <div className="flex p-2 bg-white/5 mx-5 mt-4 rounded-[16px]">
-                <button
-                  onClick={() => setTransferTab('HANDOFF')}
-                  className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-black uppercase tracking-wider transition-all ${
-                    transferTab === 'HANDOFF' ? 'bg-[#00F0FF] text-black' : 'text-white/40 hover:text-white/60'
-                  }`}
-                >
-                  <ArrowLeftRight size={14} className="inline mr-2" />
-                  Handoff
-                </button>
-                <button
-                  onClick={() => setTransferTab('SPECTATOR')}
-                  className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-black uppercase tracking-wider transition-all ${
-                    transferTab === 'SPECTATOR' ? 'bg-[#00F0FF] text-black' : 'text-white/40 hover:text-white/60'
-                  }`}
-                >
-                  <Users size={14} className="inline mr-2" />
-                  Spectator Link
                 </button>
               </div>
 
