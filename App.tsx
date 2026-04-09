@@ -218,21 +218,25 @@ const App: React.FC = () => {
       url.searchParams.delete('transfer_id');
       window.history.replaceState({}, '', url.toString());
     } catch {}
-    // Broadcast transfer_accepted so the sender switches to spectator mode
+    // Signal transfer_accepted via localStorage flag so the sender (same or other tab) switches to spectator
+    // We use localStorage instead of Supabase broadcast because the sender's listener
+    // may not be subscribed in time to catch an ephemeral broadcast event.
     const matchId = transferMatchInfo.matchId;
     if (matchId) {
-      const ch = supabase.channel(`live:${matchId}`);
-      ch.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') {
-          ch.send({
-            type: 'broadcast',
-            event: 'transfer_accepted',
-            payload: { acceptedBy: userData?.name || 'Another device', matchId },
-          });
-          // Cleanup after a short delay to ensure message is sent
-          setTimeout(() => supabase.removeChannel(ch), 3000);
-        }
-      });
+      localStorage.setItem(`22Y_TRANSFER_ACCEPTED_${matchId}`, JSON.stringify({
+        acceptedBy: userData?.name || 'Another device',
+        acceptedAt: Date.now(),
+      }));
+      // Also broadcast for cross-device scenarios (sender on different device)
+      try {
+        const ch = supabase.channel(`live:${matchId}`);
+        ch.subscribe((st: string) => {
+          if (st === 'SUBSCRIBED') {
+            ch.send({ type: 'broadcast', event: 'transfer_accepted', payload: { matchId, acceptedBy: userData?.name || 'Another device' } });
+            setTimeout(() => supabase.removeChannel(ch), 3000);
+          }
+        });
+      } catch (_) {}
     }
     // Phase 1: Show "Scoring Transferred!" for 1s, then navigate directly
     // We use transferDirect to bypass AnimatePresence entirely

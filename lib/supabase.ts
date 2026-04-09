@@ -260,15 +260,23 @@ export async function syncMatchToSupabase(
 
 // âââ DB: Save completed match to matches table ââââââââââââââââââââââââââââââââ
 export async function saveMatchRecord(matchState: any, winnerName: string, margin: string): Promise<void> {
+  // After match ends, battingTeamId = team that batted innings 2 (chaser)
+  // bowlingTeamId = team that batted innings 1
+  const inn1BattingTeamId = matchState.teams?.bowlingTeamId; // team that batted first (now bowling in inn2)
+  const teamABattedFirst = inn1BattingTeamId === 'A';
+  const inn1Score = matchState.config?.innings1Score ?? 0;
+  const inn1Wickets = matchState.config?.innings1Wickets ?? 0;
+  const inn2Score = matchState.liveScore?.runs ?? 0;
+  const inn2Wickets = matchState.liveScore?.wickets ?? 0;
   const payload = {
     match_id: matchState.matchId,
     date_played: matchState.config.dateTime ? new Date(matchState.config.dateTime).toISOString() : new Date().toISOString(),
     team_a_name: matchState.teams.teamA.name,
     team_b_name: matchState.teams.teamB.name,
-    team_a_score: matchState.config.innings1Score ?? matchState.liveScore.runs ?? 0,  // B-18 fix
-    team_a_wickets: matchState.config.innings1Wickets ?? matchState.liveScore.wickets ?? 0,
-    team_b_score: matchState.liveScore.runs,
-    team_b_wickets: matchState.liveScore.wickets,
+    team_a_score: teamABattedFirst ? inn1Score : inn2Score,
+    team_a_wickets: teamABattedFirst ? inn1Wickets : inn2Wickets,
+    team_b_score: teamABattedFirst ? inn2Score : inn1Score,
+    team_b_wickets: teamABattedFirst ? inn2Wickets : inn1Wickets,
     winner_name: winnerName,
     margin,
     overs: matchState.config.overs,
@@ -313,8 +321,39 @@ export async function pushLiveMatchState(matchState: any): Promise<void> {
   if (!matchState?.matchId) return;
   try {
     const isInn2 = matchState.currentInnings === 2;
+    // Determine which team is batting — battingTeamId tells us ('A' or 'B')
+    const battingTeamId = matchState.teams?.battingTeamId; // 'A' or 'B'
+    const teamABatsNow = battingTeamId === 'A';
     // Unique key per call: original matchId + _t + timestamp
     const liveKey = `${matchState.matchId}_t${Date.now()}`;
+    // Correctly assign scores to team A and team B regardless of who bats first
+    let teamAScore = 0, teamAWickets = 0, teamBScore = 0, teamBWickets = 0;
+    if (isInn2) {
+      // Innings 1 is stored in config, innings 2 is live
+      // In innings 2, battingTeamId is the team batting NOW (chasing)
+      const inn1Score = matchState.config?.innings1Score ?? 0;
+      const inn1Wickets = matchState.config?.innings1Wickets ?? 0;
+      const inn2Score = matchState.liveScore?.runs ?? 0;
+      const inn2Wickets = matchState.liveScore?.wickets ?? 0;
+      if (teamABatsNow) {
+        // Team A is chasing (batting inn2), Team B batted inn1
+        teamAScore = inn2Score; teamAWickets = inn2Wickets;
+        teamBScore = inn1Score; teamBWickets = inn1Wickets;
+      } else {
+        // Team B is chasing (batting inn2), Team A batted inn1
+        teamAScore = inn1Score; teamAWickets = inn1Wickets;
+        teamBScore = inn2Score; teamBWickets = inn2Wickets;
+      }
+    } else {
+      // Innings 1 — liveScore is the current batting team's score
+      if (teamABatsNow) {
+        teamAScore = matchState.liveScore?.runs ?? 0;
+        teamAWickets = matchState.liveScore?.wickets ?? 0;
+      } else {
+        teamBScore = matchState.liveScore?.runs ?? 0;
+        teamBWickets = matchState.liveScore?.wickets ?? 0;
+      }
+    }
     const payload = {
       match_id: liveKey,
       date_played: matchState.config?.dateTime
@@ -322,14 +361,10 @@ export async function pushLiveMatchState(matchState: any): Promise<void> {
         : new Date().toISOString(),
       team_a_name: matchState.teams?.teamA?.name ?? 'TEAM A',
       team_b_name: matchState.teams?.teamB?.name ?? 'TEAM B',
-      team_a_score: isInn2
-        ? (matchState.config?.innings1Score ?? 0)
-        : (matchState.liveScore?.runs ?? 0),
-      team_a_wickets: isInn2
-        ? (matchState.config?.innings1Wickets ?? 0)
-        : (matchState.liveScore?.wickets ?? 0),
-      team_b_score: isInn2 ? (matchState.liveScore?.runs ?? 0) : 0,
-      team_b_wickets: isInn2 ? (matchState.liveScore?.wickets ?? 0) : 0,
+      team_a_score: teamAScore,
+      team_a_wickets: teamAWickets,
+      team_b_score: teamBScore,
+      team_b_wickets: teamBWickets,
       winner_name: 'IN PROGRESS',
       margin: `Innings ${matchState.currentInnings ?? 1}`,
       overs: matchState.config?.overs ?? 0,

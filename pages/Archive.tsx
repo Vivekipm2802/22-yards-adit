@@ -41,7 +41,7 @@ const Archive: React.FC = () => {
         const merged = [...cloudHist, ...localHist].filter(m => {
           if (!m?.id || seen.has(m.id)) return false;
           seen.add(m.id); return true;
-        });
+        }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
         mergedHistForTeams = merged;  // Update reference for team extraction
         setHistory(merged);
       }).catch(() => {

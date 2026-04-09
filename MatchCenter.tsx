@@ -322,15 +322,37 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   useEffect(() => {
     if (!match.matchId) return;
     const ch = supabase.channel(`live:${match.matchId}`);
-    // Listen for transfer_accepted — another device took over scoring
+    // Listen for transfer_accepted — another device took over scoring (cross-device)
     ch.on('broadcast', { event: 'transfer_accepted' }, ({ payload }) => {
-      console.log('[MatchCenter] Transfer accepted by:', payload?.acceptedBy);
-      // Switch sender to spectator mode
+      console.log('[MatchCenter] Transfer accepted (broadcast) by:', payload?.acceptedBy);
       setForcedSpectatorMode(match.matchId);
     });
     ch.subscribe();
     liveChannelRef.current = ch;
+
+    // Poll localStorage for transfer_accepted flag (same-device / reliable fallback)
+    const transferPollId = setInterval(() => {
+      const flag = localStorage.getItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
+      if (flag) {
+        try {
+          const data = JSON.parse(flag);
+          // Only react if accepted within last 60 seconds (avoid stale flags)
+          if (data.acceptedAt && Date.now() - data.acceptedAt < 60000) {
+            console.log('[MatchCenter] Transfer accepted (localStorage) by:', data.acceptedBy);
+            localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
+            setForcedSpectatorMode(match.matchId);
+          } else {
+            // Stale flag — clean it up
+            localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
+          }
+        } catch (_) {
+          localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
+        }
+      }
+    }, 1500);
+
     return () => {
+      clearInterval(transferPollId);
       supabase.removeChannel(ch);
       liveChannelRef.current = null;
     };
@@ -1294,6 +1316,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         const fowRows = inn1FoW.map(f => [f.name, f.score, f.over]);
         y = drawTable(fowHeaders, fowRows, y, [80, 100, 60]);
         y += 6;
+      }
+
+      // INNINGS 2 — only render if innings 2 was actually played
+      const inn2Played = match.currentInnings === 2 || (match.config?.innings1Score !== undefined && match.liveScore.balls > 0);
+      if (!inn2Played) {
+        // Match ended during or after innings 1 — skip innings 2 section
+        doc.save('scorecard.pdf');
+        return;
       }
 
       // Check if we need a new page for innings 2
