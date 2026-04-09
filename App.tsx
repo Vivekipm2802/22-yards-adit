@@ -57,7 +57,7 @@ import Tournaments from './pages/Tournaments';
 import Profile from './pages/Profile';
 import { AuthContext } from './AuthContext';
 import LiveScoreboard from './pages/LiveScoreboard';
-import { fetchMatchById } from './lib/supabase';
+import { fetchMatchById, supabase } from './lib/supabase';
 
 export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'PROFILE';
 
@@ -218,6 +218,22 @@ const App: React.FC = () => {
       url.searchParams.delete('transfer_id');
       window.history.replaceState({}, '', url.toString());
     } catch {}
+    // Broadcast transfer_accepted so the sender switches to spectator mode
+    const matchId = transferMatchInfo.matchId;
+    if (matchId) {
+      const ch = supabase.channel(`live:${matchId}`);
+      ch.subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          ch.send({
+            type: 'broadcast',
+            event: 'transfer_accepted',
+            payload: { acceptedBy: userData?.name || 'Another device', matchId },
+          });
+          // Cleanup after a short delay to ensure message is sent
+          setTimeout(() => supabase.removeChannel(ch), 3000);
+        }
+      });
+    }
     // Phase 1: Show "Scoring Transferred!" for 1s, then navigate directly
     // We use transferDirect to bypass AnimatePresence entirely
     setTimeout(() => {

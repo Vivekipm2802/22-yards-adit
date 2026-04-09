@@ -22,6 +22,7 @@ import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
 import { useAuth } from './AuthContext';
 import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, fetchMatchById, supabase } from './lib/supabase';
+import LiveScoreboard from './pages/LiveScoreboard';
 
 const CYBER_COLORS = {
   bg: '#050505',
@@ -78,6 +79,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const { userData } = useAuth();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [activeLogoTeamId, setActiveLogoTeamId] = useState<TeamID | null>(null);
+  const [forcedSpectatorMode, setForcedSpectatorMode] = useState<string | null>(null);
 
   function createInitialState(): MatchState {
     return {
@@ -320,6 +322,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   useEffect(() => {
     if (!match.matchId) return;
     const ch = supabase.channel(`live:${match.matchId}`);
+    // Listen for transfer_accepted — another device took over scoring
+    ch.on('broadcast', { event: 'transfer_accepted' }, ({ payload }) => {
+      console.log('[MatchCenter] Transfer accepted by:', payload?.acceptedBy);
+      // Switch sender to spectator mode
+      setForcedSpectatorMode(match.matchId);
+    });
     ch.subscribe();
     liveChannelRef.current = ch;
     return () => {
@@ -1743,6 +1751,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   };
 
   const isAddPlayerDisabled = !newName.trim() || (phoneQuery.length > 0 && phoneQuery.length !== 10);
+
+  // If another device accepted the transfer, switch to spectator mode
+  if (forcedSpectatorMode) {
+    return (
+      <div className="h-full w-full flex flex-col overflow-hidden relative max-h-[100dvh]">
+        <LiveScoreboard matchId={forcedSpectatorMode} />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full bg-[#050505] text-white flex flex-col overflow-hidden relative font-sans max-h-[100dvh]">
