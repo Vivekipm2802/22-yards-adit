@@ -4358,7 +4358,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[9px]">
                                   <div className="flex justify-between"><span className="text-white/40">Format</span><span className="text-white/70 font-black">{match.config.overs} Overs</span></div>
                                   <div className="flex justify-between"><span className="text-white/40">Ball</span><span className="text-white/70 font-black">{match.config.ballType || 'Tennis'}</span></div>
-                                  <div className="flex justify-between"><span className="text-white/40">Toss</span><span className="text-white/70 font-black">{getTeamObj(match.toss?.winnerId)?.name || '—'}</span></div>
+                                  <div className="flex justify-between"><span className="text-white/40">Toss</span><span className="text-white/70 font-black">{match.toss?.winnerId ? getTeamObj(match.toss.winnerId)?.name : '—'}</span></div>
                                   <div className="flex justify-between"><span className="text-white/40">Elected</span><span className="text-white/70 font-black">{match.toss?.decision === 'BAT' ? 'Bat' : 'Bowl'}</span></div>
                                 </div>
                               </div>
