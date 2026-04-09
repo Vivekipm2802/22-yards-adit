@@ -65,6 +65,10 @@ const App: React.FC = () => {
   const [spectateCode] = useState<string | null>(() => {
     try { return new URLSearchParams(window.location.search).get('spectate'); } catch { return null; }
   });
+  /* —— URL params: ?transfer_id=MATCH_ID for Supabase-based score handoff —— */
+  const [transferIdParam] = useState<string | null>(() => {
+    try { return new URLSearchParams(window.location.search).get('transfer_id'); } catch { return null; }
+  });
   /* —— Transfer Confirmation state —— */
   const [showTransferConfirm, setShowTransferConfirm] = useState(false);
   const [transferMatchInfo, setTransferMatchInfo] = useState<any>(null);
@@ -137,6 +141,30 @@ const App: React.FC = () => {
     localStorage.setItem('22YARDS_USER_DATA', JSON.stringify(updatedData));
     setActivePage('DUGOUT');
   };
+
+  /* —— transfer_id: Fetch match from Supabase and show confirmation overlay —— */
+  useEffect(() => {
+    if (!transferIdParam || !userData) return;
+    (async () => {
+      try {
+        const matchState = await fetchMatchById(transferIdParam);
+        if (matchState && matchState.teams) {
+          setTransferMatchInfo(matchState);
+          setShowTransferConfirm(true);
+          // Clean the URL
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('transfer_id');
+            window.history.replaceState({}, '', url.toString());
+          } catch {}
+        } else {
+          console.error('Transfer: match not found for ID:', transferIdParam);
+        }
+      } catch (e) {
+        console.error('Transfer: failed to fetch match:', e);
+      }
+    })();
+  }, [transferIdParam, userData]);
 
   /* —— Decode transfer data from URL and show confirmation —— */
   useEffect(() => {

@@ -1,4 +1,4 @@
-// @ts-nocheck 
+// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -1666,10 +1666,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   };
 
   const getTransferUrl = () => {
-    const b64 = compressMatchState();
-    if (!b64) return null;
+    if (!match.matchId) return null;
     const baseUrl = window.location.origin;
-    return `${baseUrl}?transfer=${b64}`;
+    // Use transfer_id — receiver fetches full state from Supabase via App.tsx handler
+    return `${baseUrl}?transfer_id=${match.matchId}`;
   };
 
   const generatePasscode = () => {
@@ -1690,6 +1690,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   };
 
   const openTransferModal = () => {
+    // Push latest state to Supabase before showing transfer QR
+    pushLiveMatchState(match);
     setTransferStatus('WAITING');
     setTransferTab('HANDOFF');
     setTransferPasscode(generatePasscode());
@@ -4742,10 +4744,26 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                               const matchRec = (entry.history || []).find((h: any) => h.id === match.matchId);
                               if (matchRec) matchRecords.push({ phone, name: entry.name, record: matchRec });
                             });
-                            if (matchRecords.length === 0) return;
+                            if (matchRecords.length === 0) {
+                              alert('No player records found for this match yet.');
+                              return;
+                            }
                             const payload = { matchId: match.matchId, records: matchRecords, ts: Date.now() };
-                            const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+                            const jsonStr = JSON.stringify(payload);
+                            const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
                             const url = `${window.location.origin}${window.location.pathname}?importMatch=${b64}`;
+                            // Check if URL is too long (> 4000 chars) — fall back to just matchId
+                            if (url.length > 4000) {
+                              const shortUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
+                              if (navigator.share) {
+                                navigator.share({ title: '22 Yards Match', text: 'View this match on 22 Yards', url: shortUrl });
+                              } else {
+                                navigator.clipboard.writeText(shortUrl);
+                                setTransferLinkCopied(true);
+                                setTimeout(() => setTransferLinkCopied(false), 2000);
+                              }
+                              return;
+                            }
                             if (navigator.share) {
                               navigator.share({ title: '22 Yards Match Record', text: 'Import this match to your 22 Yards app', url });
                             } else {
@@ -4753,7 +4771,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                               setTransferLinkCopied(true);
                               setTimeout(() => setTransferLinkCopied(false), 2000);
                             }
-                          } catch (_) {}
+                          } catch (e) {
+                            console.error('Share match record error:', e);
+                            alert('Failed to share match record. Please try again.');
+                          }
                         }}
                         className="w-full py-3 rounded-[16px] bg-[#BC13FE]/10 border border-[#BC13FE]/30 text-[#BC13FE] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all mt-2"
                       >
