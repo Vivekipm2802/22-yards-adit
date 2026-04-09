@@ -622,15 +622,176 @@
         html[data-theme="light"] .bg-\[\#00F0FF\] { background-color: #CC1010 !important; }
         html[data-theme="light"] .shadow-\[\#00F0FF\]\/30 { box-shadow: 0 10px 15px -3px rgba(204,16,16,0.3) !important; }
 
-        /* ── Scoring buttons: black text + visible bg in light mode ── */
-        html[data-theme="light"] button.score-btn-plain,
-        html[data-theme="light"] button.score-btn-plain.text-white {
+        /* ══════════════════════════════════════════════════════════════
+           SCORING PAGE — full light mode override
+           ══════════════════════════════════════════════════════════════ */
+
+        /* Page background: clean white */
+        html[data-theme="light"] .scoring-page {
+            background-color: #f0f4f8 !important;
+        }
+
+        /* Status bar: white card with subtle shadow instead of dark overlay */
+        html[data-theme="light"] .scoring-page > .bg-black\/60 {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+        }
+
+        /* All text-white inside scoring page → black */
+        html[data-theme="light"] .scoring-page .text-white {
+            color: #0f172a !important;
+        }
+        html[data-theme="light"] .scoring-page .text-white\/90 {
+            color: rgba(15,23,42,0.9) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-white\/80 {
+            color: rgba(15,23,42,0.8) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-white\/70 {
+            color: rgba(15,23,42,0.7) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-white\/60 {
+            color: rgba(15,23,42,0.6) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-white\/50 {
+            color: rgba(15,23,42,0.5) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-white\/40 {
+            color: rgba(15,23,42,0.45) !important;
+        }
+
+        /* Panels: white cards with borders */
+        html[data-theme="light"] .scoring-page .bg-white\/\[0\.01\] {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        html[data-theme="light"] .scoring-page .border-white\/5 {
+            border-color: #e2e8f0 !important;
+        }
+        html[data-theme="light"] .scoring-page .border-white\/10 {
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Over ticker area */
+        html[data-theme="light"] .scoring-page .bg-white\/20 {
+            background-color: #e2e8f0 !important;
+        }
+        html[data-theme="light"] .scoring-page .bg-white\/30 {
+            background-color: #cbd5e1 !important;
+        }
+
+        /* Bowler progress bar track */
+        html[data-theme="light"] .scoring-page .bg-white\/10 {
+            background-color: #e2e8f0 !important;
+        }
+
+        /* Target bar (2nd innings) */
+        html[data-theme="light"] .scoring-page .bg-white\/\[0\.08\] {
+            background-color: rgba(204,16,16,0.08) !important;
+            border: 1px solid rgba(204,16,16,0.15) !important;
+        }
+
+        /* ── Scoring buttons: solid visible backgrounds ── */
+        html[data-theme="light"] .scoring-page button.score-btn-plain,
+        html[data-theme="light"] .scoring-page button.score-btn-plain.text-white {
             color: #000000 !important;
             background-color: #e2e8f0 !important;
             border-color: #94a3b8 !important;
         }
-        html[data-theme="light"] button.score-btn-plain:hover {
+        html[data-theme="light"] .scoring-page button.score-btn-plain:hover {
             background-color: #cbd5e1 !important;
+        }
+
+        /* Partnership band */
+        html[data-theme="light"] .scoring-page .bg-gradient-to-r {
+            background: linear-gradient(to right, rgba(77,182,172,0.15), rgba(77,182,172,0.05)) !important;
+            border-color: rgba(77,182,172,0.3) !important;
+            color: #0f172a !important;
+        }
+
+        /* Zap icon (striker indicator) */
+        html[data-theme="light"] .scoring-page .bg-\[\#00F0FF\]\/20 {
+            background-color: rgba(204,16,16,0.12) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-\[\#00F0FF\] {
+            color: #CC1010 !important;
+        }
+
+        /* Purple stats → darker purple for readability */
+        html[data-theme="light"] .scoring-page .text-\[\#BC13FE\] {
+            color: #7c3aed !important;
+        }
+
+        /* WICKET button stays red */
+        html[data-theme="light"] .scoring-page .bg-\[\#FF003C\] {
+            background-color: #dc2626 !important;
+        }
+        html[data-theme="light"] .scoring-page .bg-\[\#FF003C\]:hover,
+        html[data-theme="light"] .scoring-page .bg-\[\#FF003C\]\/90 {
+            background-color: #b91c1c !important;
+        }
+
+        /* 4 button (purple) */
+        html[data-theme="light"] .scoring-page .bg-\[\#BC13FE\]\/20 {
+            background-color: rgba(124,58,237,0.15) !important;
+        }
+        html[data-theme="light"] .scoring-page .border-\[\#BC13FE\]\/40 {
+            border-color: rgba(124,58,237,0.4) !important;
+        }
+
+        /* 6 button (gold) */
+        html[data-theme="light"] .scoring-page .bg-\[\#FFD600\]\/20 {
+            background-color: rgba(202,138,4,0.15) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-\[\#FFD600\] {
+            color: #a16207 !important;
+        }
+        html[data-theme="light"] .scoring-page .border-\[\#FFD600\]\/40 {
+            border-color: rgba(161,98,7,0.4) !important;
+        }
+
+        /* WD / NB / BYE / LB buttons (orange) */
+        html[data-theme="light"] .scoring-page .bg-\[\#FF6D00\]\/40 {
+            background-color: rgba(234,88,12,0.2) !important;
+        }
+        html[data-theme="light"] .scoring-page .bg-\[\#FF6D00\]\/30 {
+            background-color: rgba(234,88,12,0.15) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-\[\#FF6D00\] {
+            color: #c2410c !important;
+        }
+        html[data-theme="light"] .scoring-page .border-\[\#FF6D00\]\/60 {
+            border-color: rgba(194,65,12,0.5) !important;
+        }
+        html[data-theme="light"] .scoring-page .border-\[\#FF6D00\]\/50 {
+            border-color: rgba(194,65,12,0.4) !important;
+        }
+
+        /* SWAP button (teal) */
+        html[data-theme="light"] .scoring-page .bg-\[\#4DB6AC\]\/20 {
+            background-color: rgba(77,182,172,0.15) !important;
+        }
+        html[data-theme="light"] .scoring-page .text-\[\#4DB6AC\] {
+            color: #0d9488 !important;
+        }
+        html[data-theme="light"] .scoring-page .border-\[\#4DB6AC\]\/40 {
+            border-color: rgba(13,148,136,0.4) !important;
+        }
+
+        /* UNDO button text */
+        html[data-theme="light"] .scoring-page .border-white\/20 {
+            border-color: #94a3b8 !important;
+        }
+
+        /* Score text (cyan → red) */
+        html[data-theme="light"] .scoring-page .text-\[\#00F0FF\] {
+            color: #CC1010 !important;
+        }
+
+        /* Ambient gradient overlays — hide in light mode */
+        html[data-theme="light"] .scoring-page > .pointer-events-none {
+            opacity: 0 !important;
         }
 
         /* ── Openers hero banner: RED bg + WHITE text in light mode ── */

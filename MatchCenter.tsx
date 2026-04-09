@@ -3196,7 +3196,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           const nonStrikerSR = nonStriker && (nonStriker.balls || 0) > 0 ? (((nonStriker.runs || 0) / (nonStriker.balls || 0)) * 100).toFixed(0) : '0';
 
           return (
-            <div className={`flex-1 flex flex-col overflow-hidden relative ${fireMode ? 'bg-[#1a0500]' : iceMode ? 'bg-[#000a1a]' : 'bg-black'}`}>
+            <div className={`flex-1 flex flex-col overflow-hidden relative scoring-page ${fireMode ? 'bg-[#1a0500]' : iceMode ? 'bg-[#000a1a]' : 'bg-black'}`}>
               {/* Fire mode ambient effects */}
               {fireMode && (
                 <>
