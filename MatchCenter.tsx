@@ -3307,7 +3307,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       {match.liveScore.runs}/{match.liveScore.wickets}
                     </div>
                     <div className={`text-[9px] ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/80' : 'text-white/50'}`}>
-                      {overs}.{ballsInOver} | CRR {crr}
+                      {overs}.{ballsInOver}/{match.config.overs} ov | CRR {crr}
                     </div>
                   </div>
                   <div className="text-[10px] font-black text-white/60 uppercase tracking-wider">
@@ -3459,14 +3459,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => handleScore(0)}
-                    className="min-h-[56px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[56px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     0
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(1)}
-                    className="min-h-[56px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[56px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     1
                   </button>
@@ -3495,14 +3495,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => handleScore(2)}
-                    className="min-h-[48px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[48px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     2
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(3)}
-                    className="min-h-[48px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[48px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     3
                   </button>
@@ -3553,14 +3553,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => handleScore(5)}
-                    className="min-h-[40px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs"
+                    className="min-h-[40px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
                   >
                     5
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(7)}
-                    className="min-h-[40px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs"
+                    className="min-h-[40px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
                   >
                     7
                   </button>
