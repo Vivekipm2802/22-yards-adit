@@ -3046,7 +3046,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: player.id } }));
                           setSelectionTarget('NON_STRIKER');
                         }}
-                        className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#00F0FF]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
+                        className="w-full p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
                       >
                         {/* Hover glow */}
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3076,7 +3076,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: player.id } }));
                           setSelectionTarget('BOWLER');
                         }}
-                        className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#00F0FF]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
+                        className="w-full p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
                       >
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
                           style={{ background: `radial-gradient(circle at 30% 50%, ${stepColor}08, transparent 70%)` }} />
@@ -3106,7 +3106,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           setSelectionTarget(null);
                           setStatus('LIVE');
                         }}
-                        className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#BC13FE]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
+                        className="w-full p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-[#BC13FE]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
                       >
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
                           style={{ background: 'radial-gradient(circle at 30% 50%, rgba(188,19,254,0.05), transparent 70%)' }} />
