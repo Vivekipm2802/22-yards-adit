@@ -225,7 +225,7 @@ const App: React.FC = () => {
     if (matchId) {
       // IMPORTANT: Mark THIS device as the new scorer BEFORE writing the transfer_accepted flag.
       // This prevents the receiver's own MatchCenter from picking up the flag and switching to spectator.
-      localStorage.setItem(`22Y_I_AM_SCORER_${matchId}`, JSON.stringify({
+      sessionStorage.setItem(`22Y_I_AM_SCORER_${matchId}`, JSON.stringify({
         scorerSince: Date.now(),
         scorerName: userData?.name || 'Receiver',
       }));

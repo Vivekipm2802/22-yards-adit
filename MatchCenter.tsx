@@ -355,7 +355,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     // Listen for transfer_accepted — another device took over scoring (cross-device)
     ch.on('broadcast', { event: 'transfer_accepted' }, ({ payload }) => {
       // Skip if THIS device is the new scorer (receiver accepted transfer here)
-      const scorerFlag = localStorage.getItem(`22Y_I_AM_SCORER_${match.matchId}`);
+      const scorerFlag = sessionStorage.getItem(`22Y_I_AM_SCORER_${match.matchId}`);
       if (scorerFlag) {
         console.log('[MatchCenter] Transfer accepted but I am the new scorer — ignoring');
         return;
@@ -370,7 +370,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     // BUT skip if THIS device is the new scorer (receiver) — check I_AM_SCORER flag
     const transferPollId = setInterval(() => {
       // If this device just accepted the transfer (is the new scorer), do NOT switch to spectator
-      const scorerFlag = localStorage.getItem(`22Y_I_AM_SCORER_${match.matchId}`);
+      const scorerFlag = sessionStorage.getItem(`22Y_I_AM_SCORER_${match.matchId}`);
       if (scorerFlag) {
         // Clean up the transfer_accepted flag so it doesn't linger
         localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
@@ -2007,7 +2007,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             onClick={() => {
               // Reset everything — clear old match, scorer flag, and start fresh
               setForcedSpectatorMode(null);
-              localStorage.removeItem(`22Y_I_AM_SCORER_${forcedSpectatorMode}`);
+              sessionStorage.removeItem(`22Y_I_AM_SCORER_${forcedSpectatorMode}`);
               const freshState = createInitialState();
               localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
               setMatch(freshState);
@@ -2051,6 +2051,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           if (status === 'SUMMARY') {
             localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
           }
+          // Clean up scorer flag on navigation away
+          if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
           onBack();
         }} className="p-2 -ml-2 text-[#00F0FF] hover:bg-white/5 rounded-full transition-all"><ChevronLeft size={20} /></button>
         <h2 className="ml-4 font-heading text-xl tracking-[0.1em] text-white uppercase italic">
@@ -5441,7 +5443,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           type="button"
                           onClick={() => {
                             // Clean up scorer flag from transfer
-                            if (match.matchId) localStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
+                            if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
                             setForcedSpectatorMode(null);
                             const freshState = createInitialState();
                             localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
@@ -5475,6 +5477,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           type="button"
                           onClick={() => {
                             localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
+                            if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
                             onBack();
                           }}
                           className="flex-1 py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/40 font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
@@ -5491,6 +5494,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             type="button"
                             onClick={() => {
                               localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
+                              if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
                               onNavigate('PERFORMANCE');
                             }}
                             className="flex-1 py-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
@@ -5503,6 +5507,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             type="button"
                             onClick={() => {
                               localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
+                              if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
                               onNavigate('HISTORY');
                             }}
                             className="flex-1 py-3 rounded-[16px] bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
