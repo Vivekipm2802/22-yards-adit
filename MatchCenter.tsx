@@ -104,17 +104,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   const [match, setMatch] = useState<MatchState>(() => {
     const saved = localStorage.getItem('22YARDS_ACTIVE_MATCH');
-    console.log('[MC] Init: localStorage has match?', !!saved);
     if (saved) {
       const parsed = JSON.parse(saved);
-      console.log('[MC] Init: parsed status=', parsed.status, 'matchId=', parsed.matchId, 'hasTeams=', !!parsed.teams, 'hasCrease=', !!parsed.crease);
-      if (parsed.status === 'COMPLETED') {
-        console.log('[MC] Init: status is COMPLETED, returning fresh state');
-        return createInitialState();
-      }
+      if (parsed.status === 'COMPLETED') return createInitialState();
       return parsed;
     }
-    console.log('[MC] Init: no saved match, returning initial state');
     return createInitialState();
   });
 
