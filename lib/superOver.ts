@@ -197,9 +197,17 @@ export function determineSuperOverResult(
   }
 
   // Super Over is tied - use boundary count tiebreaker
-  // Combine both teams' histories from super over with original match history
-  const team1BoundaryCount = countBoundaries(state.team1History);
-  const team2BoundaryCount = countBoundaries(state.team2History);
+  // Combine main match boundaries + super over boundaries per ICC rules
+  const mainMatchTeam1Boundaries = state.mainMatchHistory
+    ? countBoundaries(state.mainMatchHistory.filter((b: any) => b.innings === 1))
+    : { fours: 0, sixes: 0, total: 0 };
+  const mainMatchTeam2Boundaries = state.mainMatchHistory
+    ? countBoundaries(state.mainMatchHistory.filter((b: any) => b.innings === 2))
+    : { fours: 0, sixes: 0, total: 0 };
+  const soTeam1Boundaries = countBoundaries(state.team1History);
+  const soTeam2Boundaries = countBoundaries(state.team2History);
+  const team1BoundaryCount = { total: mainMatchTeam1Boundaries.total + soTeam1Boundaries.total, fours: 0, sixes: 0 };
+  const team2BoundaryCount = { total: mainMatchTeam2Boundaries.total + soTeam2Boundaries.total, fours: 0, sixes: 0 };
 
   if (team1BoundaryCount.total > team2BoundaryCount.total) {
     return {

@@ -434,7 +434,16 @@ export const LiveStreamView: React.FC<LiveStreamViewProps> = ({ config, matchId 
       <iframe
         width="100%"
         height="100%"
-        src={config.youtubeEmbedUrl}
+        src={(() => {
+          try {
+            const url = new URL(config.youtubeEmbedUrl!);
+            // Only allow YouTube embed domains
+            if (['www.youtube.com', 'youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname) && url.pathname.startsWith('/embed/')) {
+              return url.toString();
+            }
+            return '';
+          } catch { return ''; }
+        })()}
         frameBorder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen

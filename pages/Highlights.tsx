@@ -48,7 +48,7 @@ const HighlightsPage: React.FC<HighlightsPageProps> = ({ match, onBack }) => {
     return generateMatchHighlights(match.history, match.teams, match.config);
   }, [match]);
 
-  const currentMoment = highlights.moments[currentMomentIndex];
+  const currentMoment = highlights.moments.length > 0 ? highlights.moments[currentMomentIndex] : null;
 
   const handleNextMoment = () => {
     if (currentMomentIndex < highlights.moments.length - 1) {

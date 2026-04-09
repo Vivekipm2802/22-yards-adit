@@ -206,6 +206,7 @@ export function getDLSParScore(params: {
   const resourcesUsedByTeam2 = resourcesAtStart - resourcesRemaining;
 
   // Par score = Team1Score × (R2_used / R1)
+  if (R1 <= 0) return team1Score; // Safety: avoid division by zero
   const parScore = Math.ceil(team1Score * (resourcesUsedByTeam2 / R1));
 
   return parScore;

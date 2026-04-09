@@ -1704,17 +1704,20 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   // DLS RAIN DELAY handler
   const handleDLSRainDelay = (newOvers: number) => {
-    if (newOvers <= 0 || newOvers >= match.config.overs) return;
+    if (!Number.isInteger(newOvers) || newOvers <= 0 || newOvers >= match.config.overs) return;
 
     const currentInnings = match.currentInnings;
     const legalBalls = match.history.filter(b => b.innings === currentInnings && (b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB')).length;
-    const oversUsed = legalBalls / 6;
+    const oversCompleted = Math.floor(legalBalls / 6);
+
+    // Can't reduce below already completed overs
+    if (newOvers <= oversCompleted) return;
 
     if (currentInnings === 1) {
-      // Rain during innings 1: reduce overs for innings 1
+      // Rain during innings 1: reduce overs for innings 1, keep original overs for reference
       setMatch(m => ({
         ...m,
-        config: { ...m.config, overs: newOvers, reducedOvers1: newOvers, isRainAffected: true }
+        config: { ...m.config, reducedOvers1: newOvers, isRainAffected: true }
       }));
     } else {
       // Rain during innings 2: calculate DLS target
@@ -1738,7 +1741,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         ...m,
         config: {
           ...m.config,
-          overs: newOvers,
           reducedOvers2: newOvers,
           isRainAffected: true,
           dlsTarget: dlsResult.revisedTarget,

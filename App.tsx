@@ -239,8 +239,12 @@ const App: React.FC = () => {
         const ch = supabase.channel(`live:${matchId}`);
         ch.subscribe((st: string) => {
           if (st === 'SUBSCRIBED') {
-            ch.send({ type: 'broadcast', event: 'transfer_accepted', payload: { matchId, acceptedBy: userData?.name || 'Another device' } });
-            setTimeout(() => supabase.removeChannel(ch), 3000);
+            const payload = { matchId, acceptedBy: userData?.name || 'Another device' };
+            // Send multiple times with delay to ensure delivery
+            ch.send({ type: 'broadcast', event: 'transfer_accepted', payload });
+            setTimeout(() => ch.send({ type: 'broadcast', event: 'transfer_accepted', payload }), 500);
+            setTimeout(() => ch.send({ type: 'broadcast', event: 'transfer_accepted', payload }), 1500);
+            setTimeout(() => supabase.removeChannel(ch), 5000);
           }
         });
       } catch (_) {}
@@ -261,6 +265,7 @@ const App: React.FC = () => {
     try {
       const url = new URL(window.location.href);
       url.searchParams.delete('transfer');
+      url.searchParams.delete('transfer_id');
       window.history.replaceState({}, '', url.toString());
     } catch {}
   };
