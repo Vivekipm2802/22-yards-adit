@@ -249,18 +249,18 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
             <div>
               <motion.span
                 key={liveScore.runs}
-                initial={{ scale: 1.25, color: '#ffffff' }}
-                animate={{ scale: 1, color: '#ffffff' }}
+                initial={{ scale: 1.25 }}
+                animate={{ scale: 1 }}
                 transition={{ duration: 0.35 }}
-                className="font-numbers text-[52px] font-black leading-none inline-block"
+                className="live-score-runs font-numbers text-[52px] font-black leading-none inline-block text-white"
               >{liveScore.runs}</motion.span>
               <span className="font-numbers text-3xl text-white/20 mx-2">/</span>
               <motion.span
                 key={`w${liveScore.wickets}`}
-                initial={{ scale: 1.3, color: '#ff4444' }}
-                animate={{ scale: 1, color: '#CC1010' }}
+                initial={{ scale: 1.3 }}
+                animate={{ scale: 1 }}
                 transition={{ duration: 0.35 }}
-                className="font-numbers text-[52px] font-black leading-none inline-block"
+                className="live-score-wickets font-numbers text-[52px] font-black leading-none inline-block text-[#CC1010]"
               >{liveScore.wickets}</motion.span>
             </div>
             <div className="text-right">
