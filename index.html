@@ -108,6 +108,37 @@
         html[data-theme="light"] * {
             box-shadow: none !important;
         }
+        /* Header bar: solid white, no blur, no shadow effect */
+        html[data-theme="light"] .bg-black\/50.backdrop-blur-md {
+            background-color: #ffffff !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-bottom-color: rgba(15,23,42,0.08) !important;
+        }
+        /* Notification banner (scorecardReady) — neutral in light mode */
+        html[data-theme="light"] .bg-\[\#00F0FF\]\/10.border-b {
+            background-color: rgba(204,16,16,0.06) !important;
+            border-bottom-color: rgba(204,16,16,0.12) !important;
+        }
+        /* Tab bar in summary — solid white bg */
+        html[data-theme="light"] .bg-\[\#050505\].border-b {
+            background-color: #ffffff !important;
+            border-bottom-color: rgba(15,23,42,0.08) !important;
+        }
+        /* Status bar with bg-black/60 backdrop-blur */
+        html[data-theme="light"] .bg-black\/60.backdrop-blur {
+            background-color: #ffffff !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-bottom-color: rgba(15,23,42,0.08) !important;
+        }
+        /* Remove all backdrop-blur in light mode globally */
+        html[data-theme="light"] .backdrop-blur-md,
+        html[data-theme="light"] .backdrop-blur-sm,
+        html[data-theme="light"] .backdrop-blur {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
         html[data-theme="light"] body::after {
             background:
                 radial-gradient(circle at 0% 0%, rgba(0, 180, 200, 0.04) 0%, transparent 40%),
