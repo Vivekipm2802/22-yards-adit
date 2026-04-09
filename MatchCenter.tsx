@@ -2841,180 +2841,304 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           const bowlingTeamName = getTeamObj(match.teams.bowlingTeamId)?.name || 'Bowling';
 
           const stepLabels = [
-            { key: 'STRIKER', label: 'Striker' },
-            { key: 'NON_STRIKER', label: 'Non-Striker' },
-            { key: 'BOWLER', label: 'Opening Bowler' },
+            { key: 'STRIKER', label: 'Striker', icon: '🏏', desc: 'Opening Strike' },
+            { key: 'NON_STRIKER', label: 'Non-Striker', icon: '🛡️', desc: 'Support End' },
+            { key: 'BOWLER', label: 'Bowler', icon: '🔥', desc: 'First Over' },
           ];
           const currentStepIdx = stepLabels.findIndex(s => s.key === activeTarget);
 
+          const stepColor = activeTarget === 'BOWLER' ? '#BC13FE' : '#00F0FF';
+          const stepGlow = activeTarget === 'BOWLER' ? 'rgba(188,19,254,0.3)' : 'rgba(0,240,255,0.3)';
+
           return (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-32">
-              {/* Header */}
-              <div className="space-y-3">
-                <h2 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Select Openers</h2>
-                <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">
-                  {activeTarget === 'BOWLER' ? bowlingTeamName : battingTeamName}
-                </p>
-              </div>
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
 
-              {/* Share Follow Link */}
+              {/* ── Hero Banner with animated gradient ── */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="relative overflow-hidden px-6 pt-5 pb-6"
+                style={{ background: `linear-gradient(135deg, ${activeTarget === 'BOWLER' ? '#1a0025' : '#001a20'} 0%, #0a0a0a 100%)` }}
+              >
+                {/* Animated pulse ring behind step number */}
+                <motion.div
+                  animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0, 0.3] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute top-4 right-6 w-20 h-20 rounded-full"
+                  style={{ border: `2px solid ${stepColor}`, opacity: 0.2 }}
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0, 0.15] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+                  className="absolute top-4 right-6 w-20 h-20 rounded-full"
+                  style={{ border: `2px solid ${stepColor}` }}
+                />
+
+                {/* Step number badge (top-right) */}
+                <div className="absolute top-5 right-7 w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ background: `${stepColor}15`, border: `2px solid ${stepColor}40` }}>
+                  <span className="text-2xl">{stepLabels[currentStepIdx]?.icon}</span>
+                </div>
+
+                {/* Main title */}
+                <motion.div
+                  key={activeTarget}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                >
+                  <p className="text-[9px] font-black uppercase tracking-[0.35em] mb-1" style={{ color: `${stepColor}90` }}>
+                    Step {currentStepIdx + 1} of 3
+                  </p>
+                  <h2 className="font-heading text-3xl uppercase italic text-white leading-none">
+                    {activeTarget === 'STRIKER' && 'Pick Striker'}
+                    {activeTarget === 'NON_STRIKER' && 'Pick Non-Striker'}
+                    {activeTarget === 'BOWLER' && 'Pick Bowler'}
+                  </h2>
+                  <p className="text-[10px] text-white/40 uppercase tracking-[0.15em] mt-1.5">
+                    {activeTarget === 'BOWLER' ? bowlingTeamName : battingTeamName} · {stepLabels[currentStepIdx]?.desc}
+                  </p>
+                </motion.div>
+
+                {/* ── Step dots (compact, below title) ── */}
+                <div className="flex items-center gap-3 mt-5">
+                  {stepLabels.map((step, i) => (
+                    <div key={step.key} className="flex items-center gap-2">
+                      <motion.div
+                        animate={i === currentStepIdx ? { scale: [1, 1.15, 1] } : {}}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black"
+                        style={{
+                          background: i < currentStepIdx ? '#39FF14' : i === currentStepIdx ? stepColor : 'rgba(255,255,255,0.08)',
+                          color: i <= currentStepIdx ? '#000' : 'rgba(255,255,255,0.3)',
+                          boxShadow: i === currentStepIdx ? `0 0 12px ${stepGlow}` : 'none',
+                        }}
+                      >
+                        {i < currentStepIdx ? '✓' : i + 1}
+                      </motion.div>
+                      {i < stepLabels.length - 1 && (
+                        <div className="w-6 h-0.5 rounded-full" style={{ background: i < currentStepIdx ? '#39FF14' : 'rgba(255,255,255,0.08)' }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* ── Selected players chips (slide in when picked) ── */}
+              <AnimatePresence>
+                {(match.crease.strikerId || match.crease.nonStrikerId) && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="px-6 overflow-hidden"
+                  >
+                    <div className="flex gap-2 pt-4 pb-2">
+                      {match.crease.strikerId && (() => {
+                        const p = battingSquad.find(pl => pl.id === match.crease.strikerId);
+                        return p ? (
+                          <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-full bg-[#39FF14]/10 border border-[#39FF14]/30"
+                          >
+                            <img src={getPlayerAvatar(p)} className="w-6 h-6 rounded-full" />
+                            <span className="text-[10px] font-black text-[#39FF14] uppercase">{p.name}</span>
+                            <span className="text-[8px] text-[#39FF14]/60">🏏</span>
+                          </motion.div>
+                        ) : null;
+                      })()}
+                      {match.crease.nonStrikerId && (() => {
+                        const p = battingSquad.find(pl => pl.id === match.crease.nonStrikerId);
+                        return p ? (
+                          <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-full bg-[#39FF14]/10 border border-[#39FF14]/30"
+                          >
+                            <img src={getPlayerAvatar(p)} className="w-6 h-6 rounded-full" />
+                            <span className="text-[10px] font-black text-[#39FF14] uppercase">{p.name}</span>
+                            <span className="text-[8px] text-[#39FF14]/60">🛡️</span>
+                          </motion.div>
+                        ) : null;
+                      })()}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Share buttons (compact row) ── */}
               {(() => {
                 const followUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
                 const tossWinner = getTeamObj(match.toss.winnerId)?.name || 'Team';
                 const decision = match.toss.decision === 'BAT' ? 'bat' : 'bowl';
                 return (
-                  <div className="space-y-2">
+                  <div className="flex gap-2 px-6 pt-4">
                     <button
                       type="button"
                       onClick={() => {
                         const text = `🏏 Match Starting!\n\n${match.teams.teamA.name} vs ${match.teams.teamB.name}\n${tossWinner} won the toss and elected to ${decision}.\n\n📍 ${match.config.ground || match.config.city}\n\n📺 Follow live:\n${followUrl}`;
                         window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
                       }}
-                      className="w-full p-4 rounded-[20px] bg-[#25D366]/15 border border-[#25D366]/40 flex items-center justify-center gap-3 transition-all active:scale-95"
+                      className="flex-1 py-3 rounded-2xl bg-[#25D366]/15 border border-[#25D366]/30 flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                      <Share2 size={16} className="text-[#25D366]" />
-                      <span className="text-[12px] font-black text-[#25D366] uppercase tracking-[0.1em]">Share Match on WhatsApp</span>
+                      <Share2 size={14} className="text-[#25D366]" />
+                      <span className="text-[10px] font-black text-[#25D366] uppercase tracking-wider">WhatsApp</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => { navigator.clipboard.writeText(followUrl); }}
-                      className="w-full p-3 rounded-[16px] bg-white/5 border border-white/10 flex items-center justify-center gap-2 transition-all active:scale-95"
+                      className="py-3 px-5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                      <ClipboardList size={14} className="text-white/50" />
-                      <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.1em]">Copy Follow Link</span>
+                      <ClipboardList size={14} className="text-white/40" />
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">Copy Link</span>
                     </button>
                   </div>
                 );
               })()}
 
-              {/* Step Progress */}
-              <div className="flex items-center gap-2">
-                {stepLabels.map((step, i) => (
-                  <div key={step.key} className="flex items-center gap-2 flex-1">
-                    <div className={`h-1 flex-1 rounded-full transition-all ${
-                      i <= currentStepIdx ? 'bg-[#00F0FF]' : 'bg-white/10'
-                    }`} />
-                    <p className={`text-[8px] font-black uppercase tracking-[0.1em] shrink-0 ${
-                      i === currentStepIdx ? 'text-[#00F0FF]' : i < currentStepIdx ? 'text-[#39FF14]' : 'text-white/40'
-                    }`}>{step.label}</p>
-                  </div>
-                ))}
+              {/* ── Instruction banner (animated) ── */}
+              <div className="px-6 pt-5">
+                <motion.div
+                  key={activeTarget}
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="flex items-center gap-3 p-3 rounded-2xl"
+                  style={{ background: `${stepColor}08`, border: `1px solid ${stepColor}25` }}
+                >
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="text-lg shrink-0"
+                  >
+                    {activeTarget === 'STRIKER' ? '👆' : activeTarget === 'NON_STRIKER' ? '👆' : '🎯'}
+                  </motion.div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em]" style={{ color: stepColor }}>
+                    {activeTarget === 'STRIKER' && 'Tap a player to open the innings'}
+                    {activeTarget === 'NON_STRIKER' && 'Now pick who stands at the other end'}
+                    {activeTarget === 'BOWLER' && 'Select who bowls the first over'}
+                  </p>
+                </motion.div>
               </div>
 
-              {/* Current Selection Label */}
-              <div className="p-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/20">
-                <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.2em] text-center">
-                  {activeTarget === 'STRIKER' && 'Tap to select the opening striker'}
-                  {activeTarget === 'NON_STRIKER' && 'Now pick the non-striker'}
-                  {activeTarget === 'BOWLER' && 'Choose who bowls the first over'}
-                </p>
-              </div>
-
-              {/* Selected so far */}
-              {(match.crease.strikerId || match.crease.nonStrikerId) && (
-                <div className="flex gap-3">
-                  {match.crease.strikerId && (() => {
-                    const p = battingSquad.find(pl => pl.id === match.crease.strikerId);
-                    return p ? (
-                      <div className="flex-1 p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/30 flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-[#39FF14] shrink-0" />
-                        <div>
-                          <p className="text-[8px] text-[#39FF14] font-black uppercase">Striker</p>
-                          <p className="text-[11px] font-black text-white uppercase">{p.name}</p>
+              {/* ── Player Cards ── */}
+              <div className="px-6 pt-4 space-y-2.5">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTarget}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-2.5"
+                  >
+                    {activeTarget === 'STRIKER' && battingSquad.map((player, idx) => (
+                      <motion.button
+                        key={player.id}
+                        type="button"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.06 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: player.id } }));
+                          setSelectionTarget('NON_STRIKER');
+                        }}
+                        className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#00F0FF]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
+                      >
+                        {/* Hover glow */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: `radial-gradient(circle at 30% 50%, ${stepColor}08, transparent 70%)` }} />
+                        <div className="relative">
+                          <img src={getPlayerAvatar(player)} className="w-12 h-12 rounded-xl border-2 border-white/10 group-hover:border-[#00F0FF]/40 transition-colors" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md flex items-center justify-center text-[8px]"
+                            style={{ background: `${stepColor}20`, border: `1px solid ${stepColor}40` }}>🏏</div>
                         </div>
-                      </div>
-                    ) : null;
-                  })()}
-                  {match.crease.nonStrikerId && (() => {
-                    const p = battingSquad.find(pl => pl.id === match.crease.nonStrikerId);
-                    return p ? (
-                      <div className="flex-1 p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/30 flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-[#39FF14] shrink-0" />
-                        <div>
-                          <p className="text-[8px] text-[#39FF14] font-black uppercase">Non-Striker</p>
-                          <p className="text-[11px] font-black text-white uppercase">{p.name}</p>
+                        <div className="flex-1 text-left relative">
+                          <p className="font-black text-[14px] text-white uppercase tracking-wide group-hover:text-[#00F0FF] transition-colors">{player.name}</p>
+                          {player.phone && <p className="text-[9px] text-white/30 mt-0.5">{player.phone}</p>}
                         </div>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              )}
+                        <ChevronRight size={16} className="text-white/20 group-hover:text-[#00F0FF] transition-colors" />
+                      </motion.button>
+                    ))}
 
-              {/* Player List */}
-              <div className="space-y-3">
-                {activeTarget === 'STRIKER' && battingSquad.map((player) => (
-                  <button
-                    key={player.id}
-                    type="button"
-                    onClick={() => {
-                      setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: player.id } }));
-                      setSelectionTarget('NON_STRIKER');
-                    }}
-                    className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-4 transition-all active:scale-95"
-                  >
-                    <img src={getPlayerAvatar(player)} className="w-11 h-11 rounded-full" />
-                    <div className="flex-1 text-left">
-                      <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
-                      <p className="text-[10px] text-white/40">{player.phone || ''}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-white/40" />
-                  </button>
-                ))}
+                    {activeTarget === 'NON_STRIKER' && battingSquad.filter(p => p.id !== match.crease.strikerId).map((player, idx) => (
+                      <motion.button
+                        key={player.id}
+                        type="button"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.06 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: player.id } }));
+                          setSelectionTarget('BOWLER');
+                        }}
+                        className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#00F0FF]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: `radial-gradient(circle at 30% 50%, ${stepColor}08, transparent 70%)` }} />
+                        <div className="relative">
+                          <img src={getPlayerAvatar(player)} className="w-12 h-12 rounded-xl border-2 border-white/10 group-hover:border-[#00F0FF]/40 transition-colors" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md flex items-center justify-center text-[8px]"
+                            style={{ background: `${stepColor}20`, border: `1px solid ${stepColor}40` }}>🛡️</div>
+                        </div>
+                        <div className="flex-1 text-left relative">
+                          <p className="font-black text-[14px] text-white uppercase tracking-wide group-hover:text-[#00F0FF] transition-colors">{player.name}</p>
+                          {player.phone && <p className="text-[9px] text-white/30 mt-0.5">{player.phone}</p>}
+                        </div>
+                        <ChevronRight size={16} className="text-white/20 group-hover:text-[#00F0FF] transition-colors" />
+                      </motion.button>
+                    ))}
 
-                {activeTarget === 'NON_STRIKER' && battingSquad.filter(p => p.id !== match.crease.strikerId).map((player) => (
-                  <button
-                    key={player.id}
-                    type="button"
-                    onClick={() => {
-                      setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: player.id } }));
-                      setSelectionTarget('BOWLER');
-                    }}
-                    className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#00F0FF]/40 flex items-center gap-4 transition-all active:scale-95"
-                  >
-                    <img src={getPlayerAvatar(player)} className="w-11 h-11 rounded-full" />
-                    <div className="flex-1 text-left">
-                      <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
-                      <p className="text-[10px] text-white/40">{player.phone || ''}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-white/40" />
-                  </button>
-                ))}
-
-                {activeTarget === 'BOWLER' && bowlingSquad.map((player) => (
-                  <button
-                    key={player.id}
-                    type="button"
-                    onClick={() => {
-                      setMatch(m => ({ ...m, status: 'LIVE', crease: { ...m.crease, bowlerId: player.id } }));
-                      setSelectionTarget(null);
-                      setStatus('LIVE');
-                    }}
-                    className="w-full p-4 rounded-[20px] bg-white/5 border border-white/10 hover:border-[#BC13FE]/40 flex items-center gap-4 transition-all active:scale-95"
-                  >
-                    <img src={getPlayerAvatar(player)} className="w-11 h-11 rounded-full" />
-                    <div className="flex-1 text-left">
-                      <p className="font-black text-[13px] text-white uppercase">{player.name}</p>
-                      <p className="text-[10px] text-white/40">{player.phone || ''}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-white/40" />
-                  </button>
-                ))}
+                    {activeTarget === 'BOWLER' && bowlingSquad.map((player, idx) => (
+                      <motion.button
+                        key={player.id}
+                        type="button"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.06 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          setMatch(m => ({ ...m, status: 'LIVE', crease: { ...m.crease, bowlerId: player.id } }));
+                          setSelectionTarget(null);
+                          setStatus('LIVE');
+                        }}
+                        className="w-full p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-[#BC13FE]/40 flex items-center gap-4 transition-colors group relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: 'radial-gradient(circle at 30% 50%, rgba(188,19,254,0.05), transparent 70%)' }} />
+                        <div className="relative">
+                          <img src={getPlayerAvatar(player)} className="w-12 h-12 rounded-xl border-2 border-white/10 group-hover:border-[#BC13FE]/40 transition-colors" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md flex items-center justify-center text-[8px]"
+                            style={{ background: 'rgba(188,19,254,0.15)', border: '1px solid rgba(188,19,254,0.4)' }}>🔥</div>
+                        </div>
+                        <div className="flex-1 text-left relative">
+                          <p className="font-black text-[14px] text-white uppercase tracking-wide group-hover:text-[#BC13FE] transition-colors">{player.name}</p>
+                          {player.phone && <p className="text-[9px] text-white/30 mt-0.5">{player.phone}</p>}
+                        </div>
+                        <ChevronRight size={16} className="text-white/20 group-hover:text-[#BC13FE] transition-colors" />
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
 
                 {/* Empty state if no players in squad */}
                 {((activeTarget === 'STRIKER' || activeTarget === 'NON_STRIKER') && battingSquad.length === 0) && (
-                  <div className="p-8 text-center space-y-3">
-                    <Users size={32} className="text-white/40 mx-auto" />
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 text-center space-y-3">
+                    <Users size={32} className="text-white/20 mx-auto" />
                     <p className="text-[12px] text-white/40 font-black uppercase">No players in batting squad</p>
-                    <p className="text-[10px] text-white/40">Go back and add players first</p>
-                  </div>
+                    <p className="text-[10px] text-white/30">Go back and add players first</p>
+                  </motion.div>
                 )}
                 {(activeTarget === 'BOWLER' && bowlingSquad.length === 0) && (
-                  <div className="p-8 text-center space-y-3">
-                    <Users size={32} className="text-white/40 mx-auto" />
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 text-center space-y-3">
+                    <Users size={32} className="text-white/20 mx-auto" />
                     <p className="text-[12px] text-white/40 font-black uppercase">No players in bowling squad</p>
-                    <p className="text-[10px] text-white/40">Go back and add players first</p>
-                  </div>
+                    <p className="text-[10px] text-white/30">Go back and add players first</p>
+                  </motion.div>
                 )}
               </div>
             </div>
