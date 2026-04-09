@@ -16,7 +16,7 @@ import {
   ClipboardList, Search, RefreshCcw, ShieldAlert, Camera, HelpCircle,
   LayoutDashboard, PieChart, ZapOff, Calendar, Crown, Settings, Image as ImageIcon, Save,
   ChevronRight, Smartphone, Medal, Zap as Bolt, Crosshair, Edit2, Upload,
-  ArrowLeftRight, History, Coins
+  ArrowLeftRight, Eye, History, Coins
 } from 'lucide-react';
 import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
@@ -192,7 +192,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [transferLinkCopied, setTransferLinkCopied] = useState(false);
   const [transferStatus, setTransferStatus] = useState<'IDLE' | 'WAITING' | 'TRANSFERRED'>('IDLE');
   const [transferPasscode, setTransferPasscode] = useState('');
-  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState<any>(null);
   const [receivePasscode, setReceivePasscode] = useState('');
   const [receiveError, setReceiveError] = useState('');
   const [isReceiving, setIsReceiving] = useState(false);
@@ -247,9 +247,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             const result = await fetchMatchById(transferId);
             if (result) {
               const matchData = result;
-              setMatch(matchData);
-              setStatus(matchData.status === 'COMPLETED' ? 'SUMMARY' : matchData.status);
-              localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(matchData));
+              setPendingTransfer(matchData);
             }
           } catch (e) {
             console.error('Transfer fetch failed:', e);
@@ -315,7 +313,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   }, [match.matchId]);
 
   useEffect(() => {
-    if (!match.matchId || (status !== 'LIVE' && status !== 'INNINGS_BREAK' && status !== 'COMPLETED' && status !== 'SUMMARY')) return;
+    if (!match.matchId || (status !== 'LIVE' && status !== 'INNINGS_BREAK' && status !== 'COMPLETED' && status !== 'SUMMARY') || isSpectateMode) return;
     pushLiveMatchState(match);
     liveChannelRef.current?.send({
       type: 'broadcast',
@@ -1730,6 +1728,27 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   return (
     <div className="h-full w-full bg-[#050505] text-white flex flex-col overflow-hidden relative font-sans max-h-[100dvh]">
+
+      {/* WATCH MODE OVERLAY — blocks scoring when spectating */}
+      {isSpectateMode && (
+        <>
+          <div className="fixed top-0 left-0 right-0 z-[9998] bg-amber-500 text-black py-2 px-4 flex items-center justify-center gap-2 shadow-lg">
+            <Eye size={16} />
+            <span className="font-black text-sm tracking-wider">WATCH MODE</span>
+            <span className="text-xs opacity-70 ml-1">Live updates from another device</span>
+          </div>
+          <div className="fixed bottom-0 left-0 right-0 h-[45vh] z-[9997] pointer-events-auto" style={{ background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 100%)" }}>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-6 py-3 border border-amber-500/30">
+                <p className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                  <Eye size={14} />
+                  Scoring is controlled by another device
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       <input type="file" ref={logoInputRef} onChange={handleLogoFileChange} className="hidden" accept="image/*" />
 
       {/* HEADER */}
@@ -4700,16 +4719,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         </button>
                       </div>
 
-                      {/* RECEIVE SCORING — connect to another device */}
-                      <button
-                        type="button"
-                        onClick={() => setShowReceiveModal(true)}
-                        className="w-full py-4 rounded-[20px] bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-bold text-base flex items-center justify-center gap-2 hover:bg-[#39FF14]/20 transition-all"
-                      >
-                        <ArrowLeftRight size={18} />
-                        Receive Scoring from Another Device
-                      </button>
-
                       {/* Quick-nav to Performance Hub & Personal Archive */}
                       {onNavigate && (
                         <div className="flex gap-3 mt-2">
@@ -5618,110 +5627,104 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   </>
                 )}
               </div>
+
+              {/* WATCH MODE — sender switches to spectator after sharing QR */}
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setIsSpectateMode(true);
+                    // Subscribe to real-time updates from receiver
+                    const ch = supabase.channel('match_' + match.matchId);
+                    ch.on('broadcast', { event: 'score_update' }, ({ payload }) => {
+                      if (payload) {
+                        setMatch(payload);
+                        setStatus(payload.status === 'COMPLETED' ? 'SUMMARY' : payload.status);
+                      }
+                    });
+                    ch.subscribe();
+                  }}
+                  className="w-full py-4 rounded-[20px] bg-amber-500/10 border border-amber-500/40 text-amber-400 font-bold text-base flex items-center justify-center gap-2 hover:bg-amber-500/20 transition-all"
+                >
+                  <Eye size={18} />
+                  Switch to Watch Mode
+                </button>
+                <p className="text-center text-white/40 text-xs mt-2">Your device will become read-only and show live updates from the receiver</p>
+              </div>
             </motion.div>
           </motion.div>
         )}
       
       </AnimatePresence>
 
-      {/* RECEIVE TRANSFER MODAL */}
+      {/* TRANSFER CONFIRMATION — shown when receiver scans QR */}
       <AnimatePresence>
-        {showReceiveModal && (
+        {pendingTransfer && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => { setShowReceiveModal(false); setReceivePasscode(''); setReceiveError(''); }}
-            className="fixed inset-0 z-[6000] bg-black/95 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden"
+              className="bg-[#1a1a2e] rounded-[24px] p-6 w-full max-w-sm border border-white/10 shadow-2xl"
             >
-              <div className="p-5 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#39FF14]/10 flex items-center justify-center">
-                    <ArrowLeftRight size={18} className="text-[#39FF14]" />
-                  </div>
-                  <div>
-                    <h3 className="font-heading text-base uppercase italic text-[#39FF14]">Receive Transfer</h3>
-                    <p className="text-[9px] text-white/40 uppercase tracking-wider">Enter the scorer's passcode</p>
-                  </div>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#39FF14]/10 flex items-center justify-center">
+                  <ArrowLeftRight size={28} className="text-[#39FF14]" />
                 </div>
-                <button onClick={() => { setShowReceiveModal(false); setReceivePasscode(''); setReceiveError(''); }} className="p-2 text-white/40 hover:text-white">
-                  <X size={18} />
-                </button>
+                <h3 className="text-white font-black text-xl tracking-wide">CONTINUE SCORING?</h3>
+                <p className="text-white/50 text-sm mt-1">Another device wants to hand off scoring to you</p>
               </div>
 
-              <div className="p-5 space-y-5">
-                <p className="text-[11px] text-white/50 text-center">Ask the current scorer for their 6-digit transfer passcode, or scan their QR code with your camera.</p>
-
-                {/* Passcode input */}
-                <div className="flex justify-center gap-2">
-                  {[0,1,2,3,4,5].map((i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={receivePasscode[i] || ''}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        const newCode = receivePasscode.split('');
-                        newCode[i] = val;
-                        setReceivePasscode(newCode.join(''));
-                        if (val && e.target.nextElementSibling) {
-                          (e.target.nextElementSibling as HTMLInputElement).focus();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Backspace' && !receivePasscode[i] && e.target instanceof HTMLInputElement && e.target.previousElementSibling) {
-                          (e.target.previousElementSibling as HTMLInputElement).focus();
-                        }
-                      }}
-                      className="w-12 h-14 rounded-[12px] bg-black/60 border border-white/20 text-center text-2xl font-heading text-[#39FF14] font-black focus:border-[#39FF14] focus:outline-none transition-all"
-                    />
-                  ))}
+              {/* Match Details */}
+              <div className="bg-black/30 rounded-2xl p-4 mb-6 border border-white/5">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-white font-bold text-base">{pendingTransfer.teams?.teamA?.name || 'Team A'}</span>
+                  <span className="text-white/30 text-xs font-bold">VS</span>
+                  <span className="text-white font-bold text-base">{pendingTransfer.teams?.teamB?.name || 'Team B'}</span>
                 </div>
+                <div className="text-center">
+                  <div className="text-[#39FF14] font-black text-3xl">
+                    {pendingTransfer.liveScore?.runs || 0}/{pendingTransfer.liveScore?.wickets || 0}
+                  </div>
+                  <div className="text-white/40 text-sm mt-1">
+                    {Math.floor((pendingTransfer.liveScore?.balls || 0) / 6)}.{(pendingTransfer.liveScore?.balls || 0) % 6} overs
+                    {pendingTransfer.currentInnings === 2 ? ' (2nd Innings)' : ' (1st Innings)'}
+                  </div>
+                </div>
+              </div>
 
-                {receiveError && (
-                  <p className="text-[10px] text-white/40 text-center">{receiveError}</p>
-                )}
-
+              {/* Action Buttons */}
+              <div className="space-y-3">
                 <button
                   onClick={() => {
-                    if (receivePasscode.length === 6) {
-                      // The passcode approach: for now, show instructions
-                      setReceiveError('Passcode verified! If you scanned the QR code or opened the transfer link, the match will load automatically.');
-                    }
+                    const md = pendingTransfer;
+                    setMatch(md);
+                    setStatus(md.status === 'COMPLETED' ? 'SUMMARY' : md.status);
+                    localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(md));
+                    setPendingTransfer(null);
                   }}
-                  disabled={receivePasscode.length < 6 || isReceiving}
-                  className="w-full py-3.5 rounded-[16px] bg-[#39FF14] text-black font-black text-[12px] uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#39FF14]/90 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-[20px] bg-[#39FF14] text-black font-black text-lg tracking-wide hover:bg-[#39FF14]/90 transition-all"
                 >
-                  {isReceiving ? 'Connecting...' : 'Connect'}
+                  YES, START SCORING
                 </button>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-white/10" />
-                  <span className="text-[9px] text-white/30 uppercase tracking-widest">or</span>
-                  <div className="flex-1 h-px bg-white/10" />
-                </div>
-
                 <button
-                  onClick={() => { setShowReceiveModal(false); startQRScanner(); }}
-                  className="w-full py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/60 font-black text-[11px] uppercase tracking-wider hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                  onClick={() => setPendingTransfer(null)}
+                  className="w-full py-3 rounded-[20px] bg-white/5 border border-white/10 text-white/60 font-bold text-base hover:bg-white/10 transition-all"
                 >
-                  <Camera size={14} />
-                  Scan QR Code Instead
+                  No, Cancel
                 </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   );
 };
