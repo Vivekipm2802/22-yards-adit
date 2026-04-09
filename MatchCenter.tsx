@@ -2858,7 +2858,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="relative overflow-hidden px-6 pt-5 pb-6"
+                className="relative overflow-hidden px-6 pt-5 pb-6 openers-hero"
                 style={{ background: `linear-gradient(135deg, ${activeTarget === 'BOWLER' ? '#1a0025' : '#001a20'} 0%, #0a0a0a 100%)` }}
               >
                 {/* Animated pulse ring behind step number */}

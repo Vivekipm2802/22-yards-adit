@@ -621,6 +621,31 @@
         /* Floating join match button */
         html[data-theme="light"] .bg-\[\#00F0FF\] { background-color: #CC1010 !important; }
         html[data-theme="light"] .shadow-\[\#00F0FF\]\/30 { box-shadow: 0 10px 15px -3px rgba(204,16,16,0.3) !important; }
+
+        /* ── Openers hero banner: RED bg + WHITE text in light mode ── */
+        html[data-theme="light"] .openers-hero {
+            background: linear-gradient(135deg, #CC1010 0%, #8b0000 100%) !important;
+        }
+        html[data-theme="light"] .openers-hero .text-white {
+            color: #ffffff !important;
+        }
+        html[data-theme="light"] .openers-hero .text-white\/40 {
+            color: rgba(255,255,255,0.5) !important;
+        }
+        html[data-theme="light"] .openers-hero p[class*="tracking-"] {
+            color: rgba(255,255,255,0.7) !important;
+        }
+        /* Keep step dots text readable on red banner */
+        html[data-theme="light"] .openers-hero .rounded-full {
+            /* don't override the dot backgrounds — they use inline styles */
+        }
+        /* Selected player chips below hero: red-tinted in light mode */
+        html[data-theme="light"] .bg-\[\#39FF14\]\/10 {
+            background-color: rgba(204,16,16,0.1) !important;
+        }
+        html[data-theme="light"] .border-\[\#39FF14\]\/30 {
+            border-color: rgba(204,16,16,0.3) !important;
+        }
     </style>
 </head>
 <body>
