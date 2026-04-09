@@ -182,18 +182,22 @@ const App: React.FC = () => {
   }, [transferData, userData]);
 
   const acceptTransfer = () => {
-    if (!transferMatchInfo) return;
+    if (!transferMatchInfo) { console.error('[XFER] acceptTransfer: transferMatchInfo is null!'); return; }
+    console.log('[XFER] acceptTransfer: saving match to localStorage', transferMatchInfo.matchId, transferMatchInfo.status);
     // Save match state to localStorage
     localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(transferMatchInfo));
+    console.log('[XFER] localStorage saved. Verify:', !!localStorage.getItem('22YARDS_ACTIVE_MATCH'));
     setTransferAccepted(true);
     // Clean URL params
     try {
       const url = new URL(window.location.href);
       url.searchParams.delete('transfer');
+      url.searchParams.delete('transfer_id');
       window.history.replaceState({}, '', url.toString());
     } catch {}
     // Navigate to Match Center after brief animation
     setTimeout(() => {
+      console.log('[XFER] Timeout fired. About to setActivePage MATCH_CENTER. localStorage check:', !!localStorage.getItem('22YARDS_ACTIVE_MATCH'));
       setShowTransferConfirm(false);
       setActivePage('MATCH_CENTER');
     }, 1200);
