@@ -338,6 +338,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     const ch = supabase.channel(`live:${match.matchId}`);
     // Listen for transfer_accepted — another device took over scoring (cross-device)
     ch.on('broadcast', { event: 'transfer_accepted' }, ({ payload }) => {
+      // Skip if THIS device is the new scorer (receiver accepted transfer here)
+      const scorerFlag = localStorage.getItem(`22Y_I_AM_SCORER_${match.matchId}`);
+      if (scorerFlag) {
+        console.log('[MatchCenter] Transfer accepted but I am the new scorer — ignoring');
+        return;
+      }
       console.log('[MatchCenter] Transfer accepted (broadcast) by:', payload?.acceptedBy);
       setForcedSpectatorMode(match.matchId);
     });
@@ -345,7 +351,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     liveChannelRef.current = ch;
 
     // Poll localStorage for transfer_accepted flag (same-device / reliable fallback)
+    // BUT skip if THIS device is the new scorer (receiver) — check I_AM_SCORER flag
     const transferPollId = setInterval(() => {
+      // If this device just accepted the transfer (is the new scorer), do NOT switch to spectator
+      const scorerFlag = localStorage.getItem(`22Y_I_AM_SCORER_${match.matchId}`);
+      if (scorerFlag) {
+        // Clean up the transfer_accepted flag so it doesn't linger
+        localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
+        return; // I am the scorer — do not become spectator
+      }
+
       const flag = localStorage.getItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
       if (flag) {
         try {
@@ -1951,6 +1966,39 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     return (
       <div className="h-full w-full flex flex-col overflow-hidden relative max-h-[100dvh]">
         <LiveScoreboard matchId={forcedSpectatorMode} />
+        {/* Button for sender to start a completely new match */}
+        <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 px-6">
+          <button
+            onClick={() => {
+              // Reset everything — clear old match, scorer flag, and start fresh
+              setForcedSpectatorMode(null);
+              localStorage.removeItem(`22Y_I_AM_SCORER_${forcedSpectatorMode}`);
+              const freshState = createInitialState();
+              localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
+              setMatch(freshState);
+              setStatus('CONFIG');
+              setWinnerTeam(null);
+              setSelectionTarget(null);
+              setConfigStep(1);
+              setVsRevealed(false);
+              setOverlayAnim(null);
+              setSummaryTab('SUMMARY');
+              setFireMode(false);
+              setFireModeBanner(false);
+              setFireModeDeclined(false);
+              setIceMode(false);
+              setIceModeBanner(false);
+              setIceModeDeclined(false);
+              setSummaryPhase('SKELETON');
+              setScorecardReady(false);
+              setPendingExtra(null);
+            }}
+            className="px-6 py-3 rounded-full bg-[#00F0FF]/15 border border-[#00F0FF]/30 text-[#00F0FF] text-[11px] font-black uppercase tracking-wider backdrop-blur-md hover:bg-[#00F0FF]/25 transition-all flex items-center gap-2"
+          >
+            <Plus size={14} />
+            Start New Match
+          </button>
+        </div>
       </div>
     );
   }
@@ -5350,6 +5398,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         <button
                           type="button"
                           onClick={() => {
+                            // Clean up scorer flag from transfer
+                            if (match.matchId) localStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
+                            setForcedSpectatorMode(null);
                             const freshState = createInitialState();
                             localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
                             setMatch(freshState);

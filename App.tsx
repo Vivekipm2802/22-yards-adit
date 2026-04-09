@@ -223,6 +223,13 @@ const App: React.FC = () => {
     // may not be subscribed in time to catch an ephemeral broadcast event.
     const matchId = transferMatchInfo.matchId;
     if (matchId) {
+      // IMPORTANT: Mark THIS device as the new scorer BEFORE writing the transfer_accepted flag.
+      // This prevents the receiver's own MatchCenter from picking up the flag and switching to spectator.
+      localStorage.setItem(`22Y_I_AM_SCORER_${matchId}`, JSON.stringify({
+        scorerSince: Date.now(),
+        scorerName: userData?.name || 'Receiver',
+      }));
+
       localStorage.setItem(`22Y_TRANSFER_ACCEPTED_${matchId}`, JSON.stringify({
         acceptedBy: userData?.name || 'Another device',
         acceptedAt: Date.now(),
