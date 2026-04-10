@@ -6536,7 +6536,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={closeQRScanner}
-            className="fixed inset-0 z-[8000] bg-black/95 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[10050] bg-black/95 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.85, opacity: 0, y: 30 }}
