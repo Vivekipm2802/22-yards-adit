@@ -24,8 +24,14 @@ export interface SuperOverState {
     winner: string | null; // team name
     winnerId: string | null; // TeamID
     margin: string;
-    method: string; // 'Super Over' or 'Boundary Count'
+    method: string; // 'Super Over' or 'Tied'
   } | null;
+  // Carry-forward restrictions for subsequent Super Overs (ICC 2020+):
+  // - A batsman dismissed in any previous Super Over cannot bat in the next one.
+  // - A bowler who bowled in the previous Super Over cannot bowl in the next one.
+  ineligibleBatsmen?: string[];
+  ineligibleBowlers?: Record<string, string[]>; // { teamId: [playerIds...] }
+  mainMatchHistory?: any[]; // optional, kept for archival/stats use only
 }
 
 export interface BallEvent {
@@ -86,6 +92,8 @@ export function createSuperOverState(
       bowlerId: null,
     },
     result: null,
+    ineligibleBatsmen: [],
+    ineligibleBowlers: {},
   };
 
   return superOverState;
@@ -146,10 +154,10 @@ export function countBoundaries(history: any[]): {
 }
 
 /**
- * Determine super over result after both teams have batted
- * Winner is team with higher score
- * Tiebreaker: boundary count from entire match (main + super over)
- * If still tied: Match Tied (another super over can be played)
+ * Determine super over result after both teams have batted.
+ * Per current ICC rules (October 2020+), the boundary countback tiebreaker
+ * was REMOVED. If a Super Over is tied, another Super Over must be played.
+ * Winner is simply the team with the higher score.
  */
 export function determineSuperOverResult(
   state: SuperOverState,
@@ -169,7 +177,6 @@ export function determineSuperOverResult(
   const team2Runs = state.team2Score.runs;
 
   // Determine team names for result
-  // state.team1Id and state.team2Id are 'A' or 'B'
   const team1 = teams[`team${state.team1Id}`];
   const team2 = teams[`team${state.team2Id}`];
 
@@ -182,7 +189,7 @@ export function determineSuperOverResult(
       winner: team1Name,
       winnerId: state.team1Id,
       margin: `${team1Runs - team2Runs} runs`,
-      method: 'Super Over',
+      method: `Super Over${state.superOverNumber > 1 ? ` #${state.superOverNumber}` : ''}`,
     };
   }
 
@@ -192,48 +199,90 @@ export function determineSuperOverResult(
       winner: team2Name,
       winnerId: state.team2Id,
       margin: `${team2Runs - team1Runs} runs`,
-      method: 'Super Over',
+      method: `Super Over${state.superOverNumber > 1 ? ` #${state.superOverNumber}` : ''}`,
     };
   }
 
-  // Super Over is tied - use boundary count tiebreaker
-  // Combine main match boundaries + super over boundaries per ICC rules
-  const mainMatchTeam1Boundaries = state.mainMatchHistory
-    ? countBoundaries(state.mainMatchHistory.filter((b: any) => b.innings === 1))
-    : { fours: 0, sixes: 0, total: 0 };
-  const mainMatchTeam2Boundaries = state.mainMatchHistory
-    ? countBoundaries(state.mainMatchHistory.filter((b: any) => b.innings === 2))
-    : { fours: 0, sixes: 0, total: 0 };
-  const soTeam1Boundaries = countBoundaries(state.team1History);
-  const soTeam2Boundaries = countBoundaries(state.team2History);
-  const team1BoundaryCount = { total: mainMatchTeam1Boundaries.total + soTeam1Boundaries.total, fours: 0, sixes: 0 };
-  const team2BoundaryCount = { total: mainMatchTeam2Boundaries.total + soTeam2Boundaries.total, fours: 0, sixes: 0 };
-
-  if (team1BoundaryCount.total > team2BoundaryCount.total) {
-    return {
-      winner: team1Name,
-      winnerId: state.team1Id,
-      margin: `${team1BoundaryCount.total} boundaries vs ${team2BoundaryCount.total}`,
-      method: 'Boundary Count',
-    };
-  }
-
-  if (team2BoundaryCount.total > team1BoundaryCount.total) {
-    return {
-      winner: team2Name,
-      winnerId: state.team2Id,
-      margin: `${team2BoundaryCount.total} boundaries vs ${team1BoundaryCount.total}`,
-      method: 'Boundary Count',
-    };
-  }
-
-  // Still tied after boundary count - another super over needed
+  // Super Over is tied — per ICC 2020+, play another Super Over.
   return {
-    winner: 'Match Tied',
+    winner: 'Super Over Tied',
     winnerId: null,
-    margin: 'Super Over required',
+    margin: 'Another Super Over required',
     method: 'Tied',
   };
+}
+
+/**
+ * Create the next Super Over state after a tied Super Over.
+ * Per ICC rules:
+ *  - Team that batted 2nd in previous SO bats 1st in the next SO
+ *  - Dismissed batsmen in previous SO are ineligible
+ *  - Bowler from previous SO cannot bowl the next SO
+ */
+export function createNextSuperOverState(
+  prevState: SuperOverState,
+  teams: {
+    teamA: any;
+    teamB: any;
+  }
+): SuperOverState {
+  // Flip the order: team2 now bats first
+  const newTeam1Id = prevState.team2Id;
+  const newTeam2Id = prevState.team1Id;
+
+  return {
+    isActive: true,
+    superOverNumber: prevState.superOverNumber + 1,
+    phase: 'SETUP_TEAM1',
+    team1Id: newTeam1Id,
+    team2Id: newTeam2Id,
+    team1Batsmen: [],
+    team1Bowler: '',
+    team2Batsmen: [],
+    team2Bowler: '',
+    team1Score: { runs: 0, wickets: 0, balls: 0 },
+    team2Score: { runs: 0, wickets: 0, balls: 0 },
+    team1History: [],
+    team2History: [],
+    currentBatting: 1,
+    crease: { strikerId: null, nonStrikerId: null, bowlerId: null },
+    result: null,
+    // Carry forward restrictions from previous SO.
+    // ineligibleBatsmen: player IDs that were dismissed in any previous SO innings.
+    // ineligibleBowlers: { teamId: [playerIds that belong to THAT team and can't bowl] }
+    //
+    // prevState.team1Bowler is a player from prevState.team2Id (team that bowled to team1).
+    // prevState.team2Bowler is a player from prevState.team1Id (team that bowled to team2).
+    ineligibleBatsmen: [
+      ...(prevState.ineligibleBatsmen || []),
+      ...collectDismissedBatsmen(prevState),
+    ],
+    ineligibleBowlers: {
+      [prevState.team2Id]: [
+        ...((prevState.ineligibleBowlers && prevState.ineligibleBowlers[prevState.team2Id]) || []),
+        ...(prevState.team1Bowler ? [prevState.team1Bowler] : []),
+      ],
+      [prevState.team1Id]: [
+        ...((prevState.ineligibleBowlers && prevState.ineligibleBowlers[prevState.team1Id]) || []),
+        ...(prevState.team2Bowler ? [prevState.team2Bowler] : []),
+      ],
+    },
+  } as SuperOverState;
+}
+
+/**
+ * Collect all batsman IDs who got out in any innings of a Super Over.
+ * These are ineligible to bat in the next Super Over per ICC rules.
+ */
+function collectDismissedBatsmen(state: SuperOverState): string[] {
+  const dismissed: string[] = [];
+  for (const ball of state.team1History) {
+    if (ball.wicket && ball.strikerId) dismissed.push(ball.strikerId);
+  }
+  for (const ball of state.team2History) {
+    if (ball.wicket && ball.strikerId) dismissed.push(ball.strikerId);
+  }
+  return dismissed;
 }
 
 /**

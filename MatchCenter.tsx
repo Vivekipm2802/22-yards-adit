@@ -23,7 +23,7 @@ import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
 import { useAuth } from './AuthContext';
 import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, fetchMatchById, findMatchByPasscode, supabase } from './lib/supabase';
 import { calculateDLSTarget, getDLSParScore, getMatchStatus } from './lib/dls';
-import { createSuperOverState, updateSuperOverAfterBall, shouldEndSuperOverInnings, determineSuperOverResult, setSuperOverLineup, transitionSuperOverPhase, SuperOverState } from './lib/superOver';
+import { createSuperOverState, createNextSuperOverState, updateSuperOverAfterBall, shouldEndSuperOverInnings, determineSuperOverResult, setSuperOverLineup, transitionSuperOverPhase, SuperOverState } from './lib/superOver';
 import LiveScoreboard from './pages/LiveScoreboard';
 import HighlightsPage from './pages/Highlights';
 import { CameraRecorder, YouTubeStreamModal, LiveStreamView, useCameraRecorder, type LiveStreamConfig } from './pages/LiveStream';
@@ -1687,14 +1687,31 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       setSuperOverState(finalState);
 
       if (result.winnerId) {
+        // We have a winner — end the match
         const winnerName = result.winner;
         setWinnerTeam({ name: winnerName, id: result.winnerId, margin: `${result.margin} (${result.method})` });
+        setMatch(m => ({ ...m, status: 'COMPLETED', superOver: finalState }));
+        setTimeout(() => setStatus('SUMMARY'), 2000);
       } else {
-        // Another super over needed — for now just show tied
-        setWinnerTeam({ name: 'Match Tied', id: null, margin: 'Super Over also tied' });
+        // Super Over tied — ask the scorer whether to play another SO or declare tie (informal games)
+        const playAnother = window.confirm(
+          `Super Over #${finalState.superOverNumber} tied at ${finalState.team1Score.runs}-${finalState.team1Score.runs}.\n\n` +
+          `Per ICC rules, another Super Over must be played until one team wins.\n\n` +
+          `OK = Play another Super Over\nCancel = End match as a tie (informal)`
+        );
+        if (playAnother) {
+          const nextSO = createNextSuperOverState(finalState, match.teams);
+          setSuperOverState(nextSO);
+          setSuperOverPhase('SETUP_TEAM1');
+          setMatch(m => ({ ...m, superOver: nextSO }));
+          setSoSelectedBatsmen([]);
+          setSoSelectedBowler(null);
+        } else {
+          setWinnerTeam({ name: 'Match Tied', id: null, margin: `Super Over #${finalState.superOverNumber} also tied` });
+          setMatch(m => ({ ...m, status: 'COMPLETED', superOver: finalState }));
+          setTimeout(() => setStatus('SUMMARY'), 2000);
+        }
       }
-      setMatch(m => ({ ...m, status: 'COMPLETED', superOver: finalState }));
-      setTimeout(() => setStatus('SUMMARY'), 2000);
     }
   };
 
@@ -6236,8 +6253,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             const oppositeTeamId = teamNum === 1 ? superOverState.team2Id : superOverState.team1Id;
             const oppositeKey = oppositeTeamId === 'A' ? 'teamA' : 'teamB';
             const oppositeTeam = match.teams[oppositeKey];
-            const squad = team?.squad || [];
-            const oppositeSquad = oppositeTeam?.squad || [];
+            // Apply ICC ineligibility rules for subsequent Super Overs:
+            //  - Dismissed batsmen in previous SOs cannot bat.
+            //  - Bowler who bowled the previous SO cannot bowl again.
+            const ineligibleBatsmen = new Set(superOverState.ineligibleBatsmen || []);
+            const ineligibleBowlersForThisTeam = new Set(
+              (superOverState.ineligibleBowlers && superOverState.ineligibleBowlers[oppositeTeamId]) || []
+            );
+            const squad = (team?.squad || []).filter((p: any) => !ineligibleBatsmen.has(p.id));
+            const oppositeSquad = (oppositeTeam?.squad || []).filter((p: any) => !ineligibleBowlersForThisTeam.has(p.id));
 
             return (
               <div className="flex-1 overflow-auto p-5 space-y-5">
