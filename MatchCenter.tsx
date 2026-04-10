@@ -2241,9 +2241,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               )}
 
               {/* STEP 2: MATCH DETAILS (Single scrollable screen with all config) */}
-              {configStep === 2 && (
+              {/* STEP 3: MATCH DETAILS */}
+              {configStep === 3 && (
                 <motion.div
-                  key="step2"
+                  key="step3-details"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
@@ -2517,10 +2518,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 </motion.div>
               )}
 
-              {/* STEP 3: PREMIUM TEAM SELECTION */}
-              {configStep === 3 && (
+              {/* STEP 2: PREMIUM TEAM SELECTION */}
+              {configStep === 2 && (
                 <motion.div
-                  key="step3"
+                  key="step2-teams"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
