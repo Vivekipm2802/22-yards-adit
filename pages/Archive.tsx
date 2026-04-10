@@ -271,347 +271,318 @@ const generateScorecardPDF = async (match: any) => {
   try {
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const margin = 12;
+    const contentW = pw - 2 * margin;
+    let y = 12;
 
-    // ── Layout constants ─────────────────────────────────────────────────────
-    const W = 210, PL = 12, PR = 12, CW = W - PL - PR;
+    // Reference template colors (matches MatchCenter scorecard)
+    const headerGreen: [number, number, number] = [112, 159, 93];
+    const lightGreen: [number, number, number] = [197, 220, 167];
+    const borderGray: [number, number, number] = [210, 210, 210];
+    const rowDivider: [number, number, number] = [235, 235, 235];
+    const textBlack: [number, number, number] = [40, 40, 40];
+    const textGray: [number, number, number] = [120, 120, 120];
 
-    // ── Color palette ────────────────────────────────────────────────────────
-    const RED:    [number,number,number] = [204, 16,  16];
-    const DKRED:  [number,number,number] = [30,  40,  70];
-    const PURPLE: [number,number,number] = [50,  50,  80];
-    const DARK:   [number,number,number] = [15,  23,  42];
-    const MUTED:  [number,number,number] = [100, 116, 139];
-    const WHITE:  [number,number,number] = [255, 255, 255];
-    const ALTBG:  [number,number,number] = [232, 236, 244];
-    const GOLD:   [number,number,number] = [140, 100,  10];
-
-    let y = 0;
-
-    const checkPage = (need = 20) => {
-      if (y + need > 282) { doc.addPage(); y = 14; }
+    const ensureSpace = (needed: number) => {
+      if (y + needed > ph - 14) {
+        doc.addPage();
+        y = 12;
+      }
     };
 
-    // ════════════════════════════════════════════════════════════════
-    // HEADER BAND
-    // ════════════════════════════════════════════════════════════════
-    doc.setFillColor(...RED);
-    doc.rect(0, 0, W, 30, 'F');
-    doc.setTextColor(...WHITE);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
-    doc.text('22YARDS', PL, 13);
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-    doc.text('OFFICIAL MATCH SCORECARD', PL, 20);
-    const dateStr = match.date
-      ? new Date(match.date).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
-      : '';
-    doc.setFontSize(7.5);
-    doc.text(dateStr, W - PR, 20, { align: 'right' });
-    y = 38;
+    const batCol = [0.48, 0.09, 0.09, 0.10, 0.10, 0.14].map(f => contentW * f);
+    const bowlCol = [0.48, 0.09, 0.09, 0.10, 0.10, 0.14].map(f => contentW * f);
 
-    // ════════════════════════════════════════════════════════════════
-    // MATCH HEADER - teams + result
-    // ════════════════════════════════════════════════════════════════
-    const sc   = match.fullScorecard;
-    const tA   = sc?.battingTeam?.name  || 'TEAM A'; // inn-1 batting team
-    const tB   = sc?.bowlingTeam?.name  || 'TEAM B'; // inn-1 bowling team
+    const sc = match.fullScorecard;
+    const tA = sc?.battingTeam?.name || 'Team A';
+    const tB = sc?.bowlingTeam?.name || 'Team B';
 
-    doc.setFillColor(...DARK);
-    doc.rect(PL, y, CW, 22, 'F');
-    doc.setTextColor(...WHITE);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-    doc.text(tA, PL + 4, y + 9);
-    doc.setFontSize(9); doc.setTextColor(180, 180, 180);
-    doc.text('vs', W / 2, y + 9, { align: 'center' });
-    doc.setFontSize(13); doc.setTextColor(...WHITE);
-    doc.text(tB, W - PR - 4, y + 9, { align: 'right' });
+    // Top divider — title — divider
+    doc.setDrawColor(...borderGray);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pw - margin, y);
+    y += 8;
 
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(20);
+    doc.setTextColor(...textBlack);
+    doc.text(`${tA} v/s ${tB}`, pw / 2, y, { align: 'center' });
+    y += 4;
+    doc.line(margin, y, pw - margin, y);
+    y += 6;
+
+    // Result line
     const resultLine = sc?.matchResult || (match.result ? `Result: ${match.result}` : '');
-    doc.setFontSize(8); doc.setFont('helvetica', 'italic');
-    doc.setTextColor(255, 195, 195);
-    doc.text(resultLine, W / 2, y + 18, { align: 'center' });
-    y += 28;
-
-    // ════════════════════════════════════════════════════════════════
-    // MATCH AWARDS
-    // ════════════════════════════════════════════════════════════════
-    if (sc?.awards) {
-      checkPage(20);
-      doc.setFillColor(255, 248, 215);
-      doc.rect(PL, y, CW, 18, 'F');
-      // left accent stripe
-      doc.setFillColor(...RED);
-      doc.rect(PL, y, 2.5, 18, 'F');
-
-      const aw = sc.awards;
-      const aCol = CW / 3;
-
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-      doc.setTextColor(...GOLD);
-      doc.text('MATCH AWARDS', PL + 6, y + 5);
-
-      const drawAward = (icon: string, label: string, value: string, xOff: number) => {
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
-        doc.setTextColor(...GOLD);
-        doc.text(icon + ' ' + label, PL + xOff + 4, y + 10.5);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
-        doc.setTextColor(...DARK);
-        doc.text(value || '-', PL + xOff + 4, y + 15.5);
-      };
-
-      drawAward('BAT', 'BEST BATSMAN', aw.bestBatsman ? `${aw.bestBatsman.name}  ${aw.bestBatsman.stat}` : '-', 0);
-      drawAward('BWL', 'BEST BOWLER',  aw.bestBowler  ? `${aw.bestBowler.name}  ${aw.bestBowler.stat}`  : '-', aCol);
-      drawAward('MVP', 'MVP',          aw.mvp         ? aw.mvp.name                                     : '-', aCol * 2);
-      y += 24;
+    if (resultLine) {
+      doc.setFontSize(10);
+      doc.setTextColor(...textBlack);
+      doc.text(resultLine, margin, y);
+      y += 3;
+      doc.setDrawColor(...borderGray);
+      doc.line(margin, y, pw - margin, y);
+      y += 4;
     }
 
     if (!sc) {
-      doc.setTextColor(...MUTED); doc.setFontSize(10);
-      doc.text('No detailed scorecard available.', W / 2, y + 15, { align: 'center' });
-      doc.save(`22YARDS_${(match.opponent||'Match').replace(/\s+/g,'_')}.pdf`);
+      doc.setTextColor(...textGray); doc.setFontSize(10);
+      doc.text('No detailed scorecard available.', pw / 2, y + 15, { align: 'center' });
+      doc.save(`22YARDS_${(match.opponent || 'Match').replace(/\s+/g, '_')}.pdf`);
       return;
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // SECTION HEADER helper
-    // ════════════════════════════════════════════════════════════════
-    const sectionHeader = (title: string, bgColor: [number,number,number]) => {
-      checkPage(14);
-      doc.setFillColor(...bgColor);
-      doc.rect(PL, y, CW, 8, 'F');
-      doc.setTextColor(...WHITE);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
-      doc.text(title, PL + 3, y + 5.5);
-      y += 10;
-    };
+    const renderInnings = (
+      teamName: string,
+      batSquad: any[],
+      bowlSquad: any[],
+      total: any,
+      extras: any,
+      fow: any[],
+    ) => {
+      const balls = total?.balls || 0;
+      const runs = total?.runs || 0;
+      const wickets = total?.wickets || 0;
+      const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
+      const scoreStr = `${runs}-${wickets} (${overs})`;
 
-    // ════════════════════════════════════════════════════════════════
-    // BATTING TABLE
-    // Cols: Batter(40) | Dismissal(60) | R(12) | B(12) | 4s(10) | 6s(10) | SR(12) → 156 out of CW=186
-    // ════════════════════════════════════════════════════════════════
-    const BAT_COLS = [
-      { h: 'BATTER',    w: 40, align: 'left'  },
-      { h: 'DISMISSAL', w: 60, align: 'left'  },
-      { h: 'R',         w: 13, align: 'right' },
-      { h: 'B',         w: 13, align: 'right' },
-      { h: '4s',        w: 12, align: 'right' },
-      { h: '6s',        w: 12, align: 'right' },
-      { h: 'SR',        w: 14, align: 'right' },
-    ];
-
-    const drawBatting = (title: string, squad: any[], extras: any, total: any) => {
-      sectionHeader(title, RED);
-
-      // Column header row
-      doc.setFillColor(...ALTBG);
-      doc.rect(PL, y, CW, 6, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-      let cx = PL + 2;
-      BAT_COLS.forEach(col => {
-        if (col.align === 'right') doc.text(col.h, cx + col.w - 2, y + 4.2, { align: 'right' });
-        else doc.text(col.h, cx, y + 4.2);
-        cx += col.w;
-      });
+      // Team header bar
+      ensureSpace(10);
+      doc.setFillColor(...headerGreen);
+      doc.rect(margin, y, contentW, 7, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.text(teamName, margin + 2, y + 5);
+      doc.text(scoreStr, pw - margin - 2, y + 5, { align: 'right' });
       y += 7;
 
-      // Player rows
-      squad.forEach((p, ri) => {
-        checkPage(8);
-        const isEven = ri % 2 === 0;
-        doc.setFillColor(isEven ? 255 : 248, isEven ? 255 : 250, isEven ? 255 : 252);
-        doc.rect(PL, y, CW, 7.5, 'F');
+      // Batting column header
+      doc.setFillColor(...lightGreen);
+      doc.rect(margin, y, contentW, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...textBlack);
+      const batHeaders = ['Batsman', 'R', 'B', '4s', '6s', 'SR'];
+      batHeaders.forEach((h, i) => {
+        if (i === 0) {
+          doc.text(h, margin + 2, y + 4);
+        } else {
+          const rightEdge = margin + batCol.slice(0, i + 1).reduce((a, b) => a + b, 0) - 2;
+          doc.text(h, rightEdge, y + 4, { align: 'right' });
+        }
+      });
+      y += 6;
 
-        const sr    = (p.balls || 0) > 0 ? (((p.runs||0) / (p.balls||1)) * 100).toFixed(1) : '-';
-        const dism  = p.outDetail || ((p.balls||0) > 0 ? 'not out' : 'dnb');
-        const isBig = (p.runs || 0) >= 30;
+      // Batter rows (only those who actually batted)
+      const batters = (batSquad || []).filter((p: any) =>
+        (p.runs || 0) > 0 || (p.balls || 0) > 0 || p.outDetail
+      );
+      batters.forEach((p: any) => {
+        const dismissal = p.outDetail || ((p.balls || 0) > 0 ? 'not out' : '');
+        const rowH = dismissal ? 10 : 7;
+        ensureSpace(rowH + 2);
 
-        cx = PL + 2;
-        doc.setFont('helvetica', isBig ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(...DARK);
-        doc.text(String(p.name||'').slice(0, 18), cx, y + 5);
-        cx += BAT_COLS[0].w;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...textBlack);
+        doc.text(String(p.name || ''), margin + 2, y + 4);
 
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-        doc.text(String(dism).slice(0, 32), cx, y + 5);
-        cx += BAT_COLS[1].w;
+        const sr = (p.balls || 0) > 0 ? (((p.runs || 0) / (p.balls || 0)) * 100).toFixed(2) : '0.00';
+        const vals = [String(p.runs || 0), String(p.balls || 0), String(p.fours || 0), String(p.sixes || 0), sr];
+        vals.forEach((v, i) => {
+          const rightEdge = margin + batCol.slice(0, i + 2).reduce((a, b) => a + b, 0) - 2;
+          doc.text(v, rightEdge, y + 4, { align: 'right' });
+        });
 
-        doc.setFont('helvetica', isBig ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(...DARK);
-        doc.text(String(p.runs||0), cx + BAT_COLS[2].w - 2, y + 5, { align: 'right' });
-        cx += BAT_COLS[2].w;
-
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
-        doc.text(String(p.balls||0), cx + BAT_COLS[3].w - 2, y + 5, { align: 'right' });
-        cx += BAT_COLS[3].w;
-
-        doc.setTextColor(...DARK);
-        doc.text(String(p.fours||0), cx + BAT_COLS[4].w - 2, y + 5, { align: 'right' });
-        cx += BAT_COLS[4].w;
-
-        doc.text(String(p.sixes||0), cx + BAT_COLS[5].w - 2, y + 5, { align: 'right' });
-        cx += BAT_COLS[5].w;
-
-        doc.setTextColor(...MUTED);
-        doc.text(sr, cx + BAT_COLS[6].w - 2, y + 5, { align: 'right' });
-        y += 7.5;
+        if (dismissal) {
+          doc.setFontSize(8);
+          doc.setTextColor(...textGray);
+          doc.text(String(dismissal), margin + 2, y + 8);
+        }
+        y += rowH;
+        doc.setDrawColor(...rowDivider);
+        doc.setLineWidth(0.2);
+        doc.line(margin, y, pw - margin, y);
       });
 
       // Extras row
-      if (extras) {
-        checkPage(8);
-        doc.setFillColor(240, 244, 248);
-        doc.rect(PL, y, CW, 7, 'F');
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-        doc.text('Extras', PL + 2, y + 4.8);
-        const extStr = `(B ${extras.byes||0}, LB ${extras.legByes||0}, WD ${extras.wides||0}, NB ${extras.noBalls||0}, P ${extras.penalties||0})`;
-        doc.text(extStr, PL + 44, y + 4.8);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...DARK);
-        doc.text(String(extras.total||0), W - PR - 2, y + 4.8, { align: 'right' });
+      const ex = extras || {};
+      const totalEx = ex.total ?? ((ex.byes || 0) + (ex.legByes || 0) + (ex.wides || 0) + (ex.noBalls || 0) + (ex.penalties || 0));
+      ensureSpace(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...textBlack);
+      doc.text('Extras', margin + 2, y + 5);
+      doc.text(
+        `(${totalEx}) ${ex.byes || 0} B, ${ex.legByes || 0} LB, ${ex.wides || 0} WD, ${ex.noBalls || 0} NB, ${ex.penalties || 0} P`,
+        pw - margin - 2, y + 5, { align: 'right' }
+      );
+      y += 7;
+      doc.setDrawColor(...rowDivider);
+      doc.line(margin, y, pw - margin, y);
+
+      // Total row
+      const rr = balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
+      ensureSpace(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Total', margin + 2, y + 5);
+      doc.text(`${runs}-${wickets} (${overs}) ${rr}`, pw - margin - 2, y + 5, { align: 'right' });
+      y += 7;
+      doc.setDrawColor(...rowDivider);
+      doc.line(margin, y, pw - margin, y);
+
+      // Bowler header
+      ensureSpace(10);
+      doc.setFillColor(...lightGreen);
+      doc.rect(margin, y, contentW, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...textBlack);
+      const bowlHeaders = ['Bowler', 'O', 'M', 'R', 'W', 'ER'];
+      bowlHeaders.forEach((h, i) => {
+        if (i === 0) {
+          doc.text(h, margin + 2, y + 4);
+        } else {
+          const rightEdge = margin + bowlCol.slice(0, i + 1).reduce((a, b) => a + b, 0) - 2;
+          doc.text(h, rightEdge, y + 4, { align: 'right' });
+        }
+      });
+      y += 6;
+
+      // Bowler rows
+      const bowlers = (bowlSquad || []).filter((p: any) =>
+        (p.balls_bowled || p.ballsBowled || 0) > 0 || (p.wickets || 0) > 0
+      );
+      bowlers.forEach((p: any) => {
+        ensureSpace(8);
+        const bb = p.balls_bowled || p.ballsBowled || 0;
+        const rc = p.runs_conceded || p.runsConceded || 0;
+        const ov = `${Math.floor(bb / 6)}.${bb % 6}`;
+        const econ = bb > 0 ? ((rc / bb) * 6).toFixed(2) : '0.00';
+        const maidens = p.maidens || 0;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...textBlack);
+        doc.text(String(p.name || ''), margin + 2, y + 5);
+        const vals = [ov, String(maidens), String(rc), String(p.wickets || 0), econ];
+        vals.forEach((v, i) => {
+          const rightEdge = margin + bowlCol.slice(0, i + 2).reduce((a, b) => a + b, 0) - 2;
+          doc.text(v, rightEdge, y + 5, { align: 'right' });
+        });
         y += 7;
+        doc.setDrawColor(...rowDivider);
+        doc.line(margin, y, pw - margin, y);
+      });
+
+      // Fall of Wickets
+      if (fow && fow.length > 0) {
+        ensureSpace(10);
+        doc.setFillColor(...headerGreen);
+        doc.rect(margin, y, contentW, 6, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.text('Fall of wickets', margin + 2, y + 4);
+        doc.text('Score', pw / 2, y + 4, { align: 'center' });
+        doc.text('Over', pw - margin - 2, y + 4, { align: 'right' });
+        y += 6;
+
+        fow.forEach((wkt: any) => {
+          ensureSpace(7);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(...textBlack);
+          doc.text(String(wkt.batterName || 'Unknown'), margin + 2, y + 5);
+          doc.text(String(wkt.score || ''), pw / 2, y + 5, { align: 'center' });
+          doc.text(String(wkt.over || ''), pw - margin - 2, y + 5, { align: 'right' });
+          y += 7;
+          doc.setDrawColor(...rowDivider);
+          doc.line(margin, y, pw - margin, y);
+        });
       }
 
-      // Innings total row
-      if (total) {
-        checkPage(9);
-        doc.setFillColor(...DARK);
-        doc.rect(PL, y, CW, 9, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...WHITE);
-        doc.text('TOTAL', PL + 3, y + 6);
-        const ovStr = `${Math.floor((total.balls||0)/6)}.${(total.balls||0)%6}`;
-        const rr = (total.balls||0) > 0 ? ((total.runs||0) / ((total.balls||1)/6)).toFixed(2) : '0.00';
-        doc.text(`${total.runs||0}-${total.wickets||0}  (${ovStr} ov)  RR: ${rr}`, W - PR - 2, y + 6, { align: 'right' });
-        y += 13;
-      } else {
-        y += 4;
+      y += 3;
+    };
+
+    // Innings 1 = batting team bats, bowling team bowls
+    renderInnings(
+      tA,
+      sc.battingTeam?.squad || [],
+      sc.bowlingTeam?.squad || [],
+      sc.inn1Total || { runs: match.myTeamScore || 0, wickets: match.myTeamWickets || 0, balls: 0 },
+      sc.inn1Extras,
+      sc.inn1FoW || []
+    );
+
+    // Innings 2 = teams flipped
+    renderInnings(
+      tB,
+      sc.bowlingTeam?.squad || [],
+      sc.battingTeam?.squad || [],
+      sc.inn2Total || { runs: match.oppTeamScore || 0, wickets: match.oppTeamWickets || 0, balls: 0 },
+      sc.inn2Extras,
+      sc.inn2FoW || []
+    );
+
+    // Man of the Match — prefer awards.mvp, else compute from all players
+    let motm: any = sc.awards?.mvp || null;
+    if (!motm) {
+      const allPlayers = [...(sc.battingTeam?.squad || []), ...(sc.bowlingTeam?.squad || [])];
+      if (allPlayers.length > 0) {
+        motm = allPlayers.reduce((best: any, p: any) => {
+          const impact = (p.runs || 0) + (p.wickets || 0) * 25 + (p.catches || 0) * 10 + (p.stumpings || 0) * 10 + (p.run_outs || 0) * 10;
+          const bestImpact = (best.runs || 0) + (best.wickets || 0) * 25 + (best.catches || 0) * 10 + (best.stumpings || 0) * 10 + (best.run_outs || 0) * 10;
+          return impact > bestImpact ? p : best;
+        }, allPlayers[0]);
       }
-    };
-
-    // ════════════════════════════════════════════════════════════════
-    // BOWLING TABLE
-    // Cols: Bowler(64) | O(20) | M(16) | R(18) | W(14) | ER(18)
-    // ════════════════════════════════════════════════════════════════
-    const BWL_COLS = [
-      { h: 'BOWLER', w: 64, align: 'left'  },
-      { h: 'O',      w: 20, align: 'right' },
-      { h: 'M',      w: 16, align: 'right' },
-      { h: 'R',      w: 18, align: 'right' },
-      { h: 'W',      w: 14, align: 'right' },
-      { h: 'ER',     w: 18, align: 'right' },
-    ];
-
-    const drawBowling = (title: string, squad: any[]) => {
-      const bowlers = squad.filter(p => (p.balls_bowled||p.ballsBowled||0) > 0 || (p.wickets||0) > 0);
-      if (bowlers.length === 0) return;
-
-      sectionHeader(title, DKRED);
-
-      doc.setFillColor(...ALTBG);
-      doc.rect(PL, y, CW, 6, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-      let cx = PL + 2;
-      BWL_COLS.forEach(col => {
-        if (col.align === 'right') doc.text(col.h, cx + col.w - 2, y + 4.2, { align: 'right' });
-        else doc.text(col.h, cx, y + 4.2);
-        cx += col.w;
-      });
-      y += 7;
-
-      bowlers.forEach((p, ri) => {
-        checkPage(8);
-        const isEven = ri % 2 === 0;
-        doc.setFillColor(isEven ? 255 : 248, isEven ? 255 : 250, isEven ? 255 : 252);
-        doc.rect(PL, y, CW, 7.5, 'F');
-
-        const bb  = p.balls_bowled || p.ballsBowled || 0;
-        const rc  = p.runs_conceded || p.runsConceded || 0;
-        const ov  = `${Math.floor(bb/6)}.${bb%6}`;
-        const mai = p.maidens || 0;
-        const er  = bb > 0 ? (rc / bb * 6).toFixed(2) : '-';
-        const haul = (p.wickets||0) >= 3;
-
-        cx = PL + 2;
-        doc.setFont('helvetica', haul ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(...DARK);
-        doc.text(String(p.name||'').slice(0,24), cx, y + 5);
-        cx += BWL_COLS[0].w;
-
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
-        doc.text(ov, cx + BWL_COLS[1].w - 2, y + 5, { align: 'right' }); cx += BWL_COLS[1].w;
-        doc.text(String(mai), cx + BWL_COLS[2].w - 2, y + 5, { align: 'right' }); cx += BWL_COLS[2].w;
-
-        doc.setTextColor(...DARK);
-        doc.text(String(rc), cx + BWL_COLS[3].w - 2, y + 5, { align: 'right' }); cx += BWL_COLS[3].w;
-
-        // Wickets - red if any
-        doc.setFont('helvetica', (p.wickets||0) > 0 ? 'bold' : 'normal');
-        doc.setTextColor(...((p.wickets||0) > 0 ? RED : MUTED));
-        doc.text(String(p.wickets||0), cx + BWL_COLS[4].w - 2, y + 5, { align: 'right' }); cx += BWL_COLS[4].w;
-
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
-        doc.text(er, cx + BWL_COLS[5].w - 2, y + 5, { align: 'right' });
-        y += 7.5;
-      });
-      y += 4;
-    };
-
-    // ════════════════════════════════════════════════════════════════
-    // FALL OF WICKETS TABLE
-    // ════════════════════════════════════════════════════════════════
-    const drawFoW = (title: string, fow: any[]) => {
-      if (!fow || fow.length === 0) return;
-      sectionHeader(title, PURPLE);
-
-      doc.setFillColor(...ALTBG);
-      doc.rect(PL, y, CW, 6, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...MUTED);
-      doc.text('#',       PL + 2,  y + 4.2);
-      doc.text('BATTER',  PL + 14, y + 4.2);
-      doc.text('SCORE',   PL + 90, y + 4.2);
-      doc.text('OVER',    PL + 120, y + 4.2);
-      y += 7;
-
-      fow.forEach((wkt, ri) => {
-        checkPage(8);
-        const isEven = ri % 2 === 0;
-        doc.setFillColor(isEven ? 255 : 248, isEven ? 255 : 250, isEven ? 255 : 252);
-        doc.rect(PL, y, CW, 7, 'F');
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-        doc.setTextColor(...MUTED);
-        doc.text(String(ri + 1), PL + 2, y + 4.8);
-        doc.setTextColor(...DARK);
-        doc.text(String(wkt.batterName||'').slice(0, 26), PL + 14, y + 4.8);
-        doc.setTextColor(...MUTED);
-        doc.text(String(wkt.score), PL + 90, y + 4.8);
-        doc.text(String(wkt.over),  PL + 120, y + 4.8);
-        y += 7;
-      });
-      y += 5;
-    };
-
-    // ════════════════════════════════════════════════════════════════
-    // RENDER INN-1
-    // ════════════════════════════════════════════════════════════════
-    const inn1Total = sc.inn1Total || { runs: match.myTeamScore||0, wickets: match.myTeamWickets||0, balls: 0 };
-    const inn2Total = sc.inn2Total || { runs: match.oppTeamScore||0, wickets: match.oppTeamWickets||0, balls: 0 };
-
-    drawBatting(`BATTING - ${tA}  (INN 1)`, sc.battingTeam?.squad || [], sc.inn1Extras, inn1Total);
-    drawBowling(`BOWLING - ${tB}  (INN 1)`, sc.bowlingTeam?.squad || []);
-    drawFoW(`FALL OF WICKETS - ${tA}  (INN 1)`, sc.inn1FoW || []);
-
-    // ════════════════════════════════════════════════════════════════
-    // RENDER INN-2
-    // ════════════════════════════════════════════════════════════════
-    drawBatting(`BATTING - ${tB}  (INN 2)`, sc.bowlingTeam?.squad || [], sc.inn2Extras, inn2Total);
-    drawBowling(`BOWLING - ${tA}  (INN 2)`, sc.battingTeam?.squad || []);
-    drawFoW(`FALL OF WICKETS - ${tB}  (INN 2)`, sc.inn2FoW || []);
-
-    // ════════════════════════════════════════════════════════════════
-    // PAGE FOOTERS
-    // ════════════════════════════════════════════════════════════════
-    const total = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= total; i++) {
-      doc.setPage(i);
-      doc.setTextColor(...MUTED); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-      doc.text(`Generated by 22YARDS Cricket App  ·  Page ${i} of ${total}`, W / 2, 292, { align: 'center' });
     }
 
-    doc.save(`22YARDS_${(match.opponent||'Match').replace(/\s+/g,'_')}_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}.pdf`);
+    if (motm?.name) {
+      ensureSpace(18);
+      doc.setFillColor(...headerGreen);
+      doc.rect(margin, y, contentW, 7, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.text('Man of the Match', margin + 2, y + 5);
+      y += 7;
+
+      ensureSpace(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...textBlack);
+      doc.text(String(motm.name), margin + 2, y + 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...textGray);
+      const parts: string[] = [];
+      if ((motm.runs || 0) > 0 || (motm.balls || 0) > 0) parts.push(`${motm.runs || 0}(${motm.balls || 0})`);
+      if ((motm.wickets || 0) > 0) parts.push(`${motm.wickets}-${motm.runs_conceded || motm.runsConceded || 0}`);
+      if (parts.length > 0) {
+        doc.text(parts.join(' · '), pw - margin - 2, y + 5, { align: 'right' });
+      }
+      y += 7;
+      doc.setDrawColor(...rowDivider);
+      doc.line(margin, y, pw - margin, y);
+    }
+
+    // Footer on every page
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const footerY = ph - 8;
+      doc.setDrawColor(...borderGray);
+      doc.setLineWidth(0.3);
+      doc.line(margin, footerY - 3, pw - margin, footerY - 3);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...textGray);
+      doc.text('Powered by 22 Yards (www.22yards.app)', pw / 2, footerY, { align: 'center' });
+    }
+
+    doc.save(`22YARDS_${(match.opponent || 'Match').replace(/\s+/g, '_')}_${new Date().toLocaleDateString('en-IN').replace(/\//g, '-')}.pdf`);
   } catch (e) {
     console.error('PDF generation failed:', e);
     alert('PDF generation failed. Please try again.');
