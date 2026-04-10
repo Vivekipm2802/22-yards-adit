@@ -5453,135 +5453,38 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         Share
                       </motion.button>
 
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // Clean up scorer flag from transfer
-                            if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
-                            setForcedSpectatorMode(null);
-                            const freshState = createInitialState();
-                            localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
-                            setMatch(freshState);
-                            setStatus('CONFIG');
-                            setWinnerTeam(null);
-                            setSelectionTarget(null);
-                            setConfigStep(1);
-                            setVsRevealed(false);
-                            setOverlayAnim(null);
-                            setSummaryTab('SUMMARY');
-                            setShowShareSheet(false);
-                            setFireMode(false);
-                            setFireModeBanner(false);
-                            setFireModeDeclined(false);
-                            setIceMode(false);
-                            setIceModeBanner(false);
-                            setIceModeDeclined(false);
-                            setSummaryPhase('SKELETON');
-                            setScorecardReady(false);
-                            setPendingExtra(null);
-                            isProcessingBall.current = false;
-                          }}
-                          className="flex-1 py-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                        >
-                          <Swords size={14} />
-                          New Match
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
-                            if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
-                            onBack();
-                          }}
-                          className="flex-1 py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/40 font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                        >
-                          <ChevronLeft size={14} />
-                          Dugout
-                        </button>
-                      </div>
-
-                      {/* Quick-nav to Performance Hub & Personal Archive */}
-                      {onNavigate && (
-                        <div className="flex gap-3 mt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
-                              if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
-                              onNavigate('PERFORMANCE');
-                            }}
-                            className="flex-1 py-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                          >
-                            <BarChart2 size={14} />
-                            Performance Hub
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
-                              if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
-                              onNavigate('HISTORY');
-                            }}
-                            className="flex-1 py-3 rounded-[16px] bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
-                          >
-                            <History size={14} />
-                            Personal Archive
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Share Match Record Link (offline cross-device) */}
                       <button
                         type="button"
                         onClick={() => {
-                          try {
-                            const vault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
-                            // Build a compact shareable payload with all player records from this match
-                            const matchRecords: any[] = [];
-                            Object.keys(vault).forEach(phone => {
-                              const entry = vault[phone];
-                              const matchRec = (entry.history || []).find((h: any) => h.id === match.matchId);
-                              if (matchRec) matchRecords.push({ phone, name: entry.name, record: matchRec });
-                            });
-                            if (matchRecords.length === 0) {
-                              alert('No player records found for this match yet.');
-                              return;
-                            }
-                            const payload = { matchId: match.matchId, records: matchRecords, ts: Date.now() };
-                            const jsonStr = JSON.stringify(payload);
-                            const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
-                            const url = `${window.location.origin}${window.location.pathname}?importMatch=${b64}`;
-                            // Check if URL is too long (> 4000 chars) — fall back to just matchId
-                            if (url.length > 4000) {
-                              const shortUrl = `${window.location.origin}${window.location.pathname}?watch=${match.matchId}`;
-                              if (navigator.share) {
-                                navigator.share({ title: '22 Yards Match', text: 'View this match on 22 Yards', url: shortUrl });
-                              } else {
-                                navigator.clipboard.writeText(shortUrl);
-                                setTransferLinkCopied(true);
-                                setTimeout(() => setTransferLinkCopied(false), 2000);
-                              }
-                              return;
-                            }
-                            if (navigator.share) {
-                              navigator.share({ title: '22 Yards Match Record', text: 'Import this match to your 22 Yards app', url });
-                            } else {
-                              navigator.clipboard.writeText(url);
-                              setTransferLinkCopied(true);
-                              setTimeout(() => setTransferLinkCopied(false), 2000);
-                            }
-                          } catch (e) {
-                            console.error('Share match record error:', e);
-                            alert('Failed to share match record. Please try again.');
-                          }
+                          // Clean up scorer flag from transfer
+                          if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
+                          setForcedSpectatorMode(null);
+                          const freshState = createInitialState();
+                          localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(freshState));
+                          setMatch(freshState);
+                          setStatus('CONFIG');
+                          setWinnerTeam(null);
+                          setSelectionTarget(null);
+                          setConfigStep(1);
+                          setVsRevealed(false);
+                          setOverlayAnim(null);
+                          setSummaryTab('SUMMARY');
+                          setShowShareSheet(false);
+                          setFireMode(false);
+                          setFireModeBanner(false);
+                          setFireModeDeclined(false);
+                          setIceMode(false);
+                          setIceModeBanner(false);
+                          setIceModeDeclined(false);
+                          setSummaryPhase('SKELETON');
+                          setScorecardReady(false);
+                          setPendingExtra(null);
+                          isProcessingBall.current = false;
                         }}
-                        className="w-full py-3 rounded-[16px] bg-[#BC13FE]/10 border border-[#BC13FE]/30 text-[#BC13FE] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all mt-2"
+                        className="w-full py-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 active:scale-95 transition-all"
                       >
-                        <Share2 size={14} />
-                        {transferLinkCopied ? 'Link Copied!' : 'Share Match Record to Players'}
+                        <Swords size={14} />
+                        New Match
                       </button>
                     </div>
 
