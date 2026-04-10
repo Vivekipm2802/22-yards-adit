@@ -1938,6 +1938,47 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     setPhoneQuery('');
   };
 
+  const acquireCameraStream = async (): Promise<MediaStream> => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('This browser does not expose camera APIs. Use Chrome, Safari or Firefox over HTTPS.');
+    }
+    if (!window.isSecureContext) {
+      throw new Error('Camera only works on HTTPS. Open the app via its https:// link.');
+    }
+    // Try rear camera first, then fall back to any camera (desktop/front-only devices)
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 640 } }
+      });
+    } catch (err: any) {
+      if (err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')) {
+        return await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      throw err;
+    }
+  };
+
+  const describeCameraError = (err: any): string => {
+    if (!err) return 'Unknown camera error.';
+    const name = err.name || '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      return 'Permission was blocked. Tap the lock/camera icon in the address bar and allow camera, then retry. On iOS also check Settings → Safari → Camera.';
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      return 'No camera detected on this device.';
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+      return 'Camera is busy in another app (WhatsApp, Zoom, another tab). Close it and retry.';
+    }
+    if (name === 'OverconstrainedError') {
+      return 'No camera matched the requested settings. Retry with any camera.';
+    }
+    if (name === 'SecurityError') {
+      return 'Browser blocked the camera for security. Open over HTTPS and retry.';
+    }
+    return `Camera error: ${err.message || name || 'unknown'}`;
+  };
+
   const startQRScanner = async () => {
     setQrScanMode('PLAYER');
     setQrScanTargetTeam(null);
@@ -1945,9 +1986,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     setQrScanStatus('SCANNING');
     setQrScanError('');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
-      });
+      const stream = await acquireCameraStream();
       qrStreamRef.current = stream;
       // Wait for the video element to be available in DOM
       setTimeout(() => {
@@ -1960,7 +1999,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }, 300);
     } catch (err) {
       setQrScanStatus('ERROR');
-      setQrScanError('Camera access denied. Please allow camera permission.');
+      setQrScanError(describeCameraError(err));
     }
   };
 
@@ -2094,9 +2133,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     setQrScanStatus('SCANNING');
     setQrScanError('');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
-      });
+      const stream = await acquireCameraStream();
       qrStreamRef.current = stream;
       setTimeout(() => {
         if (qrVideoRef.current) {
@@ -2105,9 +2142,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           scanQRFrame();
         }
       }, 300);
-    } catch {
+    } catch (err) {
       setQrScanStatus('ERROR');
-      setQrScanError('Camera access denied. Please allow camera permission.');
+      setQrScanError(describeCameraError(err));
     }
   };
 
@@ -6982,6 +7019,24 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]" />
                     <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }} className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]" />
                     <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.6 }} className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]" />
+                  </div>
+                )}
+                {qrScanStatus === 'ERROR' && (
+                  <div className="mt-3 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => {
+                        const mode = qrScanMode;
+                        const target = qrScanTargetTeam;
+                        closeQRScanner();
+                        setTimeout(() => {
+                          if (mode === 'TEAM' && target) startTeamImportScanner(target);
+                          else startQRScanner();
+                        }, 150);
+                      }}
+                      className="px-4 py-2 rounded-full bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] text-[10px] font-black uppercase tracking-wider hover:bg-[#00F0FF]/20 transition-all"
+                    >
+                      Retry
+                    </button>
                   </div>
                 )}
               </div>
