@@ -16,7 +16,7 @@ import {
   ClipboardList, Search, RefreshCcw, ShieldAlert, Camera, HelpCircle,
   LayoutDashboard, PieChart, ZapOff, Calendar, Crown, Settings, Image as ImageIcon, Save,
   ChevronRight, Smartphone, Medal, Zap as Bolt, Crosshair, Edit2, Upload,
-  ArrowLeftRight, History, Coins, Video
+  ArrowLeftRight, History, Coins, Video, QrCode, ScanLine, Sparkles
 } from 'lucide-react';
 import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
@@ -209,12 +209,19 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   // QR Scanner
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [qrScanMode, setQrScanMode] = useState<'PLAYER' | 'TEAM'>('PLAYER');
+  const [qrScanTargetTeam, setQrScanTargetTeam] = useState<TeamID | null>(null);
   const [qrScanStatus, setQrScanStatus] = useState<'SCANNING' | 'SUCCESS' | 'ERROR'>('SCANNING');
   const [qrScanError, setQrScanError] = useState('');
   const qrVideoRef = useRef<HTMLVideoElement>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const qrStreamRef = useRef<MediaStream | null>(null);
   const qrAnimRef = useRef<number | null>(null);
+
+  // Team Share / Import
+  const [teamShareModal, setTeamShareModal] = useState<{ open: boolean; teamId: TeamID | null; qrDataUrl: string }>({ open: false, teamId: null, qrDataUrl: '' });
+  const [teamImportConfirm, setTeamImportConfirm] = useState<{ open: boolean; targetTeam: TeamID | null; incomingName: string; incomingLogo: string; incomingSquad: any[]; existingCount: number }>({ open: false, targetTeam: null, incomingName: '', incomingLogo: '', incomingSquad: [], existingCount: 0 });
+  const [teamReadyAnimation, setTeamReadyAnimation] = useState<{ open: boolean; name: string; logo: string }>({ open: false, name: '', logo: '' });
 
   // Transfer Scoring / Device Handoff
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -1816,6 +1823,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   };
 
   const startQRScanner = async () => {
+    setQrScanMode('PLAYER');
+    setQrScanTargetTeam(null);
     setShowQRScanner(true);
     setQrScanStatus('SCANNING');
     setQrScanError('');
@@ -1857,24 +1866,49 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       const jsQR = (await import('jsqr')).default;
       const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
       if (code && code.data) {
-        // Try to parse as 22YARDS player JSON
         try {
-          const playerData = JSON.parse(code.data);
-          if (playerData.app === '22YARDS' && playerData.name) {
-            setQrScanStatus('SUCCESS');
-            // Fill player name and phone
-            setNewName(playerData.name);
-            setPhoneQuery(playerData.phone || '');
-            // Vibrate for feedback
-            if (navigator.vibrate) navigator.vibrate(100);
-            // Auto-close after short delay
-            setTimeout(() => closeQRScanner(), 800);
-            return; // Stop scanning
+          const payload = JSON.parse(code.data);
+          if (payload.app === '22YARDS') {
+            // TEAM scan mode — import full squad
+            if (qrScanMode === 'TEAM' && payload.type === 'TEAM' && Array.isArray(payload.squad)) {
+              setQrScanStatus('SUCCESS');
+              if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+              const targetTeam = qrScanTargetTeam;
+              setTimeout(() => {
+                closeQRScanner();
+                if (targetTeam) {
+                  const key = targetTeam === 'A' ? 'teamA' : 'teamB';
+                  const existing = match.teams[key]?.squad?.length || 0;
+                  setTeamImportConfirm({
+                    open: true,
+                    targetTeam,
+                    incomingName: payload.name || `TEAM ${targetTeam}`,
+                    incomingLogo: payload.logo || '',
+                    incomingSquad: payload.squad,
+                    existingCount: existing,
+                  });
+                }
+              }, 600);
+              return;
+            }
+            // PLAYER scan mode — fill single player fields
+            if (qrScanMode === 'PLAYER' && payload.name) {
+              setQrScanStatus('SUCCESS');
+              setNewName(payload.name);
+              setPhoneQuery(payload.phone || '');
+              if (navigator.vibrate) navigator.vibrate(100);
+              setTimeout(() => closeQRScanner(), 800);
+              return;
+            }
           }
         } catch {}
-        // Not valid 22YARDS QR — try raw text as name
+        // Not valid 22YARDS QR for the current mode
         setQrScanStatus('ERROR');
-        setQrScanError('Not a valid 22 Yards player QR code.');
+        setQrScanError(
+          qrScanMode === 'TEAM'
+            ? 'Not a valid 22 Yards team QR code.'
+            : 'Not a valid 22 Yards player QR code.'
+        );
         setTimeout(() => { setQrScanStatus('SCANNING'); setQrScanError(''); }, 2000);
       }
     } catch {}
@@ -1895,6 +1929,107 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     }
     setShowQRScanner(false);
     setQrScanStatus('SCANNING');
+  };
+
+  // ---- Team Share / Import ---------------------------------------------------
+  const openTeamShareQR = async (teamId: TeamID) => {
+    const key = teamId === 'A' ? 'teamA' : 'teamB';
+    const team = match.teams[key];
+    if (!team || !team.squad || team.squad.length === 0) {
+      alert('Add at least one player before sharing this team.');
+      return;
+    }
+    // Strip match-time fields to keep payload small (QR capacity is limited).
+    const slimSquad = team.squad.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      phone: p.phone || '',
+      role: p.role || 'ALLROUNDER',
+      battingStyle: p.battingStyle || '',
+      bowlingStyle: p.bowlingStyle || '',
+      isCaptain: !!p.isCaptain,
+      isWicketKeeper: !!p.isWicketKeeper,
+    }));
+    const payload = JSON.stringify({
+      app: '22YARDS',
+      type: 'TEAM',
+      name: team.name || `TEAM ${teamId}`,
+      logo: team.logo || '',
+      squad: slimSquad,
+    });
+    try {
+      const QRCode = (await import('qrcode')).default;
+      const url = await QRCode.toDataURL(payload, {
+        width: 340,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#00F0FF', light: '#020617' },
+      });
+      setTeamShareModal({ open: true, teamId, qrDataUrl: url });
+    } catch (err) {
+      alert('Could not generate QR. Try removing team logo (too large to encode).');
+    }
+  };
+
+  const startTeamImportScanner = async (targetTeam: TeamID) => {
+    setQrScanMode('TEAM');
+    setQrScanTargetTeam(targetTeam);
+    setShowQRScanner(true);
+    setQrScanStatus('SCANNING');
+    setQrScanError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
+      });
+      qrStreamRef.current = stream;
+      setTimeout(() => {
+        if (qrVideoRef.current) {
+          qrVideoRef.current.srcObject = stream;
+          qrVideoRef.current.play();
+          scanQRFrame();
+        }
+      }, 300);
+    } catch {
+      setQrScanStatus('ERROR');
+      setQrScanError('Camera access denied. Please allow camera permission.');
+    }
+  };
+
+  const confirmTeamImport = () => {
+    if (!teamImportConfirm.targetTeam) return;
+    const key = teamImportConfirm.targetTeam === 'A' ? 'teamA' : 'teamB';
+    const hydratedSquad = teamImportConfirm.incomingSquad.map((p: any) => ({
+      id: p.id || `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: p.name,
+      phone: p.phone || '',
+      role: p.role || 'ALLROUNDER',
+      battingStyle: p.battingStyle || '',
+      bowlingStyle: p.bowlingStyle || '',
+      isCaptain: !!p.isCaptain,
+      isWicketKeeper: !!p.isWicketKeeper,
+      runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, dismissalType: '', dismissedBy: '',
+      overs_bowled: 0, balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0,
+      catches: 0, stumpings: 0, run_outs: 0,
+    }));
+    setMatch(m => ({
+      ...m,
+      teams: {
+        ...m.teams,
+        [key]: {
+          ...m.teams[key],
+          name: teamImportConfirm.incomingName,
+          logo: teamImportConfirm.incomingLogo || m.teams[key].logo || '',
+          squad: hydratedSquad,
+        },
+      },
+    }));
+    const importedName = teamImportConfirm.incomingName;
+    const importedLogo = teamImportConfirm.incomingLogo;
+    setTeamImportConfirm({ open: false, targetTeam: null, incomingName: '', incomingLogo: '', incomingSquad: [], existingCount: 0 });
+    // Trigger the "ready for battle" celebration
+    setTeamReadyAnimation({ open: true, name: importedName, logo: importedLogo });
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 180]);
+    setTimeout(() => setTeamReadyAnimation({ open: false, name: '', logo: '' }), 2800);
   };
 
   const handleShareAction = (action: string) => {
@@ -2553,17 +2688,40 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                onClick={() => setTeamDrawer({ open: true, targetTeam: teamId, mode: 'SEARCH' })}
-                                className="bg-gradient-to-br from-[#0A0A0A] to-[#111] rounded-[40px] border-2 border-dashed border-white/10 p-12 flex flex-col items-center justify-center cursor-pointer hover:border-white/20 transition-all min-h-[280px] active:scale-95"
+                                className="relative bg-gradient-to-br from-[#0A0A0A] to-[#111] rounded-[40px] border-2 border-dashed border-white/10 p-12 flex flex-col items-center justify-center hover:border-white/20 transition-all min-h-[280px]"
                               >
+                                <div
+                                  onClick={() => setTeamDrawer({ open: true, targetTeam: teamId, mode: 'SEARCH' })}
+                                  className="absolute inset-0 cursor-pointer active:scale-[0.98] transition-transform"
+                                />
                                 <motion.div
                                   animate={{ scale: [1, 1.08, 1] }}
                                   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                                  className="pointer-events-none"
                                 >
                                   <Plus size={48} className="text-white/40 mb-4" />
                                 </motion.div>
-                                <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">Tap to select</p>
-                                <p className="text-[8px] text-white/25 uppercase tracking-widest small-caps mt-6 absolute top-6">Team {teamId}</p>
+                                <p className="text-[10px] text-white/40 uppercase tracking-[0.2em] pointer-events-none">Tap to select</p>
+                                <p className="text-[8px] text-white/25 uppercase tracking-widest small-caps mt-6 absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none">Team {teamId}</p>
+
+                                {/* QUICK IMPORT CHIP — lets opponent team be scanned without picking a team first */}
+                                <motion.button
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  whileHover={{ scale: 1.04 }}
+                                  whileTap={{ scale: 0.94 }}
+                                  onClick={(e) => { e.stopPropagation(); startTeamImportScanner(teamId); }}
+                                  className="relative z-10 mt-6 flex items-center gap-2 px-4 py-2 rounded-full bg-[#FF6D00]/10 border border-[#FF6D00]/40 text-[#FF6D00] hover:bg-[#FF6D00]/20 transition-all"
+                                >
+                                  <motion.span
+                                    animate={{ y: [0, -1.5, 0] }}
+                                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="flex"
+                                  >
+                                    <ScanLine size={13} className="drop-shadow-[0_0_6px_rgba(255,109,0,0.6)]" />
+                                  </motion.span>
+                                  <span className="text-[9px] font-black uppercase tracking-[0.22em]">Scan Opponent</span>
+                                </motion.button>
                               </motion.div>
                             ) : (
                               // FILLED STATE
@@ -2608,6 +2766,51 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                 >
                                   Manage Squad
                                 </motion.button>
+
+                                {/* SPLIT BUTTON — Share squad / Import opponent */}
+                                <div className="relative mt-3 h-[52px] rounded-[18px] overflow-hidden bg-gradient-to-r from-[#00F0FF]/[0.06] via-[#BC13FE]/[0.05] to-[#FF6D00]/[0.06] border border-white/10 backdrop-blur-sm">
+                                  {/* Animated shimmer line */}
+                                  <motion.div
+                                    aria-hidden
+                                    className="absolute inset-y-0 w-[40%] bg-gradient-to-r from-transparent via-white/[0.08] to-transparent pointer-events-none"
+                                    animate={{ x: ['-60%', '260%'] }}
+                                    transition={{ duration: 4.5, repeat: Infinity, ease: 'linear' }}
+                                  />
+                                  <div className="relative flex h-full">
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.97 }}
+                                      onClick={() => openTeamShareQR(teamId)}
+                                      disabled={(team.squad || []).length === 0}
+                                      className="group flex-1 flex items-center justify-center gap-2 text-[#00F0FF] disabled:text-white/20 disabled:pointer-events-none transition-all"
+                                    >
+                                      <motion.span
+                                        whileHover={{ rotate: [0, -8, 8, 0] }}
+                                        transition={{ duration: 0.5 }}
+                                        className="flex"
+                                      >
+                                        <QrCode size={16} className="drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                                      </motion.span>
+                                      <span className="text-[10px] font-black uppercase tracking-[0.22em]">Share</span>
+                                    </motion.button>
+                                    <div className="w-px bg-gradient-to-b from-transparent via-white/20 to-transparent my-2" />
+                                    <motion.button
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.97 }}
+                                      onClick={() => startTeamImportScanner(teamId)}
+                                      className="group flex-1 flex items-center justify-center gap-2 text-[#FF6D00] transition-all"
+                                    >
+                                      <motion.span
+                                        animate={{ y: [0, -1.5, 0] }}
+                                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                                        className="flex"
+                                      >
+                                        <ScanLine size={16} className="drop-shadow-[0_0_6px_rgba(255,109,0,0.6)]" />
+                                      </motion.span>
+                                      <span className="text-[10px] font-black uppercase tracking-[0.22em]">Import</span>
+                                    </motion.button>
+                                  </div>
+                                </div>
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -6558,8 +6761,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     <Camera size={16} className="text-[#00F0FF]" />
                   </motion.div>
                   <div>
-                    <h3 className="font-heading text-base uppercase italic text-[#00F0FF]">QR Scanner</h3>
-                    <p className="text-[8px] text-white/30 uppercase tracking-widest">Scan player ID</p>
+                    <h3 className="font-heading text-base uppercase italic text-[#00F0FF]">
+                      {qrScanMode === 'TEAM' ? 'Scan Opponent Team' : 'QR Scanner'}
+                    </h3>
+                    <p className="text-[8px] text-white/30 uppercase tracking-widest">
+                      {qrScanMode === 'TEAM' ? `Import into Team ${qrScanTargetTeam || ''}` : 'Scan player ID'}
+                    </p>
                   </div>
                 </div>
                 <button onClick={closeQRScanner} className="p-2 text-white/40 hover:text-white rounded-full hover:bg-white/5 transition-all">
@@ -6624,6 +6831,308 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
               <canvas ref={qrCanvasRef} className="hidden" />
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* TEAM SHARE QR MODAL */}
+      <AnimatePresence>
+        {teamShareModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setTeamShareModal({ open: false, teamId: null, qrDataUrl: '' })}
+            className="fixed inset-0 z-[10100] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 340 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm rounded-[36px] overflow-hidden border border-[#00F0FF]/20 bg-gradient-to-br from-[#08080C] via-[#0A0A12] to-[#050508] shadow-[0_0_80px_rgba(0,240,255,0.15)]"
+            >
+              {/* glow rings */}
+              <motion.div
+                aria-hidden
+                className="absolute -top-24 -left-24 w-60 h-60 rounded-full bg-[#00F0FF]/10 blur-[80px] pointer-events-none"
+                animate={{ opacity: [0.4, 0.7, 0.4] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <motion.div
+                aria-hidden
+                className="absolute -bottom-24 -right-24 w-60 h-60 rounded-full bg-[#BC13FE]/10 blur-[80px] pointer-events-none"
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+              />
+
+              <div className="relative p-5 flex items-center justify-between border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    animate={{ rotate: [0, 8, -8, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-9 h-9 rounded-full bg-[#00F0FF]/10 border border-[#00F0FF]/30 flex items-center justify-center"
+                  >
+                    <QrCode size={16} className="text-[#00F0FF]" />
+                  </motion.div>
+                  <div>
+                    <h3 className="font-heading text-base uppercase italic text-[#00F0FF]">Team QR</h3>
+                    <p className="text-[8px] text-white/30 uppercase tracking-widest">Let opponent scan this</p>
+                  </div>
+                </div>
+                <button onClick={() => setTeamShareModal({ open: false, teamId: null, qrDataUrl: '' })} className="p-2 text-white/40 hover:text-white rounded-full hover:bg-white/5 transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="relative p-6 space-y-5">
+                {/* Team header */}
+                {(() => {
+                  if (!teamShareModal.teamId) return null;
+                  const tObj = getTeamObj(teamShareModal.teamId);
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-sm font-black text-black overflow-hidden shadow-lg shadow-[#FF6D00]/20">
+                        {tObj.logo ? (
+                          <img src={tObj.logo} className="w-full h-full object-cover" alt={tObj.name} />
+                        ) : (
+                          getTeamInitials(tObj.name)
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading text-base uppercase italic text-white truncate">{tObj.name}</p>
+                        <p className="text-[9px] text-white/40 uppercase tracking-[0.2em]">{(tObj.squad || []).length} players ready</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* QR container */}
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1, type: 'spring', damping: 22, stiffness: 280 }}
+                  className="relative mx-auto w-fit"
+                >
+                  {/* corner brackets */}
+                  <div className="absolute -inset-3 pointer-events-none">
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-[3px] border-l-[3px] border-[#00F0FF] rounded-tl-lg" />
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-[3px] border-r-[3px] border-[#00F0FF] rounded-tr-lg" />
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-[3px] border-l-[3px] border-[#00F0FF] rounded-bl-lg" />
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[3px] border-r-[3px] border-[#00F0FF] rounded-br-lg" />
+                  </div>
+                  <div className="p-3 rounded-[20px] bg-[#020617] border border-[#00F0FF]/20 shadow-[inset_0_0_30px_rgba(0,240,255,0.1)]">
+                    {teamShareModal.qrDataUrl ? (
+                      <img src={teamShareModal.qrDataUrl} alt="Team QR" className="w-60 h-60 rounded-[12px]" />
+                    ) : (
+                      <div className="w-60 h-60 rounded-[12px] bg-black/40 flex items-center justify-center">
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}>
+                          <QrCode size={32} className="text-[#00F0FF]/50" />
+                        </motion.div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+
+                <p className="text-center text-[10px] text-white/50 leading-relaxed">
+                  On the opponent's phone, tap <span className="text-[#FF6D00] font-black">Scan Opponent</span> and point it here.
+                </p>
+
+                <button
+                  onClick={() => setTeamShareModal({ open: false, teamId: null, qrDataUrl: '' })}
+                  className="w-full py-3 rounded-[20px] bg-white/5 border border-white/10 font-black text-[11px] uppercase text-white/70 hover:bg-white/10 transition-all tracking-[0.2em]"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* TEAM IMPORT CONFIRM DIALOG */}
+      <AnimatePresence>
+        {teamImportConfirm.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[10110] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+              className="w-full max-w-sm bg-gradient-to-br from-[#0A0A10] to-[#050508] border border-[#FF6D00]/20 rounded-[32px] overflow-hidden"
+            >
+              <div className="p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-sm font-black text-black overflow-hidden shadow-lg">
+                    {teamImportConfirm.incomingLogo ? (
+                      <img src={teamImportConfirm.incomingLogo} className="w-full h-full object-cover" alt={teamImportConfirm.incomingName} />
+                    ) : (
+                      getTeamInitials(teamImportConfirm.incomingName)
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#FF6D00]">Incoming Team</p>
+                    <p className="font-heading text-lg uppercase italic text-white truncate">{teamImportConfirm.incomingName}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/10 space-y-1.5">
+                  <p className="text-[10px] text-white/60">
+                    <span className="text-[#00F0FF] font-black">{teamImportConfirm.incomingSquad.length}</span> players will be loaded into <span className="text-white font-black">Team {teamImportConfirm.targetTeam}</span>.
+                  </p>
+                  {teamImportConfirm.existingCount > 0 && (
+                    <p className="text-[10px] text-[#FF6D00]">
+                      ⚠ This will replace <span className="font-black">{teamImportConfirm.existingCount}</span> existing player{teamImportConfirm.existingCount === 1 ? '' : 's'}.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setTeamImportConfirm({ open: false, targetTeam: null, incomingName: '', incomingLogo: '', incomingSquad: [], existingCount: 0 })}
+                    className="py-3 rounded-[18px] bg-white/5 border border-white/10 font-black text-[11px] uppercase text-white/70 hover:bg-white/10 transition-all tracking-[0.18em]"
+                  >
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={confirmTeamImport}
+                    className="py-3 rounded-[18px] bg-[#39FF14] text-black font-black text-[11px] uppercase shadow-[0_0_20px_rgba(57,255,20,0.3)] tracking-[0.18em]"
+                  >
+                    {teamImportConfirm.existingCount > 0 ? 'Replace' : 'Import'}
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* READY FOR BATTLE ANIMATION */}
+      <AnimatePresence>
+        {teamReadyAnimation.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[10200] bg-black/97 backdrop-blur-md flex items-center justify-center p-6 pointer-events-none"
+          >
+            {/* Background radial pulse */}
+            <motion.div
+              aria-hidden
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <motion.div
+                className="w-[120%] h-[120%] rounded-full bg-gradient-radial from-[#FFD600]/10 via-[#FF6D00]/5 to-transparent blur-3xl"
+                animate={{ scale: [0.8, 1.2, 1], opacity: [0, 0.8, 0.5] }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+                style={{ background: 'radial-gradient(circle, rgba(255,214,0,0.18) 0%, rgba(255,109,0,0.08) 40%, transparent 70%)' }}
+              />
+            </motion.div>
+
+            {/* Particle sparks */}
+            {[...Array(14)].map((_, i) => {
+              const angle = (i / 14) * Math.PI * 2;
+              const distance = 180 + (i % 3) * 40;
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 rounded-full bg-[#FFD600] shadow-[0_0_8px_rgba(255,214,0,0.9)]"
+                  initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
+                  animate={{
+                    x: Math.cos(angle) * distance,
+                    y: Math.sin(angle) * distance,
+                    opacity: [0, 1, 0],
+                    scale: [0, 1.2, 0],
+                  }}
+                  transition={{ duration: 1.6, delay: 0.2 + (i % 4) * 0.05, ease: 'easeOut' }}
+                />
+              );
+            })}
+
+            <div className="relative flex flex-col items-center gap-6">
+              {/* Team logo with orbit ring */}
+              <motion.div
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', damping: 14, stiffness: 220, delay: 0.1 }}
+                className="relative"
+              >
+                {/* orbit ring */}
+                <motion.div
+                  className="absolute inset-0 -m-3 rounded-full border-2 border-[#FFD600]/50"
+                  animate={{ rotate: 360, scale: [1, 1.08, 1] }}
+                  transition={{ rotate: { duration: 6, repeat: Infinity, ease: 'linear' }, scale: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } }}
+                  style={{ borderStyle: 'dashed' }}
+                />
+                <motion.div
+                  className="absolute inset-0 -m-6 rounded-full border border-[#FF6D00]/30"
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 9, repeat: Infinity, ease: 'linear' }}
+                />
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-3xl font-black text-black overflow-hidden shadow-[0_0_60px_rgba(255,214,0,0.6)]">
+                  {teamReadyAnimation.logo ? (
+                    <img src={teamReadyAnimation.logo} className="w-full h-full object-cover" alt={teamReadyAnimation.name} />
+                  ) : (
+                    getTeamInitials(teamReadyAnimation.name)
+                  )}
+                </div>
+                {/* sparkle */}
+                <motion.div
+                  className="absolute -top-2 -right-2"
+                  initial={{ scale: 0, rotate: -40 }}
+                  animate={{ scale: [0, 1.3, 1], rotate: [0, 20, 0] }}
+                  transition={{ delay: 0.4, duration: 0.8 }}
+                >
+                  <Sparkles size={22} className="text-[#FFD600] drop-shadow-[0_0_10px_rgba(255,214,0,0.9)]" />
+                </motion.div>
+              </motion.div>
+
+              {/* Team name */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="text-center"
+              >
+                <motion.p
+                  initial={{ letterSpacing: '0.05em' }}
+                  animate={{ letterSpacing: '0.2em' }}
+                  transition={{ delay: 0.4, duration: 0.8 }}
+                  className="font-heading text-2xl md:text-3xl uppercase italic text-white drop-shadow-[0_0_15px_rgba(255,214,0,0.4)]"
+                >
+                  {teamReadyAnimation.name}
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.6, type: 'spring', damping: 14 }}
+                  className="mt-2 text-[11px] md:text-[12px] font-black uppercase tracking-[0.35em] bg-gradient-to-r from-[#FFD600] via-[#FF6D00] to-[#FFD600] bg-clip-text text-transparent"
+                >
+                  is ready for battle
+                </motion.p>
+              </motion.div>
+
+              {/* Crossed swords flourish */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.8, type: 'spring', damping: 12 }}
+                className="flex items-center gap-3"
+              >
+                <div className="h-px w-10 bg-gradient-to-r from-transparent to-[#FFD600]" />
+                <Swords size={18} className="text-[#FFD600] drop-shadow-[0_0_10px_rgba(255,214,0,0.7)]" />
+                <div className="h-px w-10 bg-gradient-to-l from-transparent to-[#FFD600]" />
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
