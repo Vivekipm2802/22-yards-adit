@@ -46,6 +46,7 @@ export interface MatchHighlights {
     phase: string;
     description: string;
     momentum: 'TEAM_A' | 'TEAM_B' | 'EVEN';
+    ballRange: [number, number];
   }[];
   keyStats: { label: string; value: string }[];
 }
@@ -418,6 +419,7 @@ function identifyPhases(
   const phases: MatchHighlights['phases'] = [];
 
   // Phase 1: Powerplay (first 2 overs equivalent, or first 6 balls)
+  const powPlayStart = history.findIndex((b) => Math.floor(b.ballNumber / 6) < 2);
   const powPlayBalls = history.filter((b) => Math.floor(b.ballNumber / 6) < 2);
   if (powPlayBalls.length > 0) {
     const runs = powPlayBalls.reduce((sum, b) => sum + b.runsScored, 0);
@@ -427,10 +429,14 @@ function identifyPhases(
       phase: 'Powerplay',
       description: `Start with ${runs} runs in ${powPlayBalls.length} balls (CRR: ${crr.toFixed(1)})`,
       momentum,
+      ballRange: [Math.max(0, powPlayStart), Math.max(0, powPlayStart) + powPlayBalls.length - 1],
     });
   }
 
   // Phase 2: Middle overs
+  const middleStart = history.findIndex(
+    (b) => Math.floor(b.ballNumber / 6) >= 2 && Math.floor(b.ballNumber / 6) < 4
+  );
   const middleOvers = history.filter(
     (b) => Math.floor(b.ballNumber / 6) >= 2 && Math.floor(b.ballNumber / 6) < 4
   );
@@ -441,10 +447,12 @@ function identifyPhases(
       phase: 'Middle Overs',
       description: `Building innings with ${runs} runs in ${Math.ceil(middleOvers.length / 6)} overs`,
       momentum,
+      ballRange: [Math.max(0, middleStart), Math.max(0, middleStart) + middleOvers.length - 1],
     });
   }
 
   // Phase 3: Death overs
+  const deathStart = history.findIndex((b) => Math.floor(b.ballNumber / 6) >= 4);
   const deathOvers = history.filter((b) => Math.floor(b.ballNumber / 6) >= 4);
   if (deathOvers.length > 0) {
     const runs = deathOvers.reduce((sum, b) => sum + b.runsScored, 0);
@@ -453,6 +461,7 @@ function identifyPhases(
       phase: 'Death Overs',
       description: `Final phase with ${runs} runs in ${Math.ceil(deathOvers.length / 6)} overs`,
       momentum,
+      ballRange: [Math.max(0, deathStart), Math.max(0, deathStart) + deathOvers.length - 1],
     });
   }
 
