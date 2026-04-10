@@ -98,42 +98,19 @@ const WAGON_ZONES = [
 ];
 
 const WAGON_SHOTS = [
-  { key: 'STRAIGHT_DRIVE',label: 'Straight Drv', icon: '│' },
-  { key: 'ON_DRIVE',      label: 'On Drive',     icon: '╱' },
   { key: 'DRIVE',         label: 'Drive',        icon: '━' },
   { key: 'COVER_DRIVE',   label: 'Cover Drive',  icon: '╲' },
-  { key: 'SQUARE_CUT',    label: 'Square Cut',   icon: '✕' },
-  { key: 'CUT',           label: 'Cut',          icon: '✂' },
+  { key: 'STRAIGHT_DRIVE',label: 'Straight Drv', icon: '│' },
+  { key: 'FLICK',         label: 'Flick',        icon: '↗' },
+  { key: 'GLANCE',        label: 'Glance',       icon: '↘' },
+  { key: 'CUT',           label: 'Cut',          icon: '✕' },
   { key: 'LATE_CUT',      label: 'Late Cut',     icon: '↙' },
-  { key: 'STEER',         label: 'Steer',        icon: '↘' },
-  { key: 'UPPER_CUT',     label: 'Upper Cut',    icon: '↗' },
-  { key: 'FLICK',         label: 'Flick',        icon: '⤴' },
-  { key: 'GLANCE',        label: 'Leg Glance',   icon: '⇀' },
-  { key: 'SWEEP',         label: 'Sweep',        icon: '⌐' },
-  { key: 'PADDLE_SWEEP',  label: 'Paddle Swp',   icon: '⌒' },
-  { key: 'REVERSE_SWEEP', label: 'Rev Sweep',    icon: '¬' },
   { key: 'PULL',          label: 'Pull',         icon: '⟲' },
-  { key: 'HOOK',          label: 'Hook',         icon: '⟳' },
-  { key: 'SLOG',          label: 'Slog',         icon: '✧' },
+  { key: 'HOOK',          label: 'Hook',         icon: '⌒' },
+  { key: 'SWEEP',         label: 'Sweep',        icon: '⌐' },
+  { key: 'REVERSE_SWEEP', label: 'Rev Sweep',    icon: '¬' },
   { key: 'LOFT',          label: 'Lofted',       icon: '✦' },
 ];
-
-// Cricket-accurate shot-to-zone map (RHB perspective).
-// Each zone lists the shots that can realistically send the ball there.
-const ZONE_SHOTS: Record<string, string[]> = {
-  STRAIGHT:    ['STRAIGHT_DRIVE', 'LOFT'],
-  MID_OFF:     ['DRIVE', 'STRAIGHT_DRIVE', 'LOFT'],
-  EXTRA_COVER: ['COVER_DRIVE', 'DRIVE', 'LOFT'],
-  COVER:       ['COVER_DRIVE', 'DRIVE', 'SQUARE_CUT', 'LOFT'],
-  POINT:       ['SQUARE_CUT', 'CUT', 'STEER'],
-  THIRD_MAN:   ['LATE_CUT', 'STEER', 'UPPER_CUT'],
-  FINE_LEG:    ['GLANCE', 'PADDLE_SWEEP', 'HOOK'],
-  LONG_LEG:    ['GLANCE', 'HOOK', 'PULL'],
-  SQUARE_LEG:  ['PULL', 'HOOK', 'SWEEP', 'REVERSE_SWEEP'],
-  MID_WICKET:  ['FLICK', 'PULL', 'SWEEP', 'SLOG', 'LOFT'],
-  MID_ON:      ['FLICK', 'ON_DRIVE', 'DRIVE', 'LOFT'],
-  LONG_ON:     ['STRAIGHT_DRIVE', 'ON_DRIVE', 'LOFT', 'SLOG'],
-};
 
 const runColor = (r: number): string => {
   if (r >= 6) return '#BC13FE';      // six — magenta
@@ -7565,35 +7542,23 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         </div>
                       </div>
 
-                      {/* Shot type grid — cricket-filtered by zone */}
-                      {(() => {
-                        const allowedKeys = (wagonPicker.zone && ZONE_SHOTS[wagonPicker.zone]) || [];
-                        const allowedShots = WAGON_SHOTS.filter(s => allowedKeys.includes(s.key));
-                        const shotsToRender = allowedShots.length > 0 ? allowedShots : WAGON_SHOTS;
-                        return (
-                          <>
-                            <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider text-center -mt-1 mb-1">
-                              Shots that can land at {WAGON_ZONES.find(z => z.key === wagonPicker.zone)?.label}
-                            </p>
-                            <div className="grid grid-cols-3 gap-2.5">
-                              {shotsToRender.map((s, i) => (
-                                <motion.button
-                                  key={s.key}
-                                  initial={{ opacity: 0, scale: 0.9 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  transition={{ delay: i * 0.03, type: 'spring', damping: 20 }}
-                                  whileTap={{ scale: 0.93 }}
-                                  onClick={() => handleWagonShotPick(s.key)}
-                                  className="relative h-[64px] rounded-[16px] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 hover:border-[#39FF14]/40 hover:bg-[#39FF14]/5 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                >
-                                  <span className="text-[18px] text-[#39FF14]/70 group-hover:text-[#39FF14] transition-colors leading-none">{s.icon}</span>
-                                  <span className="text-[9px] font-black uppercase tracking-[0.08em] text-white/70 group-hover:text-white transition-colors">{s.label}</span>
-                                </motion.button>
-                              ))}
-                            </div>
-                          </>
-                        );
-                      })()}
+                      {/* Shot type grid 3×4 */}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {WAGON_SHOTS.map((s, i) => (
+                          <motion.button
+                            key={s.key}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.02, type: 'spring', damping: 20 }}
+                            whileTap={{ scale: 0.93 }}
+                            onClick={() => handleWagonShotPick(s.key)}
+                            className="relative h-[58px] rounded-[16px] bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 hover:border-[#39FF14]/40 hover:bg-[#39FF14]/5 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                          >
+                            <span className="text-[16px] text-[#39FF14]/70 group-hover:text-[#39FF14] transition-colors leading-none">{s.icon}</span>
+                            <span className="text-[8.5px] font-black uppercase tracking-[0.1em] text-white/70 group-hover:text-white transition-colors">{s.label}</span>
+                          </motion.button>
+                        ))}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
