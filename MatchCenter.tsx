@@ -5590,7 +5590,27 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               className="w-full max-w-2xl bg-[#0A0A0A] border border-white/10 rounded-[40px] overflow-hidden max-h-[90vh] flex flex-col"
             >
               <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
-                <button onClick={() => setEditingTeamId(null)} className="p-2 -ml-2 text-[#00F0FF] hover:bg-white/5 rounded-full">
+                <button
+                  onClick={() => {
+                    const squad = getTeamObj(editingTeamId)?.squad || [];
+                    if (squad.length > 0) {
+                      if (!isCaptainSelected() && !isWicketKeeperSelected()) {
+                        alert('Please select a Captain and a Wicket Keeper before closing.');
+                        return;
+                      }
+                      if (!isCaptainSelected()) {
+                        alert('Please select a Captain before closing.');
+                        return;
+                      }
+                      if (!isWicketKeeperSelected()) {
+                        alert('Please select a Wicket Keeper before closing.');
+                        return;
+                      }
+                    }
+                    setEditingTeamId(null);
+                  }}
+                  className="p-2 -ml-2 text-[#00F0FF] hover:bg-white/5 rounded-full"
+                >
                   <ChevronLeft size={20} />
                 </button>
                 <h3 className="font-heading text-xl uppercase italic">{getTeamObj(editingTeamId)?.name || 'Squad Editor'}</h3>
