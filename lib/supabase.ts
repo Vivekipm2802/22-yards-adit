@@ -417,3 +417,39 @@ export async function fetchMatchById(matchId: string): Promise<any | null> {
     return exact ? (exact as any).full_state ?? null : null;
   } catch (_) { return null; }
 }
+
+// Compute the 6-digit passcode from a matchId (must match MatchCenter.generatePasscode)
+export function computePasscode(matchId: string): string {
+  if (!matchId) return '------';
+  const hash = matchId.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+  return String(Math.abs(hash) % 1000000).padStart(6, '0');
+}
+
+// Find an IN PROGRESS match by its 6-digit passcode.
+// Scans recent live-state rows and computes the passcode for each base matchId.
+export async function findMatchByPasscode(passcode: string): Promise<any | null> {
+  if (!passcode || passcode.length !== 6) return null;
+  try {
+    // Pull recent live-state rows (last ~200). Extract unique base matchIds.
+    const { data } = await supabase
+      .from('matches')
+      .select('match_id, full_state')
+      .eq('winner_name', 'IN PROGRESS')
+      .order('date_played', { ascending: false })
+      .limit(200);
+    if (!data || data.length === 0) return null;
+    const seen = new Set<string>();
+    for (const row of data as any[]) {
+      // Extract base matchId from "{matchId}_t{timestamp}" or use match_id directly
+      const raw = row.match_id as string;
+      const baseId = raw.includes('_t') ? raw.split('_t')[0] : raw;
+      if (seen.has(baseId)) continue;
+      seen.add(baseId);
+      if (computePasscode(baseId) === passcode) {
+        // Found it! fetchMatchById for the latest state
+        return await fetchMatchById(baseId);
+      }
+    }
+    return null;
+  } catch (_) { return null; }
+}

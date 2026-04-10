@@ -70,6 +70,7 @@ export interface MatchState {
     innings1Score?: number;
     innings1Wickets?: number;
     innings1Balls?: number;
+    innings1Completed?: boolean; // explicit flag so reload-from-storage can't mis-interpret mid-innings state
     dlsTarget?: number; // revised target after rain delay
     reducedOvers1?: number; // reduced overs for innings 1
     reducedOvers2?: number; // reduced overs for innings 2

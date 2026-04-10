@@ -21,7 +21,7 @@ import {
 import MotionButton from './components/MotionButton';
 import { MatchState, Player, TeamID, PlayerID, BallEvent } from './types';
 import { useAuth } from './AuthContext';
-import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, fetchMatchById, supabase } from './lib/supabase';
+import { syncMatchToSupabase, saveMatchRecord, upsertPlayer, generatePlayerId, buildStatsFromHistory, pushLiveMatchState, fetchMatchById, findMatchByPasscode, supabase } from './lib/supabase';
 import { calculateDLSTarget, getDLSParScore, getMatchStatus } from './lib/dls';
 import { createSuperOverState, updateSuperOverAfterBall, shouldEndSuperOverInnings, determineSuperOverResult, setSuperOverLineup, transitionSuperOverPhase, SuperOverState } from './lib/superOver';
 import LiveScoreboard from './pages/LiveScoreboard';
@@ -1068,7 +1068,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       if (shouldTransition && m.currentInnings === 1) {
         newStatus = 'INNINGS_BREAK';
         newCurrentInnings = 1; // stays 1 until user clicks "Start Innings 2"
-        newConfig = { ...m.config, innings1Score: newLiveScore.runs, innings1Wickets: newLiveScore.wickets, innings1Balls: newLiveScore.balls };
+        newConfig = { ...m.config, innings1Score: newLiveScore.runs, innings1Wickets: newLiveScore.wickets, innings1Balls: newLiveScore.balls, innings1Completed: true };
         setOverlayAnim('INNINGS_BREAK');
         setTimeout(() => { setOverlayAnim(null); setStatus('INNINGS_BREAK'); }, 2000);
       }
@@ -1622,12 +1622,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     const batsmen = soSelectedBatsmen.slice(0, 3);
     const newState = setSuperOverLineup(superOverState, teamNumber, batsmen, soSelectedBowler);
 
-    // Set crease for first ball
-    if (teamNumber === 1) {
-      newState.crease = { strikerId: batsmen[0], nonStrikerId: batsmen[1] || null, bowlerId: null };
-    } else {
-      newState.crease = { strikerId: batsmen[0], nonStrikerId: batsmen[1] || null, bowlerId: null };
-    }
+    // Set crease for first ball — bowler is whoever was just selected
+    newState.crease = { strikerId: batsmen[0], nonStrikerId: batsmen[1] || null, bowlerId: soSelectedBowler };
 
     const transitioned = transitionSuperOverPhase(newState);
     setSuperOverState(transitioned);
@@ -6929,10 +6925,52 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 )}
 
                 <button
-                  onClick={() => {
-                    if (receivePasscode.length === 6) {
-                      // The passcode approach: for now, show instructions
-                      setReceiveError('Passcode verified! If you scanned the QR code or opened the transfer link, the match will load automatically.');
+                  onClick={async () => {
+                    if (receivePasscode.length !== 6) return;
+                    setIsReceiving(true);
+                    setReceiveError('');
+                    try {
+                      const foundMatch = await findMatchByPasscode(receivePasscode);
+                      if (!foundMatch || !foundMatch.matchId) {
+                        setReceiveError('No active match found with that code. Ask the scorer to check their code, or try scanning the QR.');
+                        setIsReceiving(false);
+                        return;
+                      }
+                      // Mark THIS tab as the new scorer BEFORE writing transfer_accepted
+                      sessionStorage.setItem(`22Y_I_AM_SCORER_${foundMatch.matchId}`, JSON.stringify({
+                        scorerSince: Date.now(),
+                        scorerName: 'Receiver (passcode)',
+                      }));
+                      // Signal sender (same/other device) to switch to spectator
+                      localStorage.setItem(`22Y_TRANSFER_ACCEPTED_${foundMatch.matchId}`, JSON.stringify({
+                        acceptedBy: 'Another device',
+                        acceptedAt: Date.now(),
+                      }));
+                      // Broadcast for cross-device scenarios — retry to fight race condition
+                      try {
+                        const ch = supabase.channel(`live:${foundMatch.matchId}`);
+                        ch.subscribe((st: string) => {
+                          if (st === 'SUBSCRIBED') {
+                            const payload = { matchId: foundMatch.matchId, acceptedBy: 'Another device' };
+                            ch.send({ type: 'broadcast', event: 'transfer_accepted', payload });
+                            setTimeout(() => ch.send({ type: 'broadcast', event: 'transfer_accepted', payload }), 500);
+                            setTimeout(() => ch.send({ type: 'broadcast', event: 'transfer_accepted', payload }), 1500);
+                            setTimeout(() => supabase.removeChannel(ch), 5000);
+                          }
+                        });
+                      } catch {}
+                      // Load the match into this device as the new scorer
+                      try {
+                        localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(foundMatch));
+                      } catch {}
+                      setMatch(foundMatch);
+                      // Infer the right status from the loaded match state
+                      setStatus((foundMatch.status as any) || 'LIVE');
+                      setShowReceiveModal(false);
+                      setIsReceiving(false);
+                    } catch (e) {
+                      setReceiveError('Transfer failed. Please check your connection and try again.');
+                      setIsReceiving(false);
                     }
                   }}
                   disabled={receivePasscode.length < 6 || isReceiving}

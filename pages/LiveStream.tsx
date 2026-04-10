@@ -91,9 +91,30 @@ export const useCameraRecorder = () => {
     }
 
     chunksRef.current = [];
-    const mediaRecorder = new MediaRecorder(streamRef.current, {
-      mimeType: 'video/webm;codecs=vp8,opus',
-    });
+    // Codec fallback chain — Safari/iOS don't support WebM
+    const preferredTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4',
+    ];
+    let chosenType = '';
+    for (const t of preferredTypes) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(t)) {
+        chosenType = t;
+        break;
+      }
+    }
+    let mediaRecorder: MediaRecorder;
+    try {
+      mediaRecorder = chosenType
+        ? new MediaRecorder(streamRef.current, { mimeType: chosenType })
+        : new MediaRecorder(streamRef.current); // browser default
+    } catch (e) {
+      setCameraError('Recording not supported in this browser');
+      return;
+    }
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) {
@@ -102,8 +123,8 @@ export const useCameraRecorder = () => {
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-      // Video is now available as a blob for highlights processing
+      const type = mediaRecorder.mimeType || chosenType || 'video/webm';
+      const blob = new Blob(chunksRef.current, { type });
       console.log('Recording stopped, video blob size:', blob.size);
     };
 
@@ -115,10 +136,10 @@ export const useCameraRecorder = () => {
   // Stop recording
   const stopRecording = (): Blob | null => {
     if (!mediaRecorderRef.current) return null;
+    const type = mediaRecorderRef.current.mimeType || 'video/webm';
     mediaRecorderRef.current.stop();
     setIsRecording(false);
-
-    const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+    const blob = new Blob(chunksRef.current, { type });
     return blob;
   };
 
