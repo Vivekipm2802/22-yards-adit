@@ -589,7 +589,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     const totalOversCompleted = Math.floor(match.liveScore.balls / 6);
     const ballsInCurrentOver = match.liveScore.balls % 6;
     if (match.liveScore.wickets >= allOutWickets) return;
-    if (match.liveScore.balls >= match.config.overs * 6) return;
+    const _effOversGuard = match.currentInnings === 1
+      ? (match.config.reducedOvers1 || match.config.overs)
+      : (match.config.reducedOvers2 || match.config.overs);
+    if (match.liveScore.balls >= _effOversGuard * 6) return;
     if (match.status === 'COMPLETED' || match.status === 'INNINGS_BREAK') return;
 
     // Lock scoring
@@ -978,7 +981,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       const _sqSize = (m.teams[_bKey]?.squad || []).length;
       const _allOut = Math.max(1, _sqSize - 1);
       if (m.liveScore.wickets >= _allOut) return m;
-      if (m.liveScore.balls >= m.config.overs * 6) return m;
+      const _effOvers = m.currentInnings === 1
+        ? (m.config.reducedOvers1 || m.config.overs)
+        : (m.config.reducedOvers2 || m.config.overs);
+      if (m.liveScore.balls >= _effOvers * 6) return m;
 
       const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
       const bowlingTeamKey = m.teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
@@ -1065,7 +1071,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       const totalOvers = Math.floor(newLiveScore.balls / 6);
       const battingSquadSize = (m.teams[battingTeamKey]?.squad || []).length;
       const allOutWickets = Math.max(1, battingSquadSize - 1);
-      const shouldTransition = newLiveScore.wickets >= allOutWickets || (totalOvers >= m.config.overs && newBallsInOver === 0);
+      const _innEffectiveOvers = m.currentInnings === 1
+        ? (m.config.reducedOvers1 || m.config.overs)
+        : (m.config.reducedOvers2 || m.config.overs);
+      const shouldTransition = newLiveScore.wickets >= allOutWickets || (totalOvers >= _innEffectiveOvers && newBallsInOver === 0);
 
       let newStatus = m.status;
       let newCurrentInnings = m.currentInnings;
@@ -1726,10 +1735,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     if (newOvers <= oversCompleted) return;
 
     if (currentInnings === 1) {
-      // Rain during innings 1: reduce overs for innings 1, keep original overs for reference
+      // Rain during innings 1: reduce overs for both innings (symmetric rain reduction)
+      // Team 2 will also bat for the same reduced overs — no DLS adjustment needed since
+      // both teams have the same resources.
       setMatch(m => ({
         ...m,
-        config: { ...m.config, reducedOvers1: newOvers, isRainAffected: true }
+        config: { ...m.config, reducedOvers1: newOvers, reducedOvers2: newOvers, isRainAffected: true }
       }));
     } else {
       // Rain during innings 2: calculate DLS target
@@ -3718,7 +3729,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           const crr = match.liveScore.balls > 0 ? ((match.liveScore.runs / match.liveScore.balls) * 6).toFixed(2) : '0.00';
           const target = match.config.target || 0;
           const need = target > 0 ? Math.max(0, target - match.liveScore.runs) : 0;
-          const ballsRemaining = target > 0 ? Math.max(0, (match.config.overs * 6) - match.liveScore.balls) : 0;
+          const _effOversLive = match.currentInnings === 1
+            ? (match.config.reducedOvers1 || match.config.overs)
+            : (match.config.reducedOvers2 || match.config.overs);
+          const ballsRemaining = target > 0 ? Math.max(0, (_effOversLive * 6) - match.liveScore.balls) : 0;
           const rrr = ballsRemaining > 0 && need > 0 ? ((need / ballsRemaining) * 6).toFixed(2) : '0.00';
 
           // Partnership calculation
@@ -3867,7 +3881,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       {match.liveScore.runs}/{match.liveScore.wickets}
                     </div>
                     <div className={`text-[9px] ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/80' : 'text-white/50'}`}>
-                      {overs}.{ballsInOver}/{match.config.overs} ov | CRR {crr}
+                      {overs}.{ballsInOver}/{match.currentInnings === 1 ? (match.config.reducedOvers1 || match.config.overs) : (match.config.reducedOvers2 || match.config.overs)} ov | CRR {crr}
                     </div>
                   </div>
                   <div className="text-[10px] font-black text-white/60 uppercase tracking-wider">

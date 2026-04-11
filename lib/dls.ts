@@ -148,8 +148,22 @@ export function calculateDLSTarget(params: {
   const R1 = resourcesAtStart - resourcesAtEnd;
 
   // Calculate resources available for Team 2
-  // R2 = Resources available at start of Team 2's reduced innings
-  const R2 = getResourcePercentage(team2OversAvailable, 0) - getResourcePercentage(team2OversAvailable - (team2BallsBowled / 6), team2WicketsLost);
+  // R2 = TOTAL resources Team 2 has access to over their entire innings
+  // Pre-chase reduction: R2 = resources for the reduced innings
+  // Mid-innings interruption: R2 = resources used before rain + resources remaining after rain
+  const team2OversRemaining = Math.max(0, team2OversAvailable - team2BallsBowled / 6);
+  let R2: number;
+  if (team2BallsBowled === 0) {
+    // Pre-chase reduction (most common case: rain hits before team 2 starts batting)
+    R2 = getResourcePercentage(team2OversAvailable, 0);
+  } else {
+    // Mid-innings interruption — use original match overs to compute "resources used before rain"
+    const originalOversAtInterruption = Math.max(0, matchOvers - team2BallsBowled / 6);
+    const resourcesUsedBeforeRain =
+      getResourcePercentage(matchOvers, 0) - getResourcePercentage(originalOversAtInterruption, team2WicketsLost);
+    const resourcesRemainingAfterRain = getResourcePercentage(team2OversRemaining, team2WicketsLost);
+    R2 = resourcesUsedBeforeRain + resourcesRemainingAfterRain;
+  }
 
   // If resources available for Team 2 are equal to or less than Team 1's resources used
   let revisedTarget: number;
