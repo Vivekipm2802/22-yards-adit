@@ -1,7 +1,7 @@
 // lib/highlights.ts
-// AI-powered match highlights analysis engine
+// Match highlights analysis engine — produces moments, narrative, stats, and phases
 
-import { BallEvent, MatchState } from '../types';
+import { BallEvent } from '../types';
 
 export interface HighlightMoment {
   type: 'FOUR' | 'SIX' | 'WICKET' | 'MILESTONE' | 'TURNING_POINT' | 'BIG_OVER' | 'MAIDEN' | 'PARTNERSHIP';
@@ -46,256 +46,186 @@ export interface MatchHighlights {
     phase: string;
     description: string;
     momentum: 'TEAM_A' | 'TEAM_B' | 'EVEN';
+    momentumLabel?: string;
     ballRange: [number, number];
   }[];
   keyStats: { label: string; value: string }[];
 }
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function isLegalDelivery(b: BallEvent): boolean {
+  return b.type === 'LEGAL' || b.type === 'BYE' || b.type === 'LB';
+}
+
+function buildPlayerNames(teams: any): Record<string, string> {
+  const map: Record<string, string> = {};
+  [teams.teamA, teams.teamB].forEach((t: any) => {
+    (t?.squad || []).forEach((p: any) => { map[p.id] = p.name; });
+  });
+  return map;
+}
+
+function teamName(teams: any, id: string): string {
+  if (id === 'A') return teams.teamA?.name || 'Team A';
+  return teams.teamB?.name || 'Team B';
+}
+
+// ─── main entry ──────────────────────────────────────────────────────────────
 
 export function generateMatchHighlights(
   history: BallEvent[],
   teams: any,
   config: any
 ): MatchHighlights {
-  if (!history || history.length === 0) {
-    return getEmptyHighlights();
-  }
+  if (!history || history.length === 0) return getEmptyHighlights();
 
+  const playerNames = buildPlayerNames(teams);
   const moments: HighlightMoment[] = [];
-  const batsmanStats: Record<string, any> = {};
-  const bowlerStats: Record<string, any> = {};
-  const playerNames: Record<string, string> = {};
-  const teamAPlayers: Set<string> = new Set();
-  const teamBPlayers: Set<string> = new Set();
 
-  // Build player name map
-  [teams.teamA, teams.teamB].forEach((team: any) => {
-    const isTeamA = team.id === 'A';
-    (team.squad || []).forEach((p: any) => {
-      playerNames[p.id] = p.name;
-      if (isTeamA) teamAPlayers.add(p.id);
-      else teamBPlayers.add(p.id);
-    });
-  });
+  // --- per-player stats (keyed by playerId) ---------------------------------
+  const batStats: Record<string, { name: string; runs: number; balls: number; fours: number; sixes: number; isOut: boolean }> = {};
+  const bowlStats: Record<string, { name: string; wickets: number; runsConceded: number; legalBalls: number }> = {};
 
-  // Analyze each ball
+  // --- per-innings tracking --------------------------------------------------
+  const inn1 = history.filter(b => (b.innings || 1) === 1);
+  const inn2 = history.filter(b => (b.innings || 1) === 2);
+
+  // process each ball
   history.forEach((ball, ballIndex) => {
-    const batsmanId = ball.strikerId;
-    const bowlerId = ball.bowlerId;
-    const batsmanName = playerNames[batsmanId] || 'Unknown';
-    const bowlerName = playerNames[bowlerId] || 'Unknown';
+    const batId = ball.strikerId;
+    const bowId = ball.bowlerId;
+    const batName = playerNames[batId] || 'Unknown';
+    const bowName = playerNames[bowId] || 'Unknown';
+    const legal = isLegalDelivery(ball);
 
-    // Initialize player stats
-    if (batsmanId && !batsmanStats[batsmanId]) {
-      batsmanStats[batsmanId] = {
-        name: batsmanName,
-        runs: 0,
-        balls: 0,
-        fours: 0,
-        sixes: 0,
-        dismissalBall: null,
-      };
-    }
-    if (bowlerId && !bowlerStats[bowlerId]) {
-      bowlerStats[bowlerId] = {
-        name: bowlerName,
-        wickets: 0,
-        runs: 0,
-        balls: 0,
-      };
+    // Batsman stats — only count legal balls
+    if (batId) {
+      if (!batStats[batId]) batStats[batId] = { name: batName, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
+      if (legal) batStats[batId].balls += 1;
+      // Runs: don't credit byes/leg byes to batsman
+      const batRuns = (ball.type === 'BYE' || ball.type === 'LB') ? 0 : ball.runsScored;
+      batStats[batId].runs += batRuns;
+      if (batRuns === 4) batStats[batId].fours += 1;
+      if (batRuns === 6) batStats[batId].sixes += 1;
+      if (ball.isWicket) batStats[batId].isOut = true;
     }
 
-    // Track batsman stats
-    if (batsmanId && batsmanStats[batsmanId]) {
-      batsmanStats[batsmanId].balls += 1;
-      batsmanStats[batsmanId].runs += ball.runsScored;
-      if (ball.runsScored === 4) batsmanStats[batsmanId].fours += 1;
-      if (ball.runsScored === 6) batsmanStats[batsmanId].sixes += 1;
+    // Bowler stats — only legal balls count toward over tally
+    if (bowId) {
+      if (!bowlStats[bowId]) bowlStats[bowId] = { name: bowName, wickets: 0, runsConceded: 0, legalBalls: 0 };
+      if (legal) bowlStats[bowId].legalBalls += 1;
+      bowlStats[bowId].runsConceded += ball.runsScored + ball.extras;
+      if (ball.isWicket) bowlStats[bowId].wickets += 1;
     }
 
-    // Track bowler stats
-    if (bowlerId && bowlerStats[bowlerId]) {
-      bowlerStats[bowlerId].balls += 1;
-      bowlerStats[bowlerId].runs += ball.runsScored + ball.extras;
-      if (ball.isWicket) bowlerStats[bowlerId].wickets += 1;
-    }
-
-    // Identify key moments
-    const score = `${ball.teamTotalAtThisBall}/${ball.wicketsAtThisBall}`;
+    // --- Key moments --------------------------------------------------------
+    const inn = ball.innings || 1;
     const over = Math.floor(ball.ballNumber / 6);
     const ballInOver = (ball.ballNumber % 6) + 1;
+    const score = `${ball.teamTotalAtThisBall ?? '?'}/${ball.wicketsAtThisBall ?? '?'}`;
 
-    // FOUR
-    if (ball.runsScored === 4 && !ball.isWicket) {
-      moments.push({
-        type: 'FOUR',
-        ballIndex,
-        innings: ball.innings || 1,
-        over,
-        ball: ballInOver,
-        description: `${batsmanName} hits a FOUR!`,
-        impact: 'MEDIUM',
-        batsmanName,
-        bowlerName,
-        score,
-        timestamp: ballIndex,
-      });
+    if (ball.runsScored === 4 && !ball.isWicket && ball.type !== 'BYE' && ball.type !== 'LB') {
+      moments.push({ type: 'FOUR', ballIndex, innings: inn, over, ball: ballInOver, description: `${batName} hits a FOUR!`, impact: 'MEDIUM', batsmanName: batName, bowlerName: bowName, score, timestamp: ballIndex });
     }
-
-    // SIX
     if (ball.runsScored === 6 && !ball.isWicket) {
-      moments.push({
-        type: 'SIX',
-        ballIndex,
-        innings: ball.innings || 1,
-        over,
-        ball: ballInOver,
-        description: `${batsmanName} smashes a SIX!`,
-        impact: 'HIGH',
-        batsmanName,
-        bowlerName,
-        score,
-        timestamp: ballIndex,
-      });
+      moments.push({ type: 'SIX', ballIndex, innings: inn, over, ball: ballInOver, description: `${batName} smashes a SIX!`, impact: 'HIGH', batsmanName: batName, bowlerName: bowName, score, timestamp: ballIndex });
     }
-
-    // WICKET
     if (ball.isWicket) {
-      const wicketType = ball.wicketType || 'out';
-      moments.push({
-        type: 'WICKET',
-        ballIndex,
-        innings: ball.innings || 1,
-        over,
-        ball: ballInOver,
-        description: `${batsmanName} is ${wicketType}!`,
-        impact: 'HIGH',
-        batsmanName,
-        bowlerName,
-        score,
-        timestamp: ballIndex,
-      });
-      if (batsmanId && batsmanStats[batsmanId]) {
-        batsmanStats[batsmanId].dismissalBall = ballIndex;
+      const wt = ball.wicketType || 'out';
+      moments.push({ type: 'WICKET', ballIndex, innings: inn, over, ball: ballInOver, description: `${batName} is ${wt}!`, impact: 'HIGH', batsmanName: batName, bowlerName: bowName, score, timestamp: ballIndex });
+    }
+
+    // Milestones — check cumulative runs at multiples of 50
+    if (batId && batStats[batId]) {
+      const r = batStats[batId].runs;
+      if (r > 0 && r % 50 === 0 && batRuns !== 0) {
+        // Only fire once per milestone — guard with ballIndex uniqueness (it's always unique)
+        moments.push({ type: 'MILESTONE', ballIndex, innings: inn, over, ball: ballInOver, description: `${batName} reaches ${r}!`, impact: r >= 100 ? 'HIGH' : 'MEDIUM', batsmanName: batName, score, timestamp: ballIndex });
       }
     }
 
-    // MILESTONE - 50 runs
-    if (
-      batsmanId &&
-      batsmanStats[batsmanId].runs === 50 &&
-      batsmanStats[batsmanId].balls > 0
-    ) {
-      moments.push({
-        type: 'MILESTONE',
-        ballIndex,
-        innings: ball.innings || 1,
-        over,
-        ball: ballInOver,
-        description: `${batsmanName} reaches 50!`,
-        impact: 'MEDIUM',
-        batsmanName,
-        score,
-        timestamp: ballIndex,
-      });
-    }
+    // local helper ref
+    var batRuns = (ball.type === 'BYE' || ball.type === 'LB') ? 0 : ball.runsScored;
   });
 
-  // Find maiden overs
-  for (let over = 0; over < 100; over++) {
-    const ballsInOver = history.filter(
-      (b) => Math.floor(b.ballNumber / 6) === over
-    );
-    if (ballsInOver.length > 0) {
-      const runsInOver = ballsInOver.reduce((sum, b) => sum + b.runsScored, 0);
-      if (runsInOver === 0 && ballsInOver.length >= 6) {
-        const firstBall = ballsInOver[0];
-        const bowlerName =
-          playerNames[firstBall.bowlerId] || 'Unknown Bowler';
+  // --- Maiden overs (per innings) -------------------------------------------
+  [inn1, inn2].forEach((innBalls, innIdx) => {
+    const inn = innIdx + 1;
+    const maxOver = innBalls.length > 0 ? Math.floor(innBalls[innBalls.length - 1].ballNumber / 6) : 0;
+    for (let ov = 0; ov <= maxOver; ov++) {
+      const overBalls = innBalls.filter(b => Math.floor(b.ballNumber / 6) === ov);
+      const legalCount = overBalls.filter(isLegalDelivery).length;
+      if (legalCount < 6) continue;
+      const runsInOver = overBalls.reduce((s, b) => s + b.runsScored + b.extras, 0);
+      if (runsInOver === 0) {
+        const bowName = playerNames[overBalls[0].bowlerId] || 'Unknown Bowler';
+        const lastBall = overBalls[overBalls.length - 1];
         moments.push({
-          type: 'MAIDEN',
-          ballIndex: history.indexOf(ballsInOver[5]),
-          innings: firstBall.innings || 1,
-          over,
-          ball: 6,
-          description: `${bowlerName} bowls a MAIDEN over!`,
-          impact: 'MEDIUM',
-          bowlerName,
-          score: `${firstBall.teamTotalAtThisBall}/${firstBall.wicketsAtThisBall}`,
-          timestamp: history.indexOf(ballsInOver[5]),
+          type: 'MAIDEN', ballIndex: history.indexOf(lastBall), innings: inn, over: ov, ball: 6,
+          description: `${bowName} bowls a MAIDEN over!`, impact: 'MEDIUM', bowlerName: bowName,
+          score: `${lastBall.teamTotalAtThisBall ?? '?'}/${lastBall.wicketsAtThisBall ?? '?'}`, timestamp: history.indexOf(lastBall),
         });
       }
     }
-  }
-
-  // Find turning points
-  const phases = identifyPhases(history, teams);
-  phases.forEach((phase) => {
-    const phaseStart = phase.ballRange[0];
-    if (phase.momentum !== 'EVEN') {
-      moments.push({
-        type: 'TURNING_POINT',
-        ballIndex: phaseStart,
-        innings: 1,
-        over: Math.floor(phaseStart / 6),
-        ball: (phaseStart % 6) + 1,
-        description: phase.description,
-        impact: 'HIGH',
-        score: history[phaseStart]
-          ? `${history[phaseStart].teamTotalAtThisBall}/${history[phaseStart].wicketsAtThisBall}`
-          : '',
-        timestamp: phaseStart,
-      });
-    }
   });
 
-  // Find big overs
-  for (let over = 0; over < 100; over++) {
-    const ballsInOver = history.filter(
-      (b) => Math.floor(b.ballNumber / 6) === over
-    );
-    if (ballsInOver.length > 0) {
-      const runsInOver = ballsInOver.reduce((sum, b) => sum + b.runsScored, 0);
+  // --- Big overs (per innings) ----------------------------------------------
+  [inn1, inn2].forEach((innBalls, innIdx) => {
+    const inn = innIdx + 1;
+    const maxOver = innBalls.length > 0 ? Math.floor(innBalls[innBalls.length - 1].ballNumber / 6) : 0;
+    for (let ov = 0; ov <= maxOver; ov++) {
+      const overBalls = innBalls.filter(b => Math.floor(b.ballNumber / 6) === ov);
+      if (overBalls.length === 0) continue;
+      const runsInOver = overBalls.reduce((s, b) => s + b.runsScored + b.extras, 0);
       if (runsInOver >= 15) {
-        const firstBall = ballsInOver[0];
+        const lastBall = overBalls[overBalls.length - 1];
         moments.push({
-          type: 'BIG_OVER',
-          ballIndex: history.indexOf(ballsInOver[Math.min(5, ballsInOver.length - 1)]),
-          innings: firstBall.innings || 1,
-          over,
-          ball: 6,
-          description: `${runsInOver} runs in over ${over + 1}!`,
-          impact: 'MEDIUM',
-          score: `${firstBall.teamTotalAtThisBall}/${firstBall.wicketsAtThisBall}`,
-          timestamp: history.indexOf(ballsInOver[Math.min(5, ballsInOver.length - 1)]),
+          type: 'BIG_OVER', ballIndex: history.indexOf(lastBall), innings: inn, over: ov, ball: 6,
+          description: `${runsInOver} runs in over ${ov + 1} (Inn ${inn})!`, impact: 'MEDIUM',
+          score: `${lastBall.teamTotalAtThisBall ?? '?'}/${lastBall.wicketsAtThisBall ?? '?'}`, timestamp: history.indexOf(lastBall),
         });
       }
     }
-  }
+  });
 
-  // Get best players
-  const bestBatsman = getBestBatsman(batsmanStats);
-  const bestBowler = getBestBowler(bowlerStats);
+  // --- best players ---------------------------------------------------------
+  const bestBatsman = getBestBatsman(batStats);
+  const bestBowler = getBestBowler(bowlStats);
   const bestPartnership = getBestPartnership(history, playerNames);
 
-  // Generate narrative
-  const narrative = generateNarrative(history, bestBatsman, bestBowler, phases);
+  // --- phases (per innings) -------------------------------------------------
+  const battingTeam1Id = teams.battingTeamId; // who batted first may not be stored — approximate
+  const teamAName = teams.teamA?.name || 'Team A';
+  const teamBName = teams.teamB?.name || 'Team B';
+  const phases = identifyPhases(inn1, inn2, config, teamAName, teamBName);
 
-  // Generate key stats
-  const keyStats = generateKeyStats(history, bestBatsman, bestBowler);
+  // --- phases as turning points ---------------------------------------------
+  phases.forEach((phase) => {
+    if (phase.momentum !== 'EVEN') {
+      const startIdx = phase.ballRange[0];
+      const ball = history[startIdx];
+      if (ball) {
+        moments.push({
+          type: 'TURNING_POINT', ballIndex: startIdx, innings: ball.innings || 1,
+          over: Math.floor(ball.ballNumber / 6), ball: (ball.ballNumber % 6) + 1,
+          description: phase.description, impact: 'HIGH',
+          score: `${ball.teamTotalAtThisBall ?? '?'}/${ball.wicketsAtThisBall ?? '?'}`, timestamp: startIdx,
+        });
+      }
+    }
+  });
 
-  // Sort moments by ballIndex
+  // --- narrative & stats ----------------------------------------------------
+  const narrative = generateNarrative(inn1, inn2, bestBatsman, bestBowler, phases, teamAName, teamBName, config);
+  const keyStats = generateKeyStats(inn1, inn2, bestBatsman, bestBowler, teamAName, teamBName);
+
   moments.sort((a, b) => a.ballIndex - b.ballIndex);
 
-  return {
-    moments,
-    bestBatsman,
-    bestBowler,
-    bestPartnership,
-    matchNarrative: narrative,
-    phases,
-    keyStats,
-  };
+  return { moments, bestBatsman, bestBowler, bestPartnership, matchNarrative: narrative, phases, keyStats };
 }
+
+// ─── sub-functions ───────────────────────────────────────────────────────────
 
 function getEmptyHighlights(): MatchHighlights {
   return {
@@ -310,258 +240,246 @@ function getEmptyHighlights(): MatchHighlights {
 }
 
 function getBestBatsman(stats: Record<string, any>): MatchHighlights['bestBatsman'] {
-  let best = null;
-  let maxRuns = 0;
-
-  Object.values(stats).forEach((stat: any) => {
-    if (stat.runs > maxRuns && !stat.dismissalBall) {
-      maxRuns = stat.runs;
-      best = stat;
+  // Simply pick the batsman with the most runs
+  let best: any = null;
+  Object.values(stats).forEach((s: any) => {
+    if (!best || s.runs > best.runs || (s.runs === best.runs && s.balls < best.balls)) {
+      best = s;
     }
   });
-
-  if (!best) {
-    Object.values(stats).forEach((stat: any) => {
-      if (stat.runs > maxRuns) {
-        maxRuns = stat.runs;
-        best = stat;
-      }
-    });
-  }
-
-  if (!best) {
-    return { name: 'N/A', runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: 0 };
-  }
-
+  if (!best) return { name: 'N/A', runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: 0 };
   return {
-    name: best.name,
-    runs: best.runs,
-    balls: best.balls,
-    fours: best.fours || 0,
-    sixes: best.sixes || 0,
+    name: best.name, runs: best.runs, balls: best.balls,
+    fours: best.fours || 0, sixes: best.sixes || 0,
     strikeRate: best.balls > 0 ? (best.runs / best.balls) * 100 : 0,
   };
 }
 
 function getBestBowler(stats: Record<string, any>): MatchHighlights['bestBowler'] {
-  let best = null;
-  let maxWickets = -1;
-
-  Object.values(stats).forEach((stat: any) => {
-    if (stat.wickets > maxWickets || (stat.wickets === maxWickets && stat.wickets > 0 && stat.runs < (best?.runs || Infinity))) {
-      maxWickets = stat.wickets;
-      best = stat;
+  let best: any = null;
+  Object.values(stats).forEach((s: any) => {
+    if (!best || s.wickets > best.wickets || (s.wickets === best.wickets && s.wickets > 0 && s.runsConceded < best.runsConceded)) {
+      best = s;
     }
   });
-
-  if (!best) {
-    return { name: 'N/A', wickets: 0, runs: 0, overs: '0', economy: 0 };
-  }
-
-  const overs = Math.floor(best.balls / 6);
-  const ballsRemainder = best.balls % 6;
-  const oversStr = ballsRemainder > 0 ? `${overs}.${ballsRemainder}` : `${overs}`;
-  const economy = best.balls > 0 ? (best.runs / best.balls) * 6 : 0;
-
-  return {
-    name: best.name,
-    wickets: best.wickets,
-    runs: best.runs,
-    overs: oversStr,
-    economy,
-  };
+  if (!best) return { name: 'N/A', wickets: 0, runs: 0, overs: '0', economy: 0 };
+  const overs = Math.floor(best.legalBalls / 6);
+  const rem = best.legalBalls % 6;
+  const oversStr = rem > 0 ? `${overs}.${rem}` : `${overs}`;
+  const economy = best.legalBalls > 0 ? (best.runsConceded / best.legalBalls) * 6 : 0;
+  return { name: best.name, wickets: best.wickets, runs: best.runsConceded, overs: oversStr, economy };
 }
 
-function getBestPartnership(
-  history: BallEvent[],
-  playerNames: Record<string, string>
-): MatchHighlights['bestPartnership'] {
-  const partnerships: Record<string, { runs: number; balls: number }> = {};
+function getBestPartnership(history: BallEvent[], playerNames: Record<string, string>): MatchHighlights['bestPartnership'] {
+  // Track partnerships by following wickets within each innings
+  let bestRuns = 0;
+  let bestPair: [string, string] = ['N/A', 'N/A'];
+  let bestBalls = 0;
 
-  history.forEach((ball) => {
-    const pair = [ball.strikerId, ball.fielderId].filter(Boolean).sort().join('-');
-    if (pair && pair !== '-') {
-      if (!partnerships[pair]) partnerships[pair] = { runs: 0, balls: 0 };
-      partnerships[pair].runs += ball.runsScored;
-      partnerships[pair].balls += 1;
+  [1, 2].forEach(inn => {
+    const innBalls = history.filter(b => (b.innings || 1) === inn);
+    let partRuns = 0;
+    let partBalls = 0;
+    let currentStriker = '';
+    // We don't have non-striker on BallEvent, so track partnership as runs between wickets for a striker
+    innBalls.forEach((b, idx) => {
+      if (b.strikerId !== currentStriker) {
+        // striker changed — could be new partnership or just rotation
+        currentStriker = b.strikerId;
+      }
+      partRuns += b.runsScored + b.extras;
+      if (isLegalDelivery(b)) partBalls += 1;
+      if (b.isWicket) {
+        if (partRuns > bestRuns) {
+          bestRuns = partRuns;
+          bestBalls = partBalls;
+          bestPair = [playerNames[b.strikerId] || 'Unknown', 'Partnership'];
+        }
+        partRuns = 0;
+        partBalls = 0;
+      }
+    });
+    // trailing partnership
+    if (partRuns > bestRuns && innBalls.length > 0) {
+      bestRuns = partRuns;
+      bestBalls = partBalls;
+      bestPair = [playerNames[innBalls[innBalls.length - 1].strikerId] || 'Unknown', 'Partnership'];
     }
   });
 
-  let bestPair = null;
-  let maxRuns = 0;
-
-  Object.entries(partnerships).forEach(([pair, stats]) => {
-    if (stats.runs > maxRuns) {
-      maxRuns = stats.runs;
-      bestPair = pair;
-    }
-  });
-
-  if (!bestPair) {
-    return { batter1: 'N/A', batter2: 'N/A', runs: 0, balls: 0 };
-  }
-
-  const [id1, id2] = bestPair.split('-');
-  return {
-    batter1: playerNames[id1] || 'Unknown',
-    batter2: playerNames[id2] || 'Unknown',
-    runs: partnerships[bestPair].runs,
-    balls: partnerships[bestPair].balls,
-  };
+  return { batter1: bestPair[0], batter2: bestPair[1], runs: bestRuns, balls: bestBalls };
 }
 
 function identifyPhases(
-  history: BallEvent[],
-  teams: any
+  inn1: BallEvent[],
+  inn2: BallEvent[],
+  config: any,
+  teamAName: string,
+  teamBName: string,
 ): MatchHighlights['phases'] {
-  if (history.length === 0) return [];
-
   const phases: MatchHighlights['phases'] = [];
+  const matchOvers = config?.overs || 20;
 
-  // Phase 1: Powerplay (first 2 overs equivalent, or first 6 balls)
-  const powPlayStart = history.findIndex((b) => Math.floor(b.ballNumber / 6) < 2);
-  const powPlayBalls = history.filter((b) => Math.floor(b.ballNumber / 6) < 2);
-  if (powPlayBalls.length > 0) {
-    const runs = powPlayBalls.reduce((sum, b) => sum + b.runsScored, 0);
-    const crr = (runs / powPlayBalls.length) * 6;
-    const momentum = crr > 8 ? 'TEAM_A' : crr < 4 ? 'TEAM_B' : 'EVEN';
-    phases.push({
-      phase: 'Powerplay',
-      description: `Start with ${runs} runs in ${powPlayBalls.length} balls (CRR: ${crr.toFixed(1)})`,
-      momentum,
-      ballRange: [Math.max(0, powPlayStart), Math.max(0, powPlayStart) + powPlayBalls.length - 1],
-    });
-  }
+  // Helper: analyze a single innings
+  const analyzeInnings = (balls: BallEvent[], innLabel: string, battingTeamName: string, bowlingTeamName: string) => {
+    if (balls.length === 0) return;
+    const totalLegal = balls.filter(isLegalDelivery).length;
+    const totalOvers = Math.ceil(totalLegal / 6);
 
-  // Phase 2: Middle overs
-  const middleStart = history.findIndex(
-    (b) => Math.floor(b.ballNumber / 6) >= 2 && Math.floor(b.ballNumber / 6) < 4
-  );
-  const middleOvers = history.filter(
-    (b) => Math.floor(b.ballNumber / 6) >= 2 && Math.floor(b.ballNumber / 6) < 4
-  );
-  if (middleOvers.length > 0) {
-    const runs = middleOvers.reduce((sum, b) => sum + b.runsScored, 0);
-    const momentum = runs >= 10 ? 'TEAM_A' : runs < 5 ? 'TEAM_B' : 'EVEN';
-    phases.push({
-      phase: 'Middle Overs',
-      description: `Building innings with ${runs} runs in ${Math.ceil(middleOvers.length / 6)} overs`,
-      momentum,
-      ballRange: [Math.max(0, middleStart), Math.max(0, middleStart) + middleOvers.length - 1],
-    });
-  }
+    // Powerplay: first ~30% of overs (min 1)
+    const ppOvers = Math.max(1, Math.floor(matchOvers * 0.3));
+    const ppBalls = balls.filter(b => Math.floor(b.ballNumber / 6) < ppOvers);
+    if (ppBalls.length > 0) {
+      const runs = ppBalls.reduce((s, b) => s + b.runsScored + b.extras, 0);
+      const legal = ppBalls.filter(isLegalDelivery).length;
+      const crr = legal > 0 ? (runs / legal) * 6 : 0;
+      const momentum = crr > 8 ? 'TEAM_A' : crr < 4 ? 'TEAM_B' : 'EVEN';
+      phases.push({
+        phase: `${innLabel} Powerplay`,
+        description: `${runs} runs in ${Math.ceil(legal / 6)} overs (CRR: ${crr.toFixed(1)})`,
+        momentum,
+        momentumLabel: momentum === 'TEAM_A' ? battingTeamName : momentum === 'TEAM_B' ? bowlingTeamName : 'Even',
+        ballRange: [0, ppBalls.length - 1],
+      });
+    }
 
-  // Phase 3: Death overs
-  const deathStart = history.findIndex((b) => Math.floor(b.ballNumber / 6) >= 4);
-  const deathOvers = history.filter((b) => Math.floor(b.ballNumber / 6) >= 4);
-  if (deathOvers.length > 0) {
-    const runs = deathOvers.reduce((sum, b) => sum + b.runsScored, 0);
-    const momentum = runs >= 20 ? 'TEAM_A' : runs < 10 ? 'TEAM_B' : 'EVEN';
-    phases.push({
-      phase: 'Death Overs',
-      description: `Final phase with ${runs} runs in ${Math.ceil(deathOvers.length / 6)} overs`,
-      momentum,
-      ballRange: [Math.max(0, deathStart), Math.max(0, deathStart) + deathOvers.length - 1],
+    // Middle: ~30-70% of overs
+    const midStart = ppOvers;
+    const midEnd = Math.floor(matchOvers * 0.7);
+    const midBalls = balls.filter(b => {
+      const ov = Math.floor(b.ballNumber / 6);
+      return ov >= midStart && ov < midEnd;
     });
-  }
+    if (midBalls.length > 0) {
+      const runs = midBalls.reduce((s, b) => s + b.runsScored + b.extras, 0);
+      const legal = midBalls.filter(isLegalDelivery).length;
+      const crr = legal > 0 ? (runs / legal) * 6 : 0;
+      const momentum = crr > 7 ? 'TEAM_A' : crr < 4 ? 'TEAM_B' : 'EVEN';
+      phases.push({
+        phase: `${innLabel} Middle Overs`,
+        description: `Building innings with ${runs} runs in ${Math.ceil(legal / 6)} overs (CRR: ${crr.toFixed(1)})`,
+        momentum,
+        momentumLabel: momentum === 'TEAM_A' ? battingTeamName : momentum === 'TEAM_B' ? bowlingTeamName : 'Even',
+        ballRange: [ppBalls.length, ppBalls.length + midBalls.length - 1],
+      });
+    }
+
+    // Death: last 30%
+    const deathBalls = balls.filter(b => Math.floor(b.ballNumber / 6) >= midEnd);
+    if (deathBalls.length > 0) {
+      const runs = deathBalls.reduce((s, b) => s + b.runsScored + b.extras, 0);
+      const legal = deathBalls.filter(isLegalDelivery).length;
+      const crr = legal > 0 ? (runs / legal) * 6 : 0;
+      const momentum = crr > 9 ? 'TEAM_A' : crr < 5 ? 'TEAM_B' : 'EVEN';
+      phases.push({
+        phase: `${innLabel} Death Overs`,
+        description: `Final phase with ${runs} runs in ${Math.ceil(legal / 6)} overs (CRR: ${crr.toFixed(1)})`,
+        momentum,
+        momentumLabel: momentum === 'TEAM_A' ? battingTeamName : momentum === 'TEAM_B' ? bowlingTeamName : 'Even',
+        ballRange: [ppBalls.length + midBalls.length, ppBalls.length + midBalls.length + deathBalls.length - 1],
+      });
+    }
+  };
+
+  analyzeInnings(inn1, '1st Inn', teamAName, teamBName);
+  analyzeInnings(inn2, '2nd Inn', teamBName, teamAName);
 
   return phases;
 }
 
 function generateNarrative(
-  history: BallEvent[],
+  inn1: BallEvent[],
+  inn2: BallEvent[],
   bestBatsman: MatchHighlights['bestBatsman'],
   bestBowler: MatchHighlights['bestBowler'],
-  phases: MatchHighlights['phases']
+  phases: MatchHighlights['phases'],
+  teamAName: string,
+  teamBName: string,
+  config: any,
 ): string[] {
   const narrative: string[] = [];
 
-  if (history.length === 0) {
-    narrative.push('Match analysis unavailable.');
-    return narrative;
+  // Innings 1 summary
+  if (inn1.length > 0) {
+    const runs1 = inn1.reduce((s, b) => s + b.runsScored + b.extras, 0);
+    const wkts1 = inn1.filter(b => b.isWicket).length;
+    const legal1 = inn1.filter(isLegalDelivery).length;
+    const overs1 = `${Math.floor(legal1 / 6)}.${legal1 % 6}`;
+    narrative.push(`${teamAName} posted ${runs1}/${wkts1} in ${overs1} overs.`);
   }
 
-  const totalRuns = history.reduce((sum, b) => sum + b.runsScored, 0);
-  const totalBalls = history.length;
-  const totalWickets = history.filter((b) => b.isWicket).length;
-  const crr = (totalRuns / totalBalls) * 6;
-
-  // Opening narrative
-  if (phases.length > 0) {
-    narrative.push(
-      `The match started with ${phases[0].description.toLowerCase()}. ${
-        phases[0].momentum === 'TEAM_A'
-          ? 'Team A set a strong tone early.'
-          : 'Team B maintained disciplined bowling early on.'
-      }`
-    );
+  // Innings 2 summary
+  if (inn2.length > 0) {
+    const runs2 = inn2.reduce((s, b) => s + b.runsScored + b.extras, 0);
+    const wkts2 = inn2.filter(b => b.isWicket).length;
+    const legal2 = inn2.filter(isLegalDelivery).length;
+    const overs2 = `${Math.floor(legal2 / 6)}.${legal2 % 6}`;
+    narrative.push(`In reply, ${teamBName} managed ${runs2}/${wkts2} in ${overs2} overs.`);
   }
 
-  // Mid-match narrative
-  if (phases.length > 1) {
-    narrative.push(
-      `During the middle phase, ${phases[1].description.toLowerCase()}. The batting side ${
-        phases[1].momentum === 'TEAM_A' ? 'accelerated' : 'faced pressure'
-      }.`
-    );
-  }
-
-  // Best batsman narrative
+  // Best performers
   if (bestBatsman.name !== 'N/A') {
     narrative.push(
-      `${bestBatsman.name} was the star performer, scoring ${bestBatsman.runs} runs off ${bestBatsman.balls} balls with ${bestBatsman.fours} fours and ${bestBatsman.sixes} sixes at a strike rate of ${bestBatsman.strikeRate.toFixed(1)}.`
+      `${bestBatsman.name} was the star with the bat, scoring ${bestBatsman.runs} off ${bestBatsman.balls} balls (${bestBatsman.fours} fours, ${bestBatsman.sixes} sixes) at a strike rate of ${bestBatsman.strikeRate.toFixed(1)}.`
     );
   }
-
-  // Best bowler narrative
   if (bestBowler.name !== 'N/A') {
     narrative.push(
-      `On the bowling front, ${bestBowler.name} was the standout performer, taking ${bestBowler.wickets} wickets while conceding ${bestBowler.runs} runs in ${bestBowler.overs} overs with an economy of ${bestBowler.economy.toFixed(2)}.`
+      `${bestBowler.name} led the bowling, taking ${bestBowler.wickets} wickets for ${bestBowler.runs} runs in ${bestBowler.overs} overs (economy ${bestBowler.economy.toFixed(2)}).`
     );
   }
 
-  // Death overs narrative
-  if (phases.length > 2) {
-    narrative.push(`In the ${phases[2].phase.toLowerCase()}, ${phases[2].description.toLowerCase()}.`);
-  }
-
-  // Overall narrative
-  narrative.push(
-    `The match saw a total of ${totalRuns} runs in ${totalBalls} balls with ${totalWickets} wickets falling. The overall run rate was ${crr.toFixed(2)} per over.`
-  );
+  // Overall
+  const totalRuns = [...inn1, ...inn2].reduce((s, b) => s + b.runsScored + b.extras, 0);
+  const totalWickets = [...inn1, ...inn2].filter(b => b.isWicket).length;
+  const totalLegal = [...inn1, ...inn2].filter(isLegalDelivery).length;
+  const crr = totalLegal > 0 ? (totalRuns / totalLegal) * 6 : 0;
+  narrative.push(`The match produced ${totalRuns} runs and ${totalWickets} wickets at an overall rate of ${crr.toFixed(2)} per over.`);
 
   return narrative;
 }
 
 function generateKeyStats(
-  history: BallEvent[],
+  inn1: BallEvent[],
+  inn2: BallEvent[],
   bestBatsman: MatchHighlights['bestBatsman'],
-  bestBowler: MatchHighlights['bestBowler']
+  bestBowler: MatchHighlights['bestBowler'],
+  teamAName: string,
+  teamBName: string,
 ): MatchHighlights['keyStats'] {
   const stats: MatchHighlights['keyStats'] = [];
+  const all = [...inn1, ...inn2];
+  if (all.length === 0) return stats;
 
-  if (history.length === 0) return stats;
-
-  const totalRuns = history.reduce((sum, b) => sum + b.runsScored, 0);
-  const totalWickets = history.filter((b) => b.isWicket).length;
-  const totalFours = history.filter((b) => b.runsScored === 4).length;
-  const totalSixes = history.filter((b) => b.runsScored === 6).length;
-
-  stats.push({ label: 'Total Runs', value: totalRuns.toString() });
-  stats.push({ label: 'Wickets Lost', value: totalWickets.toString() });
-  stats.push({ label: 'Fours Hit', value: totalFours.toString() });
-  stats.push({ label: 'Sixes Hit', value: totalSixes.toString() });
-  stats.push({
-    label: 'Run Rate',
-    value: (history.length > 0 ? ((totalRuns / history.length) * 6).toFixed(2) : '0.00') + ' per over',
-  });
-
-  if (bestBatsman.name !== 'N/A') {
-    stats.push({ label: 'Top Batsman', value: `${bestBatsman.name} (${bestBatsman.runs} runs)` });
+  // Per-innings scores
+  if (inn1.length > 0) {
+    const r = inn1.reduce((s, b) => s + b.runsScored + b.extras, 0);
+    const w = inn1.filter(b => b.isWicket).length;
+    stats.push({ label: `${teamAName}`, value: `${r}/${w}` });
+  }
+  if (inn2.length > 0) {
+    const r = inn2.reduce((s, b) => s + b.runsScored + b.extras, 0);
+    const w = inn2.filter(b => b.isWicket).length;
+    stats.push({ label: `${teamBName}`, value: `${r}/${w}` });
   }
 
+  const totalFours = all.filter(b => b.runsScored === 4 && b.type !== 'BYE' && b.type !== 'LB').length;
+  const totalSixes = all.filter(b => b.runsScored === 6).length;
+  stats.push({ label: 'Fours Hit', value: totalFours.toString() });
+  stats.push({ label: 'Sixes Hit', value: totalSixes.toString() });
+
+  const totalLegal = all.filter(isLegalDelivery).length;
+  const totalRuns = all.reduce((s, b) => s + b.runsScored + b.extras, 0);
+  stats.push({ label: 'Run Rate', value: (totalLegal > 0 ? ((totalRuns / totalLegal) * 6).toFixed(2) : '0.00') + ' per over' });
+
+  const extras = all.reduce((s, b) => s + b.extras, 0);
+  stats.push({ label: 'Extras', value: extras.toString() });
+
+  if (bestBatsman.name !== 'N/A') {
+    stats.push({ label: 'Top Batsman', value: `${bestBatsman.name} (${bestBatsman.runs})` });
+  }
   if (bestBowler.name !== 'N/A') {
-    stats.push({ label: 'Top Bowler', value: `${bestBowler.name} (${bestBowler.wickets} wickets)` });
+    stats.push({ label: 'Top Bowler', value: `${bestBowler.name} (${bestBowler.wickets}w)` });
   }
 
   return stats;
