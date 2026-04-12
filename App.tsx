@@ -337,7 +337,7 @@ const App: React.FC = () => {
       case 'TOURNAMENTS': return <Tournaments />;
       case 'FOLLOW_MATCH': {
         const followId = localStorage.getItem('22Y_FOLLOWING_MATCH');
-        if (!followId) { setActivePage('DUGOUT'); return null; }
+        if (!followId) return <Dugout onNavigate={setActivePage} onUpgrade={() => setShowUpgradeModal(true)} />;
         return (
           <div className="h-full w-full flex flex-col overflow-hidden relative max-h-[100dvh]">
             <LiveScoreboard matchId={followId} />
@@ -444,7 +444,7 @@ const App: React.FC = () => {
         </main>
 
         {/* Bottom Tab Bar */}
-        {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && (
+        {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && activePage !== 'FOLLOW_MATCH' && (
           <div className="bg-black/80 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
             {navItems.map((item) => (
               <button

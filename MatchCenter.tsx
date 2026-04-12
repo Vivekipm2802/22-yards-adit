@@ -2201,6 +2201,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     return (
       <div className="h-full w-full flex flex-col overflow-hidden relative max-h-[100dvh]">
         <LiveScoreboard matchId={forcedSpectatorMode} />
+        {/* Back to Dugout button */}
+        <div className="absolute top-4 left-4 z-50">
+          <button
+            onClick={() => onBack()}
+            className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-all"
+          >
+            ← Dugout
+          </button>
+        </div>
         {/* Button for sender to start a completely new match */}
         <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 px-6">
           <button
