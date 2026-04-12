@@ -59,7 +59,7 @@ import { AuthContext } from './AuthContext';
 import LiveScoreboard from './pages/LiveScoreboard';
 import { fetchMatchById, supabase } from './lib/supabase';
 
-export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'PROFILE';
+export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'PROFILE' | 'FOLLOW_MATCH';
 
 const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
@@ -335,7 +335,32 @@ const App: React.FC = () => {
       case 'ARENA': return <Arena />;
       case 'HISTORY': return <Archive />;
       case 'TOURNAMENTS': return <Tournaments />;
-      case 'PROFILE': return <Profile 
+      case 'FOLLOW_MATCH': {
+        const followId = localStorage.getItem('22Y_FOLLOWING_MATCH');
+        if (!followId) { setActivePage('DUGOUT'); return null; }
+        return (
+          <div className="h-full w-full flex flex-col overflow-hidden relative max-h-[100dvh]">
+            <LiveScoreboard matchId={followId} />
+            <div className="absolute top-4 left-4 z-50">
+              <button
+                onClick={() => setActivePage('DUGOUT')}
+                className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] font-black uppercase tracking-wider hover:bg-black/80 transition-all"
+              >
+                ← Back
+              </button>
+            </div>
+            <div className="absolute bottom-6 right-6 z-50">
+              <button
+                onClick={() => { localStorage.removeItem('22Y_FOLLOWING_MATCH'); setActivePage('DUGOUT'); }}
+                className="px-4 py-2 rounded-full bg-[#FF003C]/15 border border-[#FF003C]/30 text-[#FF003C] text-[10px] font-black uppercase tracking-wider hover:bg-[#FF003C]/25 transition-all"
+              >
+                Stop Following
+              </button>
+            </div>
+          </div>
+        );
+      }
+      case 'PROFILE': return <Profile
         currentName={userData.name} 
         currentRole={userData.role} 
         currentAvatar={userData.avatar} 

@@ -372,6 +372,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       console.log('[MatchCenter] Transfer accepted (broadcast) by:', payload?.acceptedBy);
       // Clear active match from localStorage so re-mounting shows fresh CONFIG, not old scoreboard
       localStorage.removeItem('22YARDS_ACTIVE_MATCH');
+      // Save as followed match so Dugout shows the "Follow Match" shortcut
+      localStorage.setItem('22Y_FOLLOWING_MATCH', match.matchId);
       setForcedSpectatorMode(match.matchId);
     });
     ch.subscribe();
@@ -398,6 +400,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
             // Clear active match so re-mounting shows fresh CONFIG, not old scoreboard
             localStorage.removeItem('22YARDS_ACTIVE_MATCH');
+            // Save as followed match so Dugout shows the "Follow Match" shortcut
+            localStorage.setItem('22Y_FOLLOWING_MATCH', match.matchId);
             setForcedSpectatorMode(match.matchId);
           } else {
             // Stale flag — clean it up

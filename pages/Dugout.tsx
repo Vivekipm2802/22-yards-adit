@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Swords, Swords as SwordsIcon, LineChart, Map, Crown, Zap,
   ChevronRight, Activity, Radar, Target,
-  Calendar, Trophy, Star, TrendingUp, MapPin, Hash
+  Calendar, Trophy, Star, TrendingUp, MapPin, Hash, Eye, Radio
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import MotionButton from '../components/MotionButton';
@@ -13,7 +13,7 @@ import { useAuth } from '../AuthContext';
 import { fetchLeaderboard } from '../lib/supabase';
 
 interface DugoutProps {
-  onNavigate: (page: 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS') => void;
+  onNavigate: (page: 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'FOLLOW_MATCH') => void;
   onUpgrade?: () => void;
 }
 
@@ -127,6 +127,40 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
           </div>
         </div>
       </motion.section>
+
+      {/* Follow Match Shortcut — visible only when actively following a match */}
+      {(() => {
+        const followId = typeof localStorage !== 'undefined' ? localStorage.getItem('22Y_FOLLOWING_MATCH') : null;
+        if (!followId) return null;
+        return (
+          <motion.section variants={itemVariants} className="flex justify-center">
+            <button
+              onClick={() => onNavigate('FOLLOW_MATCH')}
+              className="flex flex-col items-center gap-3 group"
+            >
+              <div className="relative">
+                {/* Pulsing ring */}
+                <div className="absolute inset-0 rounded-full bg-[#BC13FE]/20 animate-ping" />
+                {/* Outer glow ring */}
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#BC13FE] to-[#00F0FF] p-[2px] shadow-[0_0_30px_rgba(188,19,254,0.4)] group-hover:shadow-[0_0_40px_rgba(188,19,254,0.6)] transition-all">
+                  <div className="w-full h-full rounded-full bg-[#0A0A0A] flex items-center justify-center group-hover:bg-[#121212] transition-all">
+                    <Radio size={28} className="text-[#BC13FE] group-hover:text-[#00F0FF] transition-colors" />
+                  </div>
+                </div>
+                {/* Live badge */}
+                <div className="absolute -top-1 -right-1 px-2 py-0.5 rounded-full bg-[#FF003C] border-2 border-[#0A0A0A] flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span className="text-[7px] font-black text-white uppercase tracking-wider">Live</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Follow Match</p>
+                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Spectator Mode</p>
+              </div>
+            </button>
+          </motion.section>
+        );
+      })()}
 
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
