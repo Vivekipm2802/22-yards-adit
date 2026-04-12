@@ -64,12 +64,26 @@ export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTOR
 const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
   const [userData, setUserData] = useState<any | null>(null);
-  const [activePage, setActivePage] = useState<Page>('DUGOUT');
+  const [activePage, setActivePage] = useState<Page>(() => {
+    // If opened via ?watch= link, start on FOLLOW_MATCH (the ID is already saved to localStorage)
+    try {
+      if (new URLSearchParams(window.location.search).get('watch')) return 'FOLLOW_MATCH';
+    } catch {}
+    return 'DUGOUT';
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   /* ── URL params: ?watch=MATCH_ID or ?resume=MATCH_ID ── */
   const [watchMatchId] = useState<string | null>(() => {
-    try { return new URLSearchParams(window.location.search).get('watch'); } catch { return null; }
+    try {
+      const wId = new URLSearchParams(window.location.search).get('watch');
+      if (wId) {
+        // Save as followed match and clean URL so the app routes to FOLLOW_MATCH
+        localStorage.setItem('22Y_FOLLOWING_MATCH', wId);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      return wId;
+    } catch { return null; }
   });
   const [resumeMatchId] = useState<string | null>(() => {
     try { return new URLSearchParams(window.location.search).get('resume'); } catch { return null; }
@@ -318,10 +332,9 @@ const App: React.FC = () => {
     return <SplashScreen onComplete={() => setIsReady(true)} />;
   }
 
-  /* ── Spectator mode: ?watch=MATCH_ID - no login required ── */
-  if (watchMatchId) {
-    return <LiveScoreboard matchId={watchMatchId} />;
-  }
+  /* ── Spectator mode: ?watch=MATCH_ID — saved as followed match, routed into app ── */
+  // watchMatchId is consumed at init: saved to 22Y_FOLLOWING_MATCH & URL cleaned.
+  // Logged-in users start on FOLLOW_MATCH; others log in first, then see the circle on Dugout.
 
   if (!userData) {
     return <Login onLogin={handleLogin} />;
