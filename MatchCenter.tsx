@@ -254,9 +254,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   } | null>(null);
 
   useEffect(() => {
+    // Don't persist match state when we've handed off scoring to another device
+    if (forcedSpectatorMode) return;
     // Always save — including COMPLETED so we know the match is done
     localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify(match));
-  }, [match]);
+  }, [match, forcedSpectatorMode]);
 
   // Handle incoming transfer/spectate via URL parameters
   useEffect(() => {
@@ -368,6 +370,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         return;
       }
       console.log('[MatchCenter] Transfer accepted (broadcast) by:', payload?.acceptedBy);
+      // Clear active match from localStorage so re-mounting shows fresh CONFIG, not old scoreboard
+      localStorage.removeItem('22YARDS_ACTIVE_MATCH');
       setForcedSpectatorMode(match.matchId);
     });
     ch.subscribe();
@@ -392,6 +396,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           if (data.acceptedAt && Date.now() - data.acceptedAt < 60000) {
             console.log('[MatchCenter] Transfer accepted (localStorage) by:', data.acceptedBy);
             localStorage.removeItem(`22Y_TRANSFER_ACCEPTED_${match.matchId}`);
+            // Clear active match so re-mounting shows fresh CONFIG, not old scoreboard
+            localStorage.removeItem('22YARDS_ACTIVE_MATCH');
             setForcedSpectatorMode(match.matchId);
           } else {
             // Stale flag — clean it up
