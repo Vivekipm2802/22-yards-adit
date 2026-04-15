@@ -4084,7 +4084,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* SCORING BUTTONS */}
-              <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
+              <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar p-2 gap-1.5">
                 {/* Row 1: 0, 1, 4, WD */}
                 <div className="grid grid-cols-4 gap-1.5">
                   <button
