@@ -865,6 +865,29 @@
         html[data-theme="light"] .border-\[\#39FF14\]\/30 {
             border-color: rgba(204,16,16,0.3) !important;
         }
+    
+    /* ====== LIGHT MODE: SCANNER MODAL GRADIENT FIXES ================================= */
+    /* Team Share QR Modal: from-[#08080C] via-[#0A0A12] to-[#050508] */
+    html[data-theme="light"] .from-\[\#08080C\] {
+      --tw-gradient-from: #ffffff !important;
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(255,255,255,0)) !important;
+    }
+    html[data-theme="light"] .via-\[\#0A0A12\] {
+      --tw-gradient-stops: var(--tw-gradient-from), #f8fafc, var(--tw-gradient-to) !important;
+    }
+    html[data-theme="light"] .to-\[\#050508\] {
+      --tw-gradient-to: #f1f5f9 !important;
+    }
+    /* Team Import Confirm Dialog: from-[#0A0A10] to-[#050508] */
+    html[data-theme="light"] .from-\[\#0A0A10\] {
+      --tw-gradient-from: #ffffff !important;
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(255,255,255,0)) !important;
+    }
+    /* Border orange on import confirm */
+    html[data-theme="light"] .border-\[\#FF6D00\]\/20 {
+      border-color: rgba(204,16,16,0.2) !important;
+    }
+
     </style>
 </head>
 <body>
