@@ -18,6 +18,12 @@ export interface Player {
   isRegistered?: boolean;
   isCaptain?: boolean;
   isWicketKeeper?: boolean;
+  isOut?: boolean;
+  isRetired?: boolean;
+  wicketType?: string;
+  battingStyle?: string;
+  bowlingStyle?: string;
+  role?: string;
 }
 
 export interface Team {
