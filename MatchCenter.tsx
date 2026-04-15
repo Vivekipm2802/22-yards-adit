@@ -2489,6 +2489,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 flex flex-col"
                 >
                   <div className="space-y-3">
@@ -2584,6 +2585,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-32"
                 >
                   <div className="space-y-3">
@@ -2861,6 +2863,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32"
                 >
                   <div className="space-y-3">
