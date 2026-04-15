@@ -429,14 +429,14 @@ const App: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-hidden relative">
-          {transferDirect && activePage === 'MATCH_CENTER' ? (
+          {activePage === 'MATCH_CENTER' ? (
             /* Transfer bypass: render MatchCenter directly without AnimatePresence
                to avoid the race condition between overlay exit and page transition */
             <div className="h-full w-full">
               <MCErrorBoundary>
                 <MatchCenter
-                  onBack={() => { setTransferDirect(false); setActivePage('DUGOUT'); }}
-                  onNavigate={(page) => { setTransferDirect(false); setActivePage(page as Page); }}
+                  onBack={() => { setActivePage('DUGOUT'); }}
+                  onNavigate={(page) => { setActivePage(page as Page); }}
                 />
               </MCErrorBoundary>
             </div>
