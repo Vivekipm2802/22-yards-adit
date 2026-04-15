@@ -64,7 +64,7 @@ export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTOR
 const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
   const [userData, setUserData] = useState<any | null>(null);
-  const [activePage, setActivePage] = useState<Page>(() => {
+  const [activePage, _setActivePage] = useState<Page>(() => {
     // If opened via ?watch= link, start on FOLLOW_MATCH (the ID is already saved to localStorage)
     try {
       if (new URLSearchParams(window.location.search).get('watch')) return 'FOLLOW_MATCH';
@@ -72,6 +72,30 @@ const App: React.FC = () => {
     return 'DUGOUT';
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // ═══ BROWSER BACK BUTTON SUPPORT ═══
+  const setActivePage = React.useCallback((page: Page | ((prev: Page) => Page)) => {
+    _setActivePage((prev) => {
+      const next = typeof page === 'function' ? page(prev) : page;
+      if (next !== prev) {
+        window.history.pushState({ page: next }, '', window.location.pathname + window.location.search);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState({ page: 'DUGOUT' }, '', window.location.pathname + window.location.search);
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.page) {
+        _setActivePage(e.state.page as Page);
+      } else {
+        _setActivePage('DUGOUT');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   /* ── URL params: ?watch=MATCH_ID or ?resume=MATCH_ID ── */
   const [watchMatchId] = useState<string | null>(() => {
