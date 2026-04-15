@@ -29,7 +29,7 @@ const Archive: React.FC = () => {
 
       // FIX (Bug 2): merge cloud archive_vault so guests who signed up after a match
       // (or log in on a new device) still see their match history.
-      const localHist = vaultData?.history || [];
+      const localHist = (vaultData?.history || []).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
 
       // BUG A FIX: Create merged history upfront to avoid race condition
       // where team extraction uses only local history before cloud merges
@@ -45,8 +45,9 @@ const Archive: React.FC = () => {
         mergedHistForTeams = merged;  // Update reference for team extraction
         setHistory(merged);
       }).catch(() => {
-        mergedHistForTeams = localHist;
-        setHistory(localHist);
+        const sorted = [...localHist].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+        mergedHistForTeams = sorted;
+        setHistory(sorted);
       });
 
       if (vaultData) {
