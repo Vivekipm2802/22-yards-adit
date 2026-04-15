@@ -174,6 +174,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [addPlayerName, setAddPlayerName] = useState('');
   const [addPlayerPhone, setAddPlayerPhone] = useState('');
 
+  // Player action menu (tap on player name in live scorecard)
+  const [playerActionMenu, setPlayerActionMenu] = useState<{
+    open: boolean;
+    playerId: string | null;
+    role: 'STRIKER' | 'NON_STRIKER' | 'BOWLER' | null;
+  }>({ open: false, playerId: null, role: null });
+
   // Summary reveal animation state
   const [summaryPhase, setSummaryPhase] = useState<'SKELETON' | 'COUNTING' | 'REVEAL' | 'READY'>('SKELETON');
   const [countingRuns, setCountingRuns] = useState({ inn1: 0, inn2: 0 });
@@ -3961,9 +3968,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       <div className="w-7 h-7 flex items-center justify-center rounded-full bg-[#00F0FF]/20">
                         <Zap size={16} className="text-[#00F0FF]" />
                       </div>
-                      <div className="flex-1 font-black text-white uppercase min-w-0 truncate">
+                      <button
+                        type="button"
+                        onClick={() => setPlayerActionMenu({ open: true, playerId: striker.id, role: 'STRIKER' })}
+                        className="flex-1 font-black text-white uppercase min-w-0 truncate text-left active:text-[#00F0FF] transition-colors"
+                      >
                         {striker.name}
-                      </div>
+                      </button>
                       <div className="font-numbers font-black text-white/80 text-right">
                         {striker.runs || 0}
                       </div>
@@ -3987,9 +3998,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <div className="mb-2">
                     <div className="flex items-center gap-3 text-xs text-white/60">
                       <div className="w-5" />
-                      <div className="flex-1 font-black uppercase min-w-0 truncate">
+                      <button
+                        type="button"
+                        onClick={() => setPlayerActionMenu({ open: true, playerId: nonStriker.id, role: 'NON_STRIKER' })}
+                        className="flex-1 font-black uppercase min-w-0 truncate text-left active:text-[#00F0FF] transition-colors"
+                      >
                         {nonStriker.name}
-                      </div>
+                      </button>
                       <div className="font-numbers font-black text-right">
                         {nonStriker.runs || 0}
                       </div>
@@ -4018,9 +4033,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {bowler && (
                 <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01]">
                   <div className="flex items-center gap-3 text-sm mb-2">
-                    <div className="flex-1 font-black text-white uppercase min-w-0 truncate">
+                    <button
+                      type="button"
+                      onClick={() => setPlayerActionMenu({ open: true, playerId: bowler.id, role: 'BOWLER' })}
+                      className="flex-1 font-black text-white uppercase min-w-0 truncate text-left active:text-[#00F0FF] transition-colors"
+                    >
                       {bowler.name}
-                    </div>
+                    </button>
                     <div className="font-numbers font-black text-white/80">
                       {bowlerOvers} ov
                     </div>
@@ -4247,6 +4266,229 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   PREVIEW SCORECARD
                 </button>
               </div>
+
+              {/* PLAYER ACTION MENU — Tap on player name */}
+              <AnimatePresence>
+                {playerActionMenu.open && (() => {
+                  const actionPlayer = playerActionMenu.playerId ? getPlayer(playerActionMenu.playerId) : null;
+                  if (!actionPlayer) return null;
+                  const isBatsman = playerActionMenu.role === 'STRIKER' || playerActionMenu.role === 'NON_STRIKER';
+                  const isBowler = playerActionMenu.role === 'BOWLER';
+                  const hasFacedBalls = (actionPlayer.balls || 0) > 0 || (actionPlayer.runs || 0) > 0;
+                  const hasBowled = (actionPlayer.balls_bowled || 0) > 0;
+                  const battingTeamObj = getTeamObj(match.teams.battingTeamId);
+                  const bowlingTeamObj = getTeamObj(match.teams.bowlingTeamId);
+                  const availableReplacements = isBatsman
+                    ? (battingTeamObj?.squad || []).filter(p =>
+                        p.id !== match.crease.strikerId &&
+                        p.id !== match.crease.nonStrikerId &&
+                        !p.isOut &&
+                        !p.isRetired
+                      )
+                    : (bowlingTeamObj?.squad || []).filter(p =>
+                        p.id !== match.crease.bowlerId &&
+                        p.id !== match.crease.previousBowlerId
+                      );
+                  const retiredPlayers = isBatsman
+                    ? (battingTeamObj?.squad || []).filter(p => p.isRetired && !p.isOut)
+                    : [];
+
+                  return (
+                    <motion.div
+                      key="player-action-menu"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setPlayerActionMenu({ open: false, playerId: null, role: null })}
+                      className="fixed inset-0 z-[6000] bg-black/80 backdrop-blur-sm flex items-end justify-center"
+                    >
+                      <motion.div
+                        initial={{ y: 200 }}
+                        animate={{ y: 0 }}
+                        exit={{ y: 200 }}
+                        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-lg bg-[#0A0A0A] border-t border-white/10 rounded-t-[28px] overflow-hidden max-h-[70vh] flex flex-col"
+                      >
+                        <div className="px-5 pt-5 pb-3 border-b border-white/5">
+                          <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-3" />
+                          <h3 className="font-heading text-lg uppercase italic text-white text-center">{actionPlayer.name}</h3>
+                          <p className="text-[9px] text-white/40 text-center uppercase tracking-wider mt-1">
+                            {isBatsman ? `${actionPlayer.runs || 0} (${actionPlayer.balls || 0})` : `${Math.floor((actionPlayer.balls_bowled || 0) / 6)}.${(actionPlayer.balls_bowled || 0) % 6} ov | ${actionPlayer.runs_conceded || 0}r | ${actionPlayer.wickets || 0}w`}
+                          </p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                          {isBatsman && !hasFacedBalls && (
+                            <>
+                              <p className="text-[9px] font-black text-[#FF6D00] uppercase tracking-[0.2em] px-1 mb-1">Replace (Wrong Player Selected)</p>
+                              {availableReplacements.length > 0 ? availableReplacements.map(p => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => {
+                                    const creaseKey = playerActionMenu.role === 'STRIKER' ? 'strikerId' : 'nonStrikerId';
+                                    setMatch(m => ({
+                                      ...m,
+                                      crease: { ...m.crease, [creaseKey]: p.id }
+                                    }));
+                                    setPlayerActionMenu({ open: false, playerId: null, role: null });
+                                  }}
+                                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:border-[#00F0FF]/30 transition-all active:scale-[0.98]"
+                                >
+                                  <ArrowLeftRight size={14} className="text-[#FF6D00] shrink-0" />
+                                  <span className="font-black text-white text-sm uppercase truncate">{p.name}</span>
+                                </button>
+                              )) : (
+                                <p className="text-[10px] text-white/30 px-1">No available replacements in squad</p>
+                              )}
+                            </>
+                          )}
+                          {isBowler && !hasBowled && (
+                            <>
+                              <p className="text-[9px] font-black text-[#FF6D00] uppercase tracking-[0.2em] px-1 mb-1">Replace Bowler</p>
+                              {availableReplacements.length > 0 ? availableReplacements.map(p => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => {
+                                    setMatch(m => ({
+                                      ...m,
+                                      crease: { ...m.crease, bowlerId: p.id }
+                                    }));
+                                    setPlayerActionMenu({ open: false, playerId: null, role: null });
+                                  }}
+                                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:border-[#00F0FF]/30 transition-all active:scale-[0.98]"
+                                >
+                                  <ArrowLeftRight size={14} className="text-[#FF6D00] shrink-0" />
+                                  <span className="font-black text-white text-sm uppercase truncate">{p.name}</span>
+                                </button>
+                              )) : (
+                                <p className="text-[10px] text-white/30 px-1">No available replacements</p>
+                              )}
+                            </>
+                          )}
+
+                          {isBatsman && hasFacedBalls && (
+                            <>
+                              <p className="text-[9px] font-black text-[#BC13FE] uppercase tracking-[0.2em] px-1 mb-1">Retire Batsman</p>
+                              <button
+                                onClick={() => {
+                                  const teamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+                                  const creaseKey = playerActionMenu.role === 'STRIKER' ? 'strikerId' : 'nonStrikerId';
+                                  setMatch(m => ({
+                                    ...m,
+                                    teams: {
+                                      ...m.teams,
+                                      [teamKey]: {
+                                        ...m.teams[teamKey],
+                                        squad: m.teams[teamKey].squad.map(p =>
+                                          p.id === actionPlayer.id ? { ...p, isRetired: true } : p
+                                        )
+                                      }
+                                    },
+                                    crease: { ...m.crease, [creaseKey]: null }
+                                  }));
+                                  setSelectionTarget('NEW_BATSMAN');
+                                  setPlayerActionMenu({ open: false, playerId: null, role: null });
+                                }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#BC13FE]/10 border border-[#BC13FE]/30 hover:bg-[#BC13FE]/20 transition-all active:scale-[0.98]"
+                              >
+                                <Shield size={14} className="text-[#BC13FE] shrink-0" />
+                                <div className="text-left">
+                                  <span className="font-black text-white text-sm uppercase">Retire Hurt</span>
+                                  <p className="text-[8px] text-white/40 mt-0.5">Player can return when a wicket falls</p>
+                                </div>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  const teamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+                                  const creaseKey = playerActionMenu.role === 'STRIKER' ? 'strikerId' : 'nonStrikerId';
+                                  setMatch(m => ({
+                                    ...m,
+                                    teams: {
+                                      ...m.teams,
+                                      [teamKey]: {
+                                        ...m.teams[teamKey],
+                                        squad: m.teams[teamKey].squad.map(p =>
+                                          p.id === actionPlayer.id ? { ...p, isRetired: true, isOut: true, wicketType: 'Retired Out' } : p
+                                        )
+                                      }
+                                    },
+                                    crease: { ...m.crease, [creaseKey]: null },
+                                    liveScore: { ...m.liveScore, wickets: m.liveScore.wickets + 1 }
+                                  }));
+                                  setSelectionTarget('NEW_BATSMAN');
+                                  setPlayerActionMenu({ open: false, playerId: null, role: null });
+                                }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#FF003C]/10 border border-[#FF003C]/30 hover:bg-[#FF003C]/20 transition-all active:scale-[0.98]"
+                              >
+                                <X size={14} className="text-[#FF003C] shrink-0" />
+                                <div className="text-left">
+                                  <span className="font-black text-white text-sm uppercase">Retired Out</span>
+                                  <p className="text-[8px] text-white/40 mt-0.5">Permanent — counts as a wicket</p>
+                                </div>
+                              </button>
+                            </>
+                          )}
+
+                          {retiredPlayers.length > 0 && isBatsman && (
+                            <>
+                              <div className="mt-3 pt-3 border-t border-white/10">
+                                <p className="text-[9px] font-black text-[#39FF14] uppercase tracking-[0.2em] px-1 mb-1">Bring Back Retired Player</p>
+                              </div>
+                              {retiredPlayers.map(p => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => {
+                                    const teamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+                                    const creaseKey = playerActionMenu.role === 'STRIKER' ? 'strikerId' : 'nonStrikerId';
+                                    setMatch(m => ({
+                                      ...m,
+                                      teams: {
+                                        ...m.teams,
+                                        [teamKey]: {
+                                          ...m.teams[teamKey],
+                                          squad: m.teams[teamKey].squad.map(pl =>
+                                            pl.id === p.id ? { ...pl, isRetired: false } : pl
+                                          )
+                                        }
+                                      },
+                                      crease: { ...m.crease, [creaseKey]: p.id }
+                                    }));
+                                    setPlayerActionMenu({ open: false, playerId: null, role: null });
+                                  }}
+                                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 hover:bg-[#39FF14]/20 transition-all active:scale-[0.98]"
+                                >
+                                  <RefreshCcw size={14} className="text-[#39FF14] shrink-0" />
+                                  <div className="text-left flex-1">
+                                    <span className="font-black text-white text-sm uppercase truncate">{p.name}</span>
+                                    <p className="text-[8px] text-white/40 mt-0.5">{p.runs || 0}({p.balls || 0}) — Retired Hurt</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </>
+                          )}
+
+                          {isBatsman && hasFacedBalls && (
+                            <p className="text-[8px] text-white/20 text-center mt-2 px-2">
+                              Replace is only available before the batsman faces their first ball
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="p-4 border-t border-white/5">
+                          <button
+                            onClick={() => setPlayerActionMenu({ open: false, playerId: null, role: null })}
+                            className="w-full py-3 rounded-xl bg-white/5 border border-white/10 font-black text-[11px] uppercase text-white hover:bg-white/10 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
 
               {/* SCORECARD PREVIEW OVERLAY */}
               <AnimatePresence>
