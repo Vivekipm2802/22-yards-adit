@@ -6117,6 +6117,121 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* ═══ TEAM IDENTITY — Name & Logo Editor ═══ */}
+                <div className="space-y-4 p-4 rounded-[24px] bg-white/5 border border-white/10">
+                  <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">Team Identity</p>
+
+                  {/* Logo upload / change */}
+                  <div className="flex items-center gap-4">
+                    <motion.label
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#00F0FF]/40 cursor-pointer transition-all flex items-center justify-center overflow-hidden shrink-0 group"
+                    >
+                      {getTeamObj(editingTeamId)?.logo ? (
+                        <>
+                          <img src={getTeamObj(editingTeamId)?.logo} className="w-full h-full object-cover" alt="Team logo" />
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera size={18} className="text-white" />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <Camera size={20} className="text-white/30" />
+                          <span className="text-[7px] text-white/25 uppercase tracking-wider font-black">Logo</span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const key = editingTeamId === 'A' ? 'teamA' : 'teamB';
+                              setMatch(m => ({
+                                ...m,
+                                teams: {
+                                  ...m.teams,
+                                  [key]: {
+                                    ...m.teams[key],
+                                    logo: event.target?.result as string
+                                  }
+                                }
+                              }));
+                            };
+                            reader.readAsDataURL(e.target.files[0]);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </motion.label>
+
+                    <div className="flex-1 space-y-2">
+                      <label className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Team Name</label>
+                      {editingTeamNameId === editingTeamId ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            defaultValue={getTeamObj(editingTeamId)?.name || ''}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                                if (val) {
+                                  const key = editingTeamId === 'A' ? 'teamA' : 'teamB';
+                                  setMatch(m => ({
+                                    ...m,
+                                    teams: { ...m.teams, [key]: { ...m.teams[key], name: val } }
+                                  }));
+                                }
+                                setEditingTeamNameId(null);
+                              }
+                              if (e.key === 'Escape') setEditingTeamNameId(null);
+                            }}
+                            onBlur={(e) => {
+                              const val = e.target.value.trim().toUpperCase();
+                              if (val) {
+                                const key = editingTeamId === 'A' ? 'teamA' : 'teamB';
+                                setMatch(m => ({
+                                  ...m,
+                                  teams: { ...m.teams, [key]: { ...m.teams[key], name: val } }
+                                }));
+                              }
+                              setEditingTeamNameId(null);
+                            }}
+                            className="flex-1 bg-white/10 border border-[#00F0FF]/30 rounded-xl px-3 py-2 text-white font-black uppercase text-sm outline-none focus:border-[#00F0FF] placeholder:text-white/25"
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setEditingTeamNameId(editingTeamId)}
+                          className="w-full flex items-center justify-between px-3 py-2 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all group"
+                        >
+                          <span className="font-black text-white uppercase text-sm truncate">{getTeamObj(editingTeamId)?.name || 'Unnamed'}</span>
+                          <Edit2 size={12} className="text-white/20 group-hover:text-[#00F0FF] shrink-0 ml-2 transition-colors" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Remove logo button if one exists */}
+                  {getTeamObj(editingTeamId)?.logo && (
+                    <button
+                      onClick={() => {
+                        const key = editingTeamId === 'A' ? 'teamA' : 'teamB';
+                        setMatch(m => ({
+                          ...m,
+                          teams: { ...m.teams, [key]: { ...m.teams[key], logo: undefined } }
+                        }));
+                      }}
+                      className="text-[9px] font-black text-[#FF003C]/60 hover:text-[#FF003C] uppercase tracking-wider transition-colors"
+                    >
+                      Remove Logo
+                    </button>
+                  )}
+                </div>
+
                 {/* Current Squad */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
