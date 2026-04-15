@@ -246,6 +246,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }
       if (selectionTarget === 'BOWLER' && status === 'OPENERS') {
         e.preventDefault();
+        skipHistoryPushRef.current = true;
         setSelectionTarget('NON_STRIKER');
         setMatch(m => ({ ...m, crease: { ...m.crease, bowlerId: null } }));
         window.history.pushState({ mc: true }, '');
@@ -253,6 +254,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }
       if (selectionTarget === 'NON_STRIKER' && status === 'OPENERS') {
         e.preventDefault();
+        skipHistoryPushRef.current = true;
         setSelectionTarget('STRIKER');
         setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: null } }));
         window.history.pushState({ mc: true }, '');
@@ -260,6 +262,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }
       if (selectionTarget === 'STRIKER' && status === 'OPENERS') {
         e.preventDefault();
+        skipHistoryPushRef.current = true;
         setStatus('CONFIG');
         setSelectionTarget(null);
         setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: null }, status: 'CONFIG' }));
@@ -268,6 +271,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }
       if (status === 'CONFIG' && configStep > 1) {
         e.preventDefault();
+        skipHistoryPushRef.current = true;
         setConfigStep(s => s - 1);
         window.history.pushState({ mc: true }, '');
         return;
@@ -446,14 +450,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const prevStatusRef = useRef(status);
   const prevConfigStepRef = useRef(configStep);
   const prevSelectionRef = useRef(selectionTarget);
+  const skipHistoryPushRef = useRef(false);
   useEffect(() => {
     const changed = status !== prevStatusRef.current || configStep !== prevConfigStepRef.current || selectionTarget !== prevSelectionRef.current;
-    if (changed) {
+    if (changed && !skipHistoryPushRef.current) {
       window.history.pushState({ mc: true }, '');
-      prevStatusRef.current = status;
-      prevConfigStepRef.current = configStep;
-      prevSelectionRef.current = selectionTarget;
     }
+    skipHistoryPushRef.current = false;
+    prevStatusRef.current = status;
+    prevConfigStepRef.current = configStep;
+    prevSelectionRef.current = selectionTarget;
   }, [status, configStep, selectionTarget]);
 
   // Keep match.status in sync with the UI status state
