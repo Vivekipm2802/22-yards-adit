@@ -2481,15 +2481,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         {/* CONFIG SCREEN - CRICHEROS STYLE 3-STEP FLOW */}
         {status === 'CONFIG' && (
           <div className="flex-1 flex flex-col h-full overflow-hidden">
-            <AnimatePresence mode="wait">
+            <>
               {/* STEP 1: MATCH MODE SELECTION (Individual vs Tournament) */}
               {configStep === 1 && (
-                <motion.div
-                  key="step1"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.25 }}
+                <div
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 flex flex-col"
                 >
                   <div className="space-y-3">
@@ -2574,18 +2569,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       </div>
                     </motion.div>
                   )}
-                </motion.div>
+                </div>
               )}
 
               {/* STEP 2: MATCH DETAILS (Single scrollable screen with all config) */}
               {/* STEP 3: MATCH DETAILS */}
               {configStep === 3 && (
-                <motion.div
-                  key="step3-details"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.25 }}
+                <div
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-32"
                 >
                   <div className="space-y-3">
@@ -2853,17 +2843,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       ))}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
 
               {/* STEP 2: PREMIUM TEAM SELECTION */}
               {configStep === 2 && (
-                <motion.div
-                  key="step2-teams"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.25 }}
+                <div
                   className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32"
                 >
                   <div className="space-y-3">
@@ -3328,9 +3313,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
+            </>
 
             {/* CONFIG FOOTER - NAVIGATION */}
             <div className="p-6 bg-[#050505] border-t border-white/5 z-[200] shrink-0 pb-10 shadow-[0_-20px_60px_rgba(0,0,0,0.9)] flex gap-3">
