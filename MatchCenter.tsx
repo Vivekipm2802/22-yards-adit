@@ -170,6 +170,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
   // Add Player Mid-Match
   const [showAddPlayer, setShowAddPlayer] = useState<{ open: boolean; team: 'batting' | 'bowling' | null }>({ open: false, team: null });
+  const [showScorecardPreview, setShowScorecardPreview] = useState(false);
   const [addPlayerName, setAddPlayerName] = useState('');
   const [addPlayerPhone, setAddPlayerPhone] = useState('');
 
@@ -3892,8 +3893,17 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {/* TOP STATUS BAR */}
               <div className="shrink-0 px-4 py-4 bg-black/60 backdrop-blur border-b border-white/5">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-base font-black text-white/60 uppercase tracking-wider">
-                    {getTeamInitials(battingTeamName)}
+                  <div className="flex items-center gap-1">
+                    <div className="text-base font-black text-white/60 uppercase tracking-wider">
+                      {getTeamInitials(battingTeamName)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPlayer({ open: true, team: 'batting' })}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all score-btn-plus"
+                    >
+                      <Plus size={12} />
+                    </button>
                   </div>
                   <div className="text-center">
                     <div className={`font-numbers text-5xl font-black ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-[#00F0FF]'}`}>
@@ -3903,8 +3913,17 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       {overs}.{ballsInOver}/{match.currentInnings === 1 ? (match.config.reducedOvers1 || match.config.overs) : (match.config.reducedOvers2 || match.config.overs)} ov | CRR {crr}
                     </div>
                   </div>
-                  <div className="text-base font-black text-white/60 uppercase tracking-wider">
-                    {getTeamInitials(bowlingTeamName)}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPlayer({ open: true, team: 'bowling' })}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all score-btn-plus"
+                    >
+                      <Plus size={12} />
+                    </button>
+                    <div className="text-base font-black text-white/60 uppercase tracking-wider">
+                      {getTeamInitials(bowlingTeamName)}
+                    </div>
                   </div>
                 </div>
                 {match.currentInnings === 2 && target > 0 && (
@@ -4179,11 +4198,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 </div>
 
                 {/* Row 4: WICKET, SWAP, UNDO */}
-                <div className="grid grid-cols-4 gap-1.5 mt-auto">
+              </div>
+
+
+              {/* BOTTOM ACTION BAR: WICKET, SWAP, UNDO + PREVIEW */}
+              <div className="shrink-0 px-2 pb-2 pt-1 space-y-1">
+                <div className="grid grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => setWicketWizard({ open: true })}
-                    className="col-span-2 min-h-[34px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-lg border border-[#FF003C]/60 active:scale-95 transition-all select-none touch-manipulation"
+                    className="col-span-2 h-[40px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-lg border border-[#FF003C]/60 active:scale-95 transition-all select-none touch-manipulation text-sm"
                   >
                     WICKET
                   </button>
@@ -4195,7 +4219,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         crease: { ...m.crease, strikerId: m.crease.nonStrikerId, nonStrikerId: m.crease.strikerId }
                       }));
                     }}
-                    className="min-h-[34px] bg-[#4DB6AC]/20 hover:bg-[#4DB6AC]/30 text-[#4DB6AC] font-black rounded-lg border border-[#4DB6AC]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="h-[40px] bg-[#4DB6AC]/20 hover:bg-[#4DB6AC]/30 text-[#4DB6AC] font-black rounded-lg border border-[#4DB6AC]/40 active:scale-95 transition-all select-none touch-manipulation text-xs"
                   >
                     SWAP
                   </button>
@@ -4203,12 +4227,213 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     type="button"
                     onClick={handleUndo}
                     disabled={!match.history || match.history.length === 0}
-                    className="min-h-[34px] bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="h-[40px] bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs"
                   >
                     UNDO
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowScorecardPreview(true)}
+                  className={`w-full h-[42px] font-black rounded-lg border active:scale-[0.98] transition-all select-none touch-manipulation text-sm flex items-center justify-center gap-2 score-btn-preview ${
+                    fireMode
+                      ? 'bg-[#FF6D00]/20 text-[#FF6D00] border-[#FF6D00]/40 hover:bg-[#FF6D00]/30'
+                      : iceMode
+                      ? 'bg-[#80D8FF]/20 text-[#80D8FF] border-[#80D8FF]/40 hover:bg-[#80D8FF]/30'
+                      : 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30 hover:bg-[#00F0FF]/25'
+                  }`}
+                >
+                  <ClipboardList size={16} />
+                  PREVIEW SCORECARD
+                </button>
               </div>
+
+              {/* SCORECARD PREVIEW OVERLAY */}
+              <AnimatePresence>
+                {showScorecardPreview && (() => {
+                  const battingTeam = getTeamObj(match.teams.battingTeamId);
+                  const bowlingTeam = getTeamObj(match.teams.bowlingTeamId);
+                  const battingSquad = battingTeam?.squad || [];
+                  const bowlingSquad = bowlingTeam?.squad || [];
+                  const inningsHistory = (match.history || []).filter(b => b.innings === match.currentInnings);
+
+                  const battedPlayers = battingSquad.filter(p => (p.balls || 0) > 0 || (p.runs || 0) > 0 || p.isOut);
+                  const yetToBat = battingSquad.filter(p => !p.isOut && (p.balls || 0) === 0 && (p.runs || 0) === 0 && p.id !== match.crease.strikerId && p.id !== match.crease.nonStrikerId);
+
+                  const bowlers = bowlingSquad.filter(p => (p.balls_bowled || 0) > 0);
+
+                  const partnerships: { batsman1: string; batsman2: string; runs: number; balls: number }[] = [];
+                  let pRuns = 0, pBalls = 0, pBat1 = '', pBat2 = '';
+                  for (const ball of inningsHistory) {
+                    const s = ball.strikerId ? (battingSquad.find(p => p.id === ball.strikerId)?.name || '?') : '?';
+                    const ns = ball.nonStrikerId ? (battingSquad.find(p => p.id === ball.nonStrikerId)?.name || '?') : '?';
+                    if (!pBat1) { pBat1 = s; pBat2 = ns; }
+                    const isLegal = !ball.type || ball.type === 'LEGAL' || ball.type === 'BYE' || ball.type === 'LB';
+                    pRuns += (ball.runsScored || 0) + (ball.type === 'WD' || ball.type === 'NB' ? 1 : 0);
+                    if (isLegal) pBalls++;
+                    if (ball.isWicket) {
+                      partnerships.push({ batsman1: pBat1, batsman2: pBat2, runs: pRuns, balls: pBalls });
+                      pRuns = 0; pBalls = 0; pBat1 = ''; pBat2 = '';
+                    }
+                  }
+                  if (pBalls > 0 || pRuns > 0) partnerships.push({ batsman1: pBat1, batsman2: pBat2, runs: pRuns, balls: pBalls });
+
+                  const fowList: { wicket: number; runs: number; overs: string; player: string }[] = [];
+                  let fowRuns = 0, fowLegalBalls = 0, fowWickets = 0;
+                  for (const ball of inningsHistory) {
+                    fowRuns += (ball.runsScored || 0) + (ball.type === 'WD' || ball.type === 'NB' ? 1 : 0);
+                    const isLegal = !ball.type || ball.type === 'LEGAL' || ball.type === 'BYE' || ball.type === 'LB';
+                    if (isLegal) fowLegalBalls++;
+                    if (ball.isWicket) {
+                      fowWickets++;
+                      const ov = Math.floor(fowLegalBalls / 6);
+                      const bl = fowLegalBalls % 6;
+                      const outPlayer = ball.strikerId ? (battingSquad.find(p => p.id === ball.strikerId)?.name || '?') : '?';
+                      fowList.push({ wicket: fowWickets, runs: fowRuns, overs: `${ov}.${bl}`, player: outPlayer });
+                    }
+                  }
+
+                  const previewAccent = fireMode ? '#FF6D00' : iceMode ? '#80D8FF' : '#00F0FF';
+
+                  return (
+                    <motion.div
+                      key="scorecard-preview"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setShowScorecardPreview(false)}
+                      className="fixed inset-0 z-[5000] bg-black/95 backdrop-blur-sm flex items-start justify-center overflow-y-auto"
+                    >
+                      <motion.div
+                        initial={{ y: 60, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 60, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-lg my-4 mx-2 bg-[#0A0A0A] border border-white/10 rounded-2xl overflow-hidden shadow-2xl scorecard-preview-panel"
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ backgroundColor: `${previewAccent}15` }}>
+                          <h3 className="font-black text-base uppercase" style={{ color: previewAccent }}>
+                            Live Scorecard
+                          </h3>
+                          <button onClick={() => setShowScorecardPreview(false)} className="p-1 text-white/40 hover:text-white">
+                            <X size={18} />
+                          </button>
+                        </div>
+
+                        {/* BATTING */}
+                        <div className="px-3 pt-3 pb-1">
+                          <div className="text-[10px] font-black uppercase tracking-wider text-white/40 mb-2">
+                            {battingTeam?.name || 'Batting'} — {match.liveScore.runs}/{match.liveScore.wickets}
+                          </div>
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="text-white/30 border-b border-white/5">
+                                <th className="text-left py-1 font-black">BATTER</th>
+                                <th className="text-right py-1 w-8 font-black">R</th>
+                                <th className="text-right py-1 w-8 font-black">B</th>
+                                <th className="text-right py-1 w-6 font-black">4s</th>
+                                <th className="text-right py-1 w-6 font-black">6s</th>
+                                <th className="text-right py-1 w-10 font-black">SR</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {battedPlayers.map(p => {
+                                const sr = (p.balls || 0) > 0 ? (((p.runs || 0) / (p.balls || 0)) * 100).toFixed(1) : '0.0';
+                                const isOnCrease = p.id === match.crease.strikerId || p.id === match.crease.nonStrikerId;
+                                const isStriker = p.id === match.crease.strikerId;
+                                return (
+                                  <tr key={p.id} className={`border-b border-white/5 ${isOnCrease ? 'text-white' : p.isOut ? 'text-white/40' : 'text-white/70'}`}>
+                                    <td className="py-1.5 text-left font-bold">
+                                      {p.name}{isStriker ? ' *' : isOnCrease ? ' ' : ''}{p.isOut ? '' : isOnCrease ? '' : ''}
+                                      {p.isOut && <span className="text-[9px] text-white/25 ml-1">{p.dismissalType || 'out'}</span>}
+                                    </td>
+                                    <td className="text-right font-black">{p.runs || 0}</td>
+                                    <td className="text-right text-white/50">{p.balls || 0}</td>
+                                    <td className="text-right text-white/50">{p.fours || 0}</td>
+                                    <td className="text-right text-white/50">{p.sixes || 0}</td>
+                                    <td className="text-right" style={{ color: previewAccent }}>{sr}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          {yetToBat.length > 0 && (
+                            <div className="text-[9px] text-white/25 mt-1">
+                              Yet to bat: {yetToBat.map(p => p.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* BOWLING */}
+                        <div className="px-3 pt-3 pb-1 border-t border-white/5">
+                          <div className="text-[10px] font-black uppercase tracking-wider text-white/40 mb-2">
+                            {bowlingTeam?.name || 'Bowling'}
+                          </div>
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="text-white/30 border-b border-white/5">
+                                <th className="text-left py-1 font-black">BOWLER</th>
+                                <th className="text-right py-1 w-10 font-black">O</th>
+                                <th className="text-right py-1 w-8 font-black">R</th>
+                                <th className="text-right py-1 w-6 font-black">W</th>
+                                <th className="text-right py-1 w-10 font-black">ECO</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {bowlers.map(p => {
+                                const bOv = `${Math.floor((p.balls_bowled || 0) / 6)}.${(p.balls_bowled || 0) % 6}`;
+                                const eco = (p.balls_bowled || 0) > 0 ? (((p.runs_conceded || 0) / (p.balls_bowled || 0)) * 6).toFixed(1) : '0.0';
+                                const isBowling = p.id === match.crease.bowlerId;
+                                return (
+                                  <tr key={p.id} className={`border-b border-white/5 ${isBowling ? 'text-white' : 'text-white/60'}`}>
+                                    <td className="py-1.5 text-left font-bold">{p.name}{isBowling ? ' *' : ''}</td>
+                                    <td className="text-right">{bOv}</td>
+                                    <td className="text-right">{p.runs_conceded || 0}</td>
+                                    <td className="text-right font-black" style={{ color: (p.wickets || 0) > 0 ? previewAccent : undefined }}>{p.wickets || 0}</td>
+                                    <td className="text-right text-white/50">{eco}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* PARTNERSHIPS */}
+                        {partnerships.length > 0 && (
+                          <div className="px-3 pt-3 pb-1 border-t border-white/5">
+                            <div className="text-[10px] font-black uppercase tracking-wider text-white/40 mb-2">Partnerships</div>
+                            <div className="space-y-1">
+                              {partnerships.map((p, i) => (
+                                <div key={i} className="flex items-center justify-between text-[10px] text-white/50">
+                                  <span className="truncate flex-1">{p.batsman1} & {p.batsman2}</span>
+                                  <span className="font-black text-white/70 ml-2">{p.runs}({p.balls}b)</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* FALL OF WICKETS */}
+                        {fowList.length > 0 && (
+                          <div className="px-3 pt-3 pb-3 border-t border-white/5">
+                            <div className="text-[10px] font-black uppercase tracking-wider text-white/40 mb-2">Fall of Wickets</div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/50">
+                              {fowList.map((f, i) => (
+                                <span key={i}>
+                                  <span className="font-black text-white/70">{f.runs}/{f.wicket}</span>
+                                  <span className="text-white/30"> ({f.player}, {f.overs} ov)</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
 
               {/* WICKET WIZARD */}
               <AnimatePresence>
