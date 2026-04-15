@@ -430,6 +430,22 @@
             background-color: rgba(15,23,42,0.5) !important;
         }
 
+        /* Scorecard / fullscreen overlays — must stay opaque so content doesn't bleed through */
+        html[data-theme="light"] .fixed.inset-0.bg-black\/95,
+        html[data-theme="light"] .fixed.inset-0.z-\[5000\].bg-black\/95 {
+            background-color: rgba(255,255,255,0.97) !important;
+            background: rgba(255,255,255,0.97) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+        }
+
+        /* Scorecard preview panel — white card in light mode */
+        html[data-theme="light"] .scorecard-preview-panel {
+            background-color: #ffffff !important;
+            border-color: rgba(15,23,42,0.12) !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+        }
+
         /* Squad editor / team modal: give the modal card a solid white bg with shadow */
         html[data-theme="light"] .bg-\[\#0A0A0A\].border {
             background-color: #ffffff !important;
