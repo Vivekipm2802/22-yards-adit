@@ -3890,20 +3890,20 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </AnimatePresence>
 
               {/* TOP STATUS BAR */}
-              <div className="shrink-0 px-4 py-3 bg-black/60 backdrop-blur border-b border-white/5">
+              <div className="shrink-0 px-4 py-4 bg-black/60 backdrop-blur border-b border-white/5">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[10px] font-black text-white/60 uppercase tracking-wider">
+                  <div className="text-base font-black text-white/60 uppercase tracking-wider">
                     {getTeamInitials(battingTeamName)}
                   </div>
                   <div className="text-center">
-                    <div className={`font-numbers text-2xl font-black ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-[#00F0FF]'}`}>
+                    <div className={`font-numbers text-5xl font-black ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-[#00F0FF]'}`}>
                       {match.liveScore.runs}/{match.liveScore.wickets}
                     </div>
-                    <div className={`text-[9px] ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/80' : 'text-white/50'}`}>
+                    <div className={`text-sm ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/80' : 'text-white/50'}`}>
                       {overs}.{ballsInOver}/{match.currentInnings === 1 ? (match.config.reducedOvers1 || match.config.overs) : (match.config.reducedOvers2 || match.config.overs)} ov | CRR {crr}
                     </div>
                   </div>
-                  <div className="text-[10px] font-black text-white/60 uppercase tracking-wider">
+                  <div className="text-base font-black text-white/60 uppercase tracking-wider">
                     {getTeamInitials(bowlingTeamName)}
                   </div>
                 </div>
@@ -3934,13 +3934,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* BATSMAN PANEL */}
-              <div className="shrink-0 px-4 py-3 border-b border-white/5 bg-white/[0.01]">
+              <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01]">
                 {/* Striker Row */}
                 {striker && (
                   <div className="mb-2 pb-2 border-b border-white/10">
-                    <div className="flex items-center gap-2 text-[9px]">
-                      <div className="w-5 h-5 flex items-center justify-center rounded-full bg-[#00F0FF]/20">
-                        <Zap size={12} className="text-[#00F0FF]" />
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="w-7 h-7 flex items-center justify-center rounded-full bg-[#00F0FF]/20">
+                        <Zap size={16} className="text-[#00F0FF]" />
                       </div>
                       <div className="flex-1 font-black text-white uppercase min-w-0 truncate">
                         {striker.name}
@@ -3966,7 +3966,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 {/* Non-Striker Row */}
                 {nonStriker && (
                   <div className="mb-2">
-                    <div className="flex items-center gap-2 text-[8px] text-white/60">
+                    <div className="flex items-center gap-3 text-xs text-white/60">
                       <div className="w-5" />
                       <div className="flex-1 font-black uppercase min-w-0 truncate">
                         {nonStriker.name}
@@ -3990,15 +3990,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   </div>
                 )}
                 {/* Partnership Band */}
-                <div className="text-[8px] px-2 py-1 rounded bg-gradient-to-r from-[#4DB6AC]/30 to-[#4DB6AC]/10 border border-[#4DB6AC]/20 text-white/70 font-black uppercase">
+                <div className="text-xs px-3 py-1.5 rounded bg-gradient-to-r from-[#4DB6AC]/30 to-[#4DB6AC]/10 border border-[#4DB6AC]/20 text-white/70 font-black uppercase">
                   P'ship: {partnershipRuns}({partnershipBallCount}b) | {wicketNumber}th Wkt
                 </div>
               </div>
 
               {/* BOWLER PANEL */}
               {bowler && (
-                <div className="shrink-0 px-4 py-3 border-b border-white/5 bg-white/[0.01]">
-                  <div className="flex items-center gap-2 text-[9px] mb-2">
+                <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01]">
+                  <div className="flex items-center gap-3 text-sm mb-2">
                     <div className="flex-1 font-black text-white uppercase min-w-0 truncate">
                       {bowler.name}
                     </div>
@@ -4021,14 +4021,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       style={{ width: `${Math.min(100, (bowlerOversComplete / bowlerMaxOvers) * 100)}%` }}
                     />
                   </div>
-                  <div className="text-[7px] text-white/60 mt-1 uppercase font-black">
+                  <div className="text-[10px] text-white/60 mt-1 uppercase font-black">
                     {bowlerOversComplete}/{bowlerMaxOvers} overs
                   </div>
                 </div>
               )}
 
               {/* CURRENT OVER TICKER */}
-              <div className="shrink-0 px-4 py-3 border-b border-white/5 bg-white/[0.01] flex justify-center gap-2">
+              <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01] flex justify-center gap-2">
                 {currentOverBalls.map((ball, idx) => {
                   let bgColor = 'bg-white/20';
                   let displayText = '0';
@@ -4056,7 +4056,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   return (
                     <div
                       key={idx}
-                      className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center text-[9px] font-black text-white/90`}
+                      className={`w-10 h-10 ${bgColor} rounded-full flex items-center justify-center text-xs font-black text-white/90`}
                     >
                       {displayText}
                     </div>
@@ -4065,34 +4065,34 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* SCORING BUTTONS */}
-              <div className="flex-1 flex flex-col overflow-hidden p-4 gap-3">
+              <div className="flex-1 flex flex-col overflow-hidden p-2 gap-1.5">
                 {/* Row 1: 0, 1, 4, WD */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => handleScore(0)}
-                    className="min-h-[56px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
+                    className="min-h-[38px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     0
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(1)}
-                    className="min-h-[56px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
+                    className="min-h-[38px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     1
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(4)}
-                    className="min-h-[56px] bg-[#BC13FE]/20 hover:bg-[#BC13FE]/30 text-[#BC13FE] font-black rounded-lg border border-[#BC13FE]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[38px] bg-[#BC13FE]/20 hover:bg-[#BC13FE]/30 text-[#BC13FE] font-black rounded-lg border border-[#BC13FE]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
                   >
                     4
                   </button>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('WD')}
-                    className={`min-h-[56px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation text-sm font-black ${
+                    className={`min-h-[38px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation text-sm font-black ${
                       pendingExtra === 'WD'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
                         : 'bg-[#FF6D00]/40 text-[#FF6D00] border-[#FF6D00]/60 hover:bg-[#FF6D00]/50'
@@ -4103,32 +4103,32 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 </div>
 
                 {/* Row 2: 2, 3, 6, NB */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => handleScore(2)}
-                    className="min-h-[48px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
+                    className="min-h-[34px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     2
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(3)}
-                    className="min-h-[48px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
+                    className="min-h-[34px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
                   >
                     3
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(6)}
-                    className="min-h-[48px] bg-[#FFD600]/20 hover:bg-[#FFD600]/30 text-[#FFD600] font-black rounded-lg border border-[#FFD600]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[34px] bg-[#FFD600]/20 hover:bg-[#FFD600]/30 text-[#FFD600] font-black rounded-lg border border-[#FFD600]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
                   >
                     6
                   </button>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('NB')}
-                    className={`min-h-[48px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation text-sm font-black ${
+                    className={`min-h-[34px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation text-sm font-black ${
                       pendingExtra === 'NB'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
                         : 'bg-[#FF6D00]/40 text-[#FF6D00] border-[#FF6D00]/60 hover:bg-[#FF6D00]/50'
@@ -4139,11 +4139,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 </div>
 
                 {/* Row 3: BYE, LB, 5, 7 */}
-                <div className="grid grid-cols-4 gap-2 text-sm">
+                <div className="grid grid-cols-4 gap-1.5 text-sm">
                   <button
                     type="button"
                     onClick={() => setPendingExtra('BYE')}
-                    className={`min-h-[40px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation font-black text-xs ${
+                    className={`min-h-[30px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation font-black text-xs ${
                       pendingExtra === 'BYE'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
                         : 'bg-[#FF6D00]/30 text-[#FF6D00] border-[#FF6D00]/50 hover:bg-[#FF6D00]/40'
@@ -4154,7 +4154,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('LB')}
-                    className={`min-h-[40px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation font-black text-xs ${
+                    className={`min-h-[30px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation font-black text-xs ${
                       pendingExtra === 'LB'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
                         : 'bg-[#FF6D00]/30 text-[#FF6D00] border-[#FF6D00]/50 hover:bg-[#FF6D00]/40'
@@ -4165,25 +4165,25 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => handleScore(5)}
-                    className="min-h-[40px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
+                    className="min-h-[30px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
                   >
                     5
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(7)}
-                    className="min-h-[40px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
+                    className="min-h-[30px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
                   >
                     7
                   </button>
                 </div>
 
                 {/* Row 4: WICKET, SWAP, UNDO */}
-                <div className="grid grid-cols-4 gap-2 mt-auto">
+                <div className="grid grid-cols-4 gap-1.5 mt-auto">
                   <button
                     type="button"
                     onClick={() => setWicketWizard({ open: true })}
-                    className="col-span-2 min-h-[48px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-lg border border-[#FF003C]/60 active:scale-95 transition-all select-none touch-manipulation"
+                    className="col-span-2 min-h-[34px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-lg border border-[#FF003C]/60 active:scale-95 transition-all select-none touch-manipulation"
                   >
                     WICKET
                   </button>
@@ -4195,7 +4195,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         crease: { ...m.crease, strikerId: m.crease.nonStrikerId, nonStrikerId: m.crease.strikerId }
                       }));
                     }}
-                    className="min-h-[48px] bg-[#4DB6AC]/20 hover:bg-[#4DB6AC]/30 text-[#4DB6AC] font-black rounded-lg border border-[#4DB6AC]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[34px] bg-[#4DB6AC]/20 hover:bg-[#4DB6AC]/30 text-[#4DB6AC] font-black rounded-lg border border-[#4DB6AC]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
                   >
                     SWAP
                   </button>
@@ -4203,7 +4203,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     type="button"
                     onClick={handleUndo}
                     disabled={!match.history || match.history.length === 0}
-                    className="min-h-[48px] bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="min-h-[34px] bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm"
                   >
                     UNDO
                   </button>
@@ -5966,7 +5966,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       placeholder="Player name"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
+                      className="w-full px-3 py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                     />
                     {showPlayerDropdown && playerDropdownList.length > 0 && (
                       <motion.div
@@ -5996,11 +5996,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     value={phoneQuery}
                     onChange={(e) => setPhoneQuery(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     maxLength={10}
-                    className="w-full px-3 py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
+                    className="w-full px-3 py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                   />
                   <button
                     onClick={startQRScanner}
-                    className="w-full py-3 min-h-[48px] rounded-[12px] bg-white/10 border border-white/20 text-[12px] font-black text-[#00F0FF] uppercase hover:bg-white/15 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[12px] font-black text-[#00F0FF] uppercase hover:bg-white/15 transition-all flex items-center justify-center gap-2"
                   >
                     <Camera size={14} /> Scan QR
                   </button>
@@ -6010,7 +6010,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <button
                   type="button"
                   onClick={() => { handleEnlistNewPlayer(); }}
-                  className={`w-full min-h-[56px] py-4 rounded-[20px] font-black uppercase text-[13px] tracking-[0.2em] transition-all duration-150 flex items-center justify-center gap-2 select-none touch-manipulation ${
+                  className={`w-full min-h-[38px] py-4 rounded-[20px] font-black uppercase text-[13px] tracking-[0.2em] transition-all duration-150 flex items-center justify-center gap-2 select-none touch-manipulation ${
                     isAddPlayerDisabled
                       ? 'bg-white/5 text-white/40 pointer-events-none'
                       : 'bg-[#00F0FF] text-black shadow-[0_4px_20px_rgba(0,240,255,0.3)] cursor-pointer active:scale-95 active:shadow-[0_0_10px_rgba(0,240,255,0.5)]'
@@ -6610,7 +6610,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 ) : (
                   <>
                     {/* Scoring keypad */}
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 gap-1.5">
                       {[0, 1, 2, 3].map(r => (
                         <motion.button
                           key={r}
@@ -6706,11 +6706,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <div className="flex gap-4">
                   <div className="flex-1 p-4 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
                     <p className="text-[8px] text-white/30 font-black uppercase">{match.teams[superOverState.team1Id === 'A' ? 'teamA' : 'teamB']?.name}</p>
-                    <p className="font-numbers text-2xl font-black text-white">{superOverState.team1Score.runs}/{superOverState.team1Score.wickets}</p>
+                    <p className="font-numbers text-5xl font-black text-white">{superOverState.team1Score.runs}/{superOverState.team1Score.wickets}</p>
                   </div>
                   <div className="flex-1 p-4 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
                     <p className="text-[8px] text-white/30 font-black uppercase">{match.teams[superOverState.team2Id === 'A' ? 'teamA' : 'teamB']?.name}</p>
-                    <p className="font-numbers text-2xl font-black text-white">{superOverState.team2Score.runs}/{superOverState.team2Score.wickets}</p>
+                    <p className="font-numbers text-5xl font-black text-white">{superOverState.team2Score.runs}/{superOverState.team2Score.wickets}</p>
                   </div>
                 </div>
               </motion.div>
