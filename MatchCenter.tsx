@@ -1088,7 +1088,24 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const isConfigValid = () => {
     const hasTeamA = match.teams.teamA.name && match.teams.teamA.squad.length > 0;
     const hasTeamB = match.teams.teamB.name && match.teams.teamB.squad.length > 0;
-    return match.config.overs > 0 && hasTeamA && hasTeamB && match.config.matchType;
+    const teamACaptain = match.teams.teamA.squad.some(p => p.isCaptain);
+    const teamAWK = match.teams.teamA.squad.some(p => p.isWicketKeeper);
+    const teamBCaptain = match.teams.teamB.squad.some(p => p.isCaptain);
+    const teamBWK = match.teams.teamB.squad.some(p => p.isWicketKeeper);
+    return match.config.overs > 0 && hasTeamA && hasTeamB && match.config.matchType && teamACaptain && teamAWK && teamBCaptain && teamBWK;
+  };
+
+  const getTeamSetupWarnings = () => {
+    const warnings: string[] = [];
+    if (match.teams.teamA.squad.length > 0) {
+      if (!match.teams.teamA.squad.some(p => p.isCaptain)) warnings.push(`${match.teams.teamA.name || 'Team A'}: No Captain`);
+      if (!match.teams.teamA.squad.some(p => p.isWicketKeeper)) warnings.push(`${match.teams.teamA.name || 'Team A'}: No Wicket Keeper`);
+    }
+    if (match.teams.teamB.squad.length > 0) {
+      if (!match.teams.teamB.squad.some(p => p.isCaptain)) warnings.push(`${match.teams.teamB.name || 'Team B'}: No Captain`);
+      if (!match.teams.teamB.squad.some(p => p.isWicketKeeper)) warnings.push(`${match.teams.teamB.name || 'Team B'}: No Wicket Keeper`);
+    }
+    return warnings;
   };
 
   const commitBall = (runs: number, extra?: string, isWicket?: boolean, wicketType?: string, fielderId?: PlayerID) => {
@@ -3327,20 +3344,30 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   Next
                 </motion.button>
               ) : (
-                <motion.div
-                  animate={isConfigValid() ? { scale: [1, 1.05, 1] } : {}}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <MotionButton
-                    disabled={!isConfigValid()}
-                    onClick={checkTeamConflicts}
-                    className={`flex-1 py-6 !rounded-[24px] font-black uppercase tracking-[0.3em] text-sm transition-all ${
-                      isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/25'
-                    }`}
+                <div className="flex-1 flex flex-col gap-2">
+                  {!isConfigValid() && getTeamSetupWarnings().length > 0 && (
+                    <div className="text-center space-y-1">
+                      {getTeamSetupWarnings().map((w, i) => (
+                        <p key={i} className="text-[9px] font-black text-[#FF6D00] uppercase tracking-wider">{w}</p>
+                      ))}
+                      <p className="text-[8px] text-white/30">Tap a team card above → open squad → assign Captain & WK</p>
+                    </div>
+                  )}
+                  <motion.div
+                    animate={isConfigValid() ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ duration: 0.4, delay: 0.3 }}
                   >
-                    Proceed to Toss
-                  </MotionButton>
-                </motion.div>
+                    <MotionButton
+                      disabled={!isConfigValid()}
+                      onClick={checkTeamConflicts}
+                      className={`flex-1 py-6 !rounded-[24px] font-black uppercase tracking-[0.3em] text-sm transition-all ${
+                        isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/25'
+                      }`}
+                    >
+                      Proceed to Toss
+                    </MotionButton>
+                  </motion.div>
+                </div>
               )}
             </div>
           </div>
