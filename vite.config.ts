@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
+      '__BUILD_TS__': JSON.stringify('2026-04-15T22:21:18.201Z'),
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       },
