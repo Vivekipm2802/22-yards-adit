@@ -198,6 +198,94 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [iceModeBanner, setIceModeBanner] = useState(false);
   const [iceModeDeclined, setIceModeDeclined] = useState(false);
 
+  // ═══ DEVICE BACK BUTTON / BROWSER BACK SUPPORT ═══
+  useEffect(() => {
+    const handleBackButton = (e: PopStateEvent) => {
+      if (playerActionMenu.open) {
+        e.preventDefault();
+        setPlayerActionMenu({ open: false, playerId: null, role: null });
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (showScorecardPreview) {
+        e.preventDefault();
+        setShowScorecardPreview(false);
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (wicketWizard.open) {
+        e.preventDefault();
+        setWicketWizard({ open: false });
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (showAddPlayer.open) {
+        e.preventDefault();
+        setShowAddPlayer({ open: false, team: null });
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (editingTeamId) {
+        e.preventDefault();
+        setEditingTeamId(null);
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (showShareModal || showShareSheet) {
+        e.preventDefault();
+        setShowShareModal(false);
+        setShowShareSheet(false);
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (showLiveScorecard) {
+        e.preventDefault();
+        setShowLiveScorecard(false);
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (selectionTarget === 'BOWLER' && status === 'OPENERS') {
+        e.preventDefault();
+        setSelectionTarget('NON_STRIKER');
+        setMatch(m => ({ ...m, crease: { ...m.crease, bowlerId: null } }));
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (selectionTarget === 'NON_STRIKER' && status === 'OPENERS') {
+        e.preventDefault();
+        setSelectionTarget('STRIKER');
+        setMatch(m => ({ ...m, crease: { ...m.crease, nonStrikerId: null } }));
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (selectionTarget === 'STRIKER' && status === 'OPENERS') {
+        e.preventDefault();
+        setStatus('CONFIG');
+        setSelectionTarget(null);
+        setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: null }, status: 'CONFIG' }));
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (status === 'CONFIG' && configStep > 1) {
+        e.preventDefault();
+        setConfigStep(s => s - 1);
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      if (status === 'CONFIG' && configStep === 1) {
+        return;
+      }
+      if (status === 'LIVE') {
+        e.preventDefault();
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+    };
+    window.history.pushState({ mc: true }, '');
+    window.addEventListener('popstate', handleBackButton);
+    return () => window.removeEventListener('popstate', handleBackButton);
+  }, [status, configStep, selectionTarget, playerActionMenu.open, showScorecardPreview, wicketWizard.open, showAddPlayer.open, editingTeamId, showShareModal, showShareSheet, showLiveScorecard]);
+
   // Match Settings (mid-match)
   const [showMatchSettings, setShowMatchSettings] = useState(false);
   const [abandonConfirm, setAbandonConfirm] = useState(false);
@@ -353,6 +441,20 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }
     };
   }, []);
+
+  // Push browser history on forward navigation so back button works
+  const prevStatusRef = useRef(status);
+  const prevConfigStepRef = useRef(configStep);
+  const prevSelectionRef = useRef(selectionTarget);
+  useEffect(() => {
+    const changed = status !== prevStatusRef.current || configStep !== prevConfigStepRef.current || selectionTarget !== prevSelectionRef.current;
+    if (changed) {
+      window.history.pushState({ mc: true }, '');
+      prevStatusRef.current = status;
+      prevConfigStepRef.current = configStep;
+      prevSelectionRef.current = selectionTarget;
+    }
+  }, [status, configStep, selectionTarget]);
 
   // Keep match.status in sync with the UI status state
   useEffect(() => {
