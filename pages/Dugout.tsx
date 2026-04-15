@@ -1,11 +1,12 @@
 // @ts-nocheck
 import React, { useMemo, useState, useEffect } from 'react';
-// Removed Variants to avoid missing export error
 import { motion } from 'framer-motion';
 import {
-  Swords, Swords as SwordsIcon, LineChart, Map, Crown, Zap,
-  ChevronRight, Activity, Radar, Target,
-  Calendar, Trophy, Star, TrendingUp, MapPin, Hash, Eye, Radio
+  Swords, LineChart, Map, Crown, Zap,
+  ChevronRight, Activity, Target,
+  Trophy, Star, TrendingUp, MapPin, Eye, Radio,
+  Play, Users, BarChart3, Award, Flame, Shield,
+  Clock, ChevronUp, Sparkles, CircleDot
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import MotionButton from '../components/MotionButton';
@@ -17,43 +18,28 @@ interface DugoutProps {
   onUpgrade?: () => void;
 }
 
-const LIVE_FEEDS = [
-  { id: '1', teamA: 'Avengers XI', teamB: 'Warriors CC', status: 'Inning 1  â¢  14.2 Overs', detail: '142/3 (RR: 9.9)', trend: '+0.4', color: '#00F0FF' },
-  { id: '2', teamA: 'Tech Giants', teamB: 'Sales Force', status: 'Match Suspended', detail: 'Weather Delay', trend: '0.0', color: '#39FF14' },
-];
-
-const PROTOCOLS = [
-  { id: 'MATCH_CENTER', label: 'Start Match', sub: 'Scoring Deployment', icon: SwordsIcon, color: '#00F0FF' },
-  { id: 'TOURNAMENTS', label: 'Pro Circuits', sub: 'Elite Tournaments', icon: Trophy, color: '#39FF14' },
-  { id: 'ARENA', label: 'Ground Intel', sub: 'Strategic Booking', icon: Map, color: '#00F0FF' },
-  { id: 'PERFORMANCE', label: 'Performance Hub', sub: 'Elite Analytics', icon: Radar, color: '#39FF14' },
-];
-
-// Used any for variants to avoid complex framer-motion versioning issues
 const containerVariants: any = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+    transition: { staggerChildren: 0.08, delayChildren: 0.15 }
   }
 };
 
-// Used any for variants to avoid complex framer-motion versioning issues
 const itemVariants: any = {
   hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as any } 
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as any }
   }
 };
 
 const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
   const { userData } = useAuth();
-  // Theme-aware: detect light mode so we can override inline-style icon colours
   const isLightMode = typeof document !== 'undefined' && document.documentElement?.dataset?.theme === 'light';
 
-  // Calculate real career runs from specific phone number profile in the Vault
+  // Calculate real career stats from the Vault
   const careerStats = useMemo(() => {
     const activePhone = userData?.phone || '';
     const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
@@ -61,14 +47,22 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
     const history = profileData.history || [];
 
     const totalRuns = history.reduce((acc: number, match: any) => acc + (parseInt(match.runs) || 0), 0);
+    const totalMatches = history.length;
+    const totalWickets = history.reduce((acc: number, match: any) => acc + (parseInt(match.wickets) || 0), 0);
 
-    const hash = activePhone.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
-    const uid = `22Y-${Math.abs(hash % 9999).toString().padStart(4, '0')}-${String.fromCharCode(65 + (Math.abs(hash) % 26))}`;
+    // Best score
+    const bestScore = history.reduce((best: number, match: any) => {
+      const runs = parseInt(match.runs) || 0;
+      return runs > best ? runs : best;
+    }, 0);
 
-    return { totalRuns, uid };
+    // Average
+    const avg = totalMatches > 0 ? (totalRuns / totalMatches).toFixed(1) : '0.0';
+
+    return { totalRuns, totalMatches, totalWickets, bestScore, avg };
   }, [userData]);
 
-  // B-08 fix: real impact rank from Supabase leaderboard
+  // Real impact rank from Supabase leaderboard
   const [cloudRank, setCloudRank] = useState<string | null>(null);
   useEffect(() => {
     if (!userData?.phone) return;
@@ -78,201 +72,233 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
         if (idx >= 0) {
           setCloudRank(`#${idx + 1}`);
         } else {
-          setCloudRank(careerStats.totalRuns > 0 ? '#-' : 'UNRANKED');
+          setCloudRank(careerStats.totalRuns > 0 ? '#-' : 'NEW');
         }
       })
       .catch(() => {
-        // Fallback if Supabase unreachable
-        setCloudRank(careerStats.totalRuns > 1000 ? '#12' : careerStats.totalRuns > 0 ? '#42' : 'UNRANKED');
+        setCloudRank(careerStats.totalRuns > 1000 ? '#12' : careerStats.totalRuns > 0 ? '#42' : 'NEW');
       });
   }, [userData?.phone]);
-  const displayRank = cloudRank ?? (careerStats.totalRuns > 1000 ? '#12' : careerStats.totalRuns > 0 ? '#42' : 'UNRANKED');
+  const displayRank = cloudRank ?? 'NEW';
+
+  // Get time-based greeting
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }, []);
+
+  const firstName = userData?.name?.split(' ')[0] || 'Player';
+
+  // Quick actions - CricHeroes inspired
+  const quickActions = [
+    { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, color: '#00F0FF', bg: 'from-[#00F0FF]/20 to-[#00F0FF]/5' },
+    { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, color: '#39FF14', bg: 'from-[#39FF14]/20 to-[#39FF14]/5' },
+    { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, color: '#FF6B35', bg: 'from-[#FF6B35]/20 to-[#FF6B35]/5' },
+    { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, color: '#BC13FE', bg: 'from-[#BC13FE]/20 to-[#BC13FE]/5' },
+  ];
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="max-w-6xl mx-auto px-6 py-8 space-y-12 pb-40 scroll-container"
+      className="max-w-6xl mx-auto px-5 py-6 space-y-6 pb-40 scroll-container"
     >
-      {/* Header Section */}
-      <motion.section variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="h-[2px] w-8 bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]"></div>
-            <span className="text-[10px] font-black tracking-[0.5em] text-[#00F0FF] uppercase">Stadium Command Node</span>
-            <div className="bg-white/5 px-2 py-0.5 rounded border border-white/10 flex items-center space-x-1 ml-2">
-               <Hash size={8} className="text-[#00F0FF]" />
-               <span className="text-[8px] font-black text-white/40 tracking-widest">{careerStats.uid}</span>
+      {/* HERO SECTION */}
+      <motion.section variants={itemVariants}>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            {/* Avatar */}
+            <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#00F0FF]/30 shadow-[0_0_20px_rgba(0,240,255,0.15)] shrink-0">
+              <img src={userData?.avatar} className="w-full h-full object-cover" alt="" />
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-white/40 tracking-wide">{greeting}</p>
+              <h1 className="font-heading text-2xl tracking-tight text-white leading-tight uppercase">{firstName}</h1>
             </div>
           </div>
-          <h1 className="font-heading text-8xl tracking-tighter text-white leading-[0.85] uppercase">
-            DUGOUT<br/><span className="text-[#00F0FF]">HUB</span>
-          </h1>
-        </div>
-        
-        {/* Personal Real Stats */}
-        <div className="flex space-x-10 border-l border-white/10 pl-8 h-fit py-2">
-          <div className="space-y-1">
-            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Career Runs</p>
-            <p className="font-numbers text-4xl text-white font-bold tracking-tighter leading-none">
-              {careerStats.totalRuns.toLocaleString()}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Impact Rank</p>
-            <p className="font-numbers text-4xl text-[#39FF14] font-bold tracking-tighter leading-none">
-              {displayRank}
-            </p>
+          <div className="text-right">
+            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Rank</p>
+            <p className="font-heading text-2xl text-[#00F0FF] leading-tight">{displayRank}</p>
           </div>
         </div>
+
+        {/* Main CTA Start Match */}
+        <button
+          onClick={() => onNavigate('MATCH_CENTER')}
+          className="w-full relative overflow-hidden rounded-2xl border border-[#00F0FF]/20 group active:scale-[0.98] transition-transform"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-[#00F0FF]/10 via-transparent to-[#00F0FF]/5" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#00F0FF]/5 blur-[60px] rounded-full" />
+          <div className="relative z-10 flex items-center justify-between p-5">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 rounded-xl bg-[#00F0FF]/15 flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+                <Swords size={26} className="text-[#00F0FF]" />
+              </div>
+              <div className="text-left">
+                <h2 className="font-heading text-xl text-white uppercase tracking-tight">Start New Match</h2>
+                <p className="text-[10px] text-white/40 font-medium tracking-wide mt-0.5">Score, analyze and share live</p>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-[#00F0FF] flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+              <ChevronRight size={20} className="text-black" />
+            </div>
+          </div>
+        </button>
       </motion.section>
 
-      {/* Follow Match Shortcut â visible only when actively following a match */}
+      {/* Follow Match Shortcut visible only when actively following */}
       {(() => {
         const followId = typeof localStorage !== 'undefined' ? localStorage.getItem('22Y_FOLLOWING_MATCH') : null;
         if (!followId) return null;
         return (
-          <motion.section variants={itemVariants} className="flex justify-center">
+          <motion.section variants={itemVariants}>
             <button
               onClick={() => onNavigate('FOLLOW_MATCH')}
-              className="flex flex-col items-center gap-3 group"
+              className="w-full flex items-center justify-between p-4 rounded-2xl border border-[#BC13FE]/20 bg-[#BC13FE]/5 group active:scale-[0.98] transition-transform"
             >
-              <div className="relative">
-                {/* Pulsing ring */}
-                <div className="absolute inset-0 rounded-full bg-[#BC13FE]/20 animate-ping" />
-                {/* Outer glow ring */}
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#BC13FE] to-[#00F0FF] p-[2px] shadow-[0_0_30px_rgba(188,19,254,0.4)] group-hover:shadow-[0_0_40px_rgba(188,19,254,0.6)] transition-all">
-                  <div className="w-full h-full rounded-full bg-[#0A0A0A] flex items-center justify-center group-hover:bg-[#121212] transition-all">
-                    <Radio size={28} className="text-[#BC13FE] group-hover:text-[#00F0FF] transition-colors" />
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-[#BC13FE]/20 flex items-center justify-center">
+                    <Radio size={20} className="text-[#BC13FE]" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#FF003C] flex items-center gap-0.5">
+                    <div className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                    <span className="text-[6px] font-black text-white uppercase">Live</span>
                   </div>
                 </div>
-                {/* Live badge */}
-                <div className="absolute -top-1 -right-1 px-2 py-0.5 rounded-full bg-[#FF003C] border-2 border-[#0A0A0A] flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                  <span className="text-[7px] font-black text-white uppercase tracking-wider">Live</span>
+                <div className="text-left">
+                  <p className="text-[12px] font-black text-white uppercase tracking-wider">Following a Match</p>
+                  <p className="text-[9px] text-white/30 font-medium">Tap to view live scorecard</p>
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Follow Match</p>
-                <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Spectator Mode</p>
-              </div>
+              <ChevronRight size={16} className="text-[#BC13FE]/60 group-hover:text-[#BC13FE]" />
             </button>
           </motion.section>
         );
       })()}
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-8">
-          <motion.div variants={itemVariants}>
-            <GlassCard className="p-8 relative overflow-hidden group border-l-4 border-[#00F0FF]">
-              <div className="absolute top-0 right-0 p-8 opacity-5">
-                <Calendar size={120} className="text-[#00F0FF]" />
-              </div>
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2 text-[#00F0FF]">
-                    <Activity size={14} className="animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Next Deployment</span>
-                  </div>
-                  <h3 className="font-heading text-4xl text-white uppercase tracking-tight">Avengers XI <span className="text-white/20">vs</span> Thunder CC</h3>
-                  <div className="flex items-center space-x-4 text-white/40 text-[10px] font-black uppercase tracking-widest">
-                    <span className="flex items-center"><MapPin size={12} className="mr-1" /> Palika Stadium</span>
-                    <span className="flex items-center"><Calendar size={12} className="mr-1" /> Tomorrow  â¢  07:00 PM</span>
-                  </div>
-                </div>
-                <MotionButton onClick={() => onNavigate('MATCH_CENTER')} className="bg-[#00F0FF] text-black !rounded-xl !py-4 !px-8 text-[11px] font-black tracking-widest shadow-[0_0_20px_rgba(0,240,255,0.4)]">
-                  PRE-MATCH SYNC
-                </MotionButton>
-              </div>
-            </GlassCard>
-          </motion.div>
-
-          <motion.div variants={itemVariants} className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Live Tactical Feed</h3>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#39FF14] animate-ping" />
-                <span className="text-[9px] font-black text-[#39FF14] uppercase">02 Active Battles</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {LIVE_FEEDS.map((feed) => (
-                <GlassCard key={feed.id} className="p-6 group cursor-pointer border-b-2" style={{ borderBottomColor: `${feed.color}20` }}>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">{feed.status}</p>
-                      <h4 className="font-heading text-2xl text-white tracking-wide uppercase">{feed.teamA} v {feed.teamB}</h4>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="font-numbers text-3xl text-white tracking-tighter">{feed.detail}</p>
-                      <div className="flex items-center space-x-1 mt-1">
-                        <TrendingUp size={10} className="text-[#39FF14]" />
-                        <span className="text-[9px] font-bold text-[#39FF14] uppercase tracking-widest">Trend {feed.trend}</span>
-                      </div>
-                    </div>
-                    <div className="p-2 rounded-lg bg-white/5 opacity-40 group-hover:opacity-100 group-hover:bg-[#00F0FF]/10 transition-all">
-                      <ChevronRight size={14} className="group-hover:text-[#00F0FF]" />
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </motion.div>
+      {/* YOUR STATS Cricket Profile Card */}
+      <motion.section variants={itemVariants}>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40">Your Cricket</h3>
+          <button onClick={() => onNavigate('PERFORMANCE')} className="text-[10px] font-black text-[#00F0FF] uppercase tracking-wider flex items-center gap-1">
+            View All <ChevronRight size={12} />
+          </button>
         </div>
-
-        <div className="lg:col-span-4 space-y-8">
-          <motion.div variants={itemVariants} className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 px-1">System Hub</h3>
-            <div className="grid grid-cols-1 gap-3">
-              {PROTOCOLS.map((p) => (
-                <button 
-                  key={p.id} 
-                  onClick={() => onNavigate(p.id as any)}
-                  className="flex items-center p-5 glass-premium rounded-2xl border-white/5 hover:border-[#00F0FF]/20 transition-all text-left group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mr-5 group-hover:scale-110 group-hover:bg-[#00F0FF]/10 transition-all">
-                    <p.icon size={22} style={{ color: isLightMode ? '#991b1b' : p.color }} strokeWidth={2} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none mb-1">{p.label}</p>
-                    <p className="text-[8px] text-white/20 font-black uppercase tracking-widest">{p.sub}</p>
-                  </div>
-                  <ChevronRight size={14} className="text-white/10 group-hover:text-[#00F0FF]" />
-                </button>
-              ))}
+        <GlassCard className="p-5">
+          <div className="grid grid-cols-4 gap-3 text-center">
+            <div className="space-y-1">
+              <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalMatches}</p>
+              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Matches</p>
             </div>
-          </motion.div>
+            <div className="space-y-1">
+              <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalRuns.toLocaleString()}</p>
+              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Runs</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalWickets}</p>
+              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Wickets</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-numbers text-2xl font-bold text-[#00F0FF] leading-none">{careerStats.bestScore}</p>
+              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Best</p>
+            </div>
+          </div>
+          {careerStats.totalMatches === 0 && (
+            <div className="mt-4 pt-3 border-t border-white/5 text-center">
+              <p className="text-[11px] text-white/30">Start your first match to see your stats here!</p>
+            </div>
+          )}
+        </GlassCard>
+      </motion.section>
 
-          <motion.div variants={itemVariants}>
-            <div className="relative p-[1px] rounded-3xl overflow-hidden bg-gradient-to-br from-[#00F0FF]/60 via-[#00F0FF]/10 to-transparent">
-              <div className="bg-[#020617] p-8 rounded-[23px] flex flex-col items-center text-center space-y-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-[#00F0FF]/20 blur-2xl rounded-full" />
-                  <Crown size={42} className="text-[#00F0FF] relative z-10 drop-shadow-[0_0_15px_rgba(0,240,255,0.6)]" />
+      {/* QUICK ACTIONS CricHeroes Style Grid */}
+      <motion.section variants={itemVariants}>
+        <div className="grid grid-cols-2 gap-3">
+          {quickActions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => onNavigate(action.id as any)}
+              className="relative overflow-hidden rounded-2xl border border-white/5 hover:border-white/10 transition-all text-left group active:scale-[0.97]"
+            >
+              <div className={`absolute inset-0 bg-gradient-to-br ${action.bg} opacity-60`} />
+              <div className="relative z-10 p-5 flex flex-col space-y-3">
+                <div className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <action.icon size={22} style={{ color: isLightMode ? '#991b1b' : action.color }} strokeWidth={2} />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="font-heading text-4xl text-white tracking-tighter uppercase leading-none">ELITE SQUADRON</h3>
-                  <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] max-w-[180px] mx-auto">
-                    Unlock tactical superiority and global telemetry.
-                  </p>
+                <div>
+                  <p className="text-[13px] font-black text-white uppercase tracking-wider leading-none">{action.label}</p>
+                  <p className="text-[9px] text-white/30 font-medium mt-1">{action.desc}</p>
                 </div>
-                <MotionButton 
-                  onClick={onUpgrade} 
-                  className="bg-[#00F0FF] text-black w-full !rounded-xl font-black text-[10px] py-4 shadow-[0_0_20px_#00F0FF44]"
-                >
-                  AUTHORIZE UPGRADE
-                </MotionButton>
+              </div>
+            </button>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* DISCOVER Feature Cards */}
+      <motion.section variants={itemVariants} className="space-y-3">
+        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 px-1">Discover</h3>
+
+        {/* Arena Ground Finder */}
+        <button
+          onClick={() => onNavigate('ARENA')}
+          className="w-full flex items-center p-4 rounded-2xl glass-premium border-white/5 hover:border-[#00F0FF]/15 transition-all text-left group active:scale-[0.98]"
+        >
+          <div className="w-12 h-12 rounded-xl bg-[#00F0FF]/10 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform shrink-0">
+            <MapPin size={22} style={{ color: isLightMode ? '#991b1b' : '#00F0FF' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none mb-1">Find Grounds</p>
+            <p className="text-[9px] text-white/25 font-medium truncate">Discover cricket grounds near you</p>
+          </div>
+          <ChevronRight size={16} className="text-white/10 group-hover:text-[#00F0FF] shrink-0" />
+        </button>
+
+        {/* Leaderboard teaser */}
+        <button
+          onClick={() => onNavigate('PERFORMANCE')}
+          className="w-full flex items-center p-4 rounded-2xl glass-premium border-white/5 hover:border-[#39FF14]/15 transition-all text-left group active:scale-[0.98]"
+        >
+          <div className="w-12 h-12 rounded-xl bg-[#39FF14]/10 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform shrink-0">
+            <Award size={22} style={{ color: isLightMode ? '#991b1b' : '#39FF14' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none mb-1">Leaderboard</p>
+            <p className="text-[9px] text-white/25 font-medium truncate">See where you rank among players</p>
+          </div>
+          <ChevronRight size={16} className="text-white/10 group-hover:text-[#39FF14] shrink-0" />
+        </button>
+      </motion.section>
+
+      {/* UPGRADE Elite Squadron */}
+      <motion.section variants={itemVariants}>
+        <div className="relative p-[1px] rounded-2xl overflow-hidden bg-gradient-to-br from-[#00F0FF]/40 via-[#00F0FF]/10 to-transparent">
+          <div className="bg-[#020617] p-6 rounded-[15px] flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#00F0FF]/20 blur-xl rounded-full" />
+                <Crown size={28} className="text-[#00F0FF] relative z-10 drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]" />
+              </div>
+              <div>
+                <h3 className="font-heading text-lg text-white tracking-tight uppercase leading-none">Go Elite</h3>
+                <p className="text-[9px] font-medium text-white/30 mt-1">Unlock advanced stats and rankings</p>
               </div>
             </div>
-          </motion.div>
+            <MotionButton
+              onClick={onUpgrade}
+              className="bg-[#00F0FF] text-black !rounded-xl font-black text-[9px] !py-3 !px-5 shadow-[0_0_15px_#00F0FF33]"
+            >
+              UPGRADE
+            </MotionButton>
+          </div>
         </div>
-      </div>
+      </motion.section>
 
-</motion.div>
+    </motion.div>
   );
 };
 
