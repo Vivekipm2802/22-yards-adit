@@ -5,7 +5,7 @@ import {
   ChevronLeft, Camera, Shield, User, Star,
   CheckCircle2, RefreshCw, Upload, Sparkles,
   Zap, Save, MapPin, Calendar, Smartphone, Target,
-  Activity, Swords, Disc, Settings, QrCode, Share2
+  Activity, Swords, Disc, Settings, QrCode, Share2, Hash
 } from 'lucide-react';
 import MotionButton from '../components/MotionButton';
 import GlassCard from '../components/GlassCard';
@@ -305,6 +305,18 @@ const Profile: React.FC<ProfileProps> = ({ currentName, currentRole, currentAvat
                 <div className="text-center space-y-1">
                   <p className="font-heading text-xl italic uppercase text-white leading-none">{name || '—'}</p>
                   <p className="text-[8px] font-black text-[#00F0FF] uppercase tracking-widest">{role || '—'}</p>
+                  {/* Player UID — moved from Dugout hero section */}
+                  {(() => {
+                    const phone = savedData.phone || '';
+                    const hash = phone.split('').reduce((a: number, b: string) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
+                    const uid = `22Y-${Math.abs(hash % 9999).toString().padStart(4, '0')}-${String.fromCharCode(65 + (Math.abs(hash) % 26))}`;
+                    return (
+                      <div className="flex items-center justify-center space-x-1 mt-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 mx-auto w-fit">
+                        <Hash size={9} className="text-[#00F0FF]" />
+                        <span className="text-[9px] font-black text-white/50 tracking-widest">{uid}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
              </GlassCard>
           </section>
