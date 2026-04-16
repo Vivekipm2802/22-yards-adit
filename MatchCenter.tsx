@@ -2869,14 +2869,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           animate={{ opacity: 1, y: 0 }}
                           className="relative flex-1"
                         >
-                          <AnimatePresence mode="wait">
+                          <>
                             {!isTeamSelected ? (
                               // EMPTY STATE
-                              <motion.div
-                                key="empty"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
+                              <div
                                 className="relative bg-gradient-to-br from-[#0A0A0A] to-[#111] rounded-[40px] border-2 border-dashed border-white/10 p-12 flex flex-col items-center justify-center hover:border-white/20 transition-all min-h-[280px]"
                               >
                                 <div
@@ -2911,14 +2907,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                   </motion.span>
                                   <span className="text-[9px] font-black uppercase tracking-[0.22em]">Scan Opponent</span>
                                 </motion.button>
-                              </motion.div>
+                              </div>
                             ) : (
                               // FILLED STATE
-                              <motion.div
-                                key="filled"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
+                              <div
                                 className="bg-[#121212] border-2 border-[#39FF14]/30 rounded-[40px] p-6 space-y-4"
                               >
                                 <div className="flex items-start justify-between">
@@ -3000,9 +2992,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                     </motion.button>
                                   </div>
                                 </div>
-                              </motion.div>
+                              </div>
                             )}
-                          </AnimatePresence>
+                          </>
                         </motion.div>
                         {idx === 0 && (
                           <div className="flex justify-center items-center py-3 flex-shrink-0 lg:hidden" style={{minHeight: '62px'}}>
@@ -3438,14 +3430,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         {status === 'TOSS_FLIP' && (
           <div className="flex-1 flex flex-col overflow-hidden bg-[#050505]">
             <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32 flex flex-col items-center justify-center">
-              <AnimatePresence mode="wait">
+              <>
                 {/* STEP 1: Who won the toss? */}
                 {!match.toss.winnerId && (
-                  <motion.div
-                    key="toss-winner"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
+                  <div
                     className="space-y-6 w-full max-w-md text-center"
                   >
                     <div className="space-y-3">
@@ -3475,16 +3463,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       </div>
                       <p className="font-black text-[15px] uppercase text-[#00F0FF] text-left">{match.teams.teamB.name}</p>
                     </button>
-                  </motion.div>
+                  </div>
                 )}
 
                 {/* STEP 2: Bat or Bowl? → directly goes to Openers */}
                 {match.toss.winnerId && (
-                  <motion.div
-                    key="toss-decision"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
+                  <div
                     className="space-y-6 w-full max-w-md text-center"
                   >
                     <div className="space-y-3">
@@ -3545,9 +3529,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     >
                       Change toss winner
                     </button>
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </>
             </div>
           </div>
         )}
@@ -3747,15 +3731,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
               {/* ── Player Cards ── */}
               <div className="px-6 pt-4 space-y-2.5">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeTarget}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-2.5"
-                  >
+                <>
+                    <div className="space-y-2.5">
                     {activeTarget === 'STRIKER' && battingSquad.map((player, idx) => (
                       <motion.button
                         key={player.id}
@@ -3844,8 +3821,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         <ChevronRight size={16} className="text-white/20 group-hover:text-[#BC13FE] transition-colors" />
                       </motion.button>
                     ))}
-                  </motion.div>
-                </AnimatePresence>
+                  </div>
+                </>
 
                 {/* Empty state if no players in squad */}
                 {((activeTarget === 'STRIKER' || activeTarget === 'NON_STRIKER') && battingSquad.length === 0) && (
