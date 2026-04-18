@@ -2959,6 +2959,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                       {/* Logo customization popup */}
                                       <AnimatePresence>
                                         {logoPopupTeamId === teamId && (
+                                          <>
+                                          {/* Invisible backdrop to catch outside clicks */}
+                                          <div className="fixed inset-0 z-40" onClick={() => setLogoPopupTeamId(null)} />
                                           <motion.div
                                             initial={{ opacity: 0, scale: 0.9, y: -5 }}
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -3012,6 +3015,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                               </button>
                                             )}
                                           </motion.div>
+                                          </>
                                         )}
                                       </AnimatePresence>
                                     </div>
