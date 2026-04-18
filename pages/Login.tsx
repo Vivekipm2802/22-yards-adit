@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Smartphone, RefreshCw, User, ChevronDown, CheckCircle2, ShieldCheck, MapPin, X } from 'lucide-react';
 import MotionButton from '../components/MotionButton';
 import { upsertPlayer, fetchPlayerByPhone, generatePlayerId, touchLastLogin } from '../lib/supabase';
+import { sanitizePlayerName, sanitizePhone, sanitizeCity } from '../lib/sanitize';
 
 interface LoginProps {
   onLogin: (userData: any) => void;
@@ -22,11 +23,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [finalUserData, setFinalUserData] = useState<any>(null);
 
   const handleSubmit = async () => {
-    if (!name || !phone || !role || !city) {
+    // Sanitize inputs before processing
+    const cleanName = sanitizePlayerName(name);
+    const cleanPhone = sanitizePhone(phone);
+    const cleanCity = sanitizeCity(city);
+
+    if (!cleanName || !cleanPhone || !role || !cleanCity) {
       alert("Please complete the authorization protocol.");
       return;
     }
-    if (phone.length !== 10) {
+    if (cleanPhone.length !== 10 || !/^\d{10}$/.test(cleanPhone)) {
       alert("Phone number must be exactly 10 digits.");
       return;
     }
@@ -34,52 +40,52 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1200));
 
-    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}&backgroundColor=020617`;
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}&backgroundColor=020617`;
 
     const userData = {
-      name,
-      phone,
+      name: cleanName,
+      phone: cleanPhone,
       role,
-      city,
+      city: cleanCity,
       avatar: avatarUrl,
       authDate: new Date().toISOString()
     };
 
     try {
-      // ââ Step 1: Check if player exists in Supabase ââââââââââââââââââ
+      // Ã¢ÂÂÃ¢ÂÂ Step 1: Check if player exists in Supabase Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
       let existingProfile = null;
       try {
-        existingProfile = await fetchPlayerByPhone(phone);
+        existingProfile = await fetchPlayerByPhone(cleanPhone);
       } catch (_) { /* offline fallback */ }
 
-      // ââ Step 2: Sync vault from Supabase into localStorage ââââââââââ
+      // Ã¢ÂÂÃ¢ÂÂ Step 2: Sync vault from Supabase into localStorage Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
       const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
 
       if (existingProfile) {
         // Returning player: hydrate localStorage from Supabase archive_vault
-        if (!globalVault[phone]) {
-          globalVault[phone] = { history: [], teams: [], name, role, city };
+        if (!globalVault[cleanPhone]) {
+          globalVault[cleanPhone] = { history: [], teams: [], name: cleanName, role, city: cleanCity };
         }
         if (existingProfile.archive_vault && existingProfile.archive_vault.length > 0) {
-          globalVault[phone].history = existingProfile.archive_vault;
+          globalVault[cleanPhone].history = existingProfile.archive_vault;
         }
         localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
 
         // Update last_login
-        await touchLastLogin(phone).catch(() => {});
+        await touchLastLogin(cleanPhone).catch(() => {});
       } else {
         // New player: create fresh vault + upsert to Supabase
-        if (!globalVault[phone]) {
-          globalVault[phone] = { history: [], teams: [], name, role, city };
+        if (!globalVault[cleanPhone]) {
+          globalVault[cleanPhone] = { history: [], teams: [], name: cleanName, role, city: cleanCity };
           localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
         }
 
-        const playerId = generatePlayerId(phone);
+        const playerId = generatePlayerId(cleanPhone);
         await upsertPlayer({
           player_id: playerId,
-          phone,
-          name: name.toUpperCase(),
-          city,
+          phone: cleanPhone,
+          name: cleanName.toUpperCase(),
+          city: cleanCity,
           role,
           avatar_url: avatarUrl,
           matches_played: 0, career_runs: 0, balls_faced: 0,
