@@ -3,12 +3,28 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// âââ Client Initialization ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Client Initialization Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('[22YARDS] Supabase env vars missing. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env or Vercel settings. App will run in offline mode.');
+// Track whether Supabase is properly configured (used by other modules to skip network calls)
+export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+if (!isSupabaseConfigured) {
+  console.warn(
+    '[22YARDS] Supabase env vars missing!\n' +
+    '  â Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env or Vercel settings.\n' +
+    '  â App will run in OFFLINE mode â data will only be saved to localStorage.'
+  );
+  // Show a visible warning in dev mode
+  if (import.meta.env.DEV) {
+    setTimeout(() => {
+      const banner = document.createElement('div');
+      banner.textContent = 'â ï¸ Supabase not configured â running in offline mode';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#FF6D00;color:#000;text-align:center;padding:6px;font-size:12px;font-weight:700;';
+      document.body.appendChild(banner);
+    }, 1000);
+  }
 }
 
 // Use placeholder values if env vars are missing so the app still loads
@@ -18,7 +34,7 @@ export const supabase = createClient(
   SUPABASE_ANON_KEY || 'placeholder-key'
 );
 
-// âââ Types ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Types Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 export interface PlayerProfile {
   id?: string;
@@ -76,7 +92,7 @@ export interface PlayerProfile {
   updated_at?: string;
 }
 
-// âââ Helper: Generate Player ID ââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Helper: Generate Player ID Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export function generatePlayerId(phone: string): string {
   const hash = phone.split('').reduce((a, b) => {
     a = ((a << 5) - a) + b.charCodeAt(0);
@@ -85,7 +101,7 @@ export function generatePlayerId(phone: string): string {
   return `22Y-${Math.abs(hash % 9999).toString().padStart(4, '0')}-${String.fromCharCode(65 + (Math.abs(hash) % 26))}`;
 }
 
-// âââ Helper: Compute Elite Rank ââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Helper: Compute Elite Rank Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export function computeEliteRank(captaincyWins: number): string {
   if (captaincyWins >= 20) return 'General';
   if (captaincyWins >= 10) return 'Colonel';
@@ -95,7 +111,7 @@ export function computeEliteRank(captaincyWins: number): string {
   return 'Cadet';
 }
 
-// âââ Helper: Build full stats from match history ââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Helper: Build full stats from match history Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export function buildStatsFromHistory(history: any[]): Partial<PlayerProfile> {
   const stats = {
     matches_played: history.length,
@@ -190,7 +206,7 @@ export function buildStatsFromHistory(history: any[]): Partial<PlayerProfile> {
   };
 }
 
-// âââ DB: Fetch player by phone ââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Fetch player by phone Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function fetchPlayerByPhone(phone: string): Promise<PlayerProfile | null> {
   const { data, error } = await supabase
     .from('players')
@@ -204,7 +220,7 @@ export async function fetchPlayerByPhone(phone: string): Promise<PlayerProfile |
   return data as PlayerProfile | null;
 }
 
-// âââ DB: Upsert full player profile ââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Upsert full player profile Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Called on login (create if new) and after every match (update stats)
 export async function upsertPlayer(profile: Partial<PlayerProfile> & { phone: string; name: string }): Promise<PlayerProfile | null> {
   const player_id = profile.player_id || generatePlayerId(profile.phone);
@@ -228,7 +244,7 @@ export async function upsertPlayer(profile: Partial<PlayerProfile> & { phone: st
   return data as PlayerProfile;
 }
 
-// âââ DB: Update stats + vault after a completed match ââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Update stats + vault after a completed match Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function syncMatchToSupabase(
   phone: string,
   newMatchRecord: any,
@@ -258,7 +274,7 @@ export async function syncMatchToSupabase(
   }
 }
 
-// âââ DB: Save completed match to matches table ââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Save completed match to matches table Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function saveMatchRecord(matchState: any, winnerName: string, margin: string): Promise<void> {
   // After match ends, battingTeamId = team that batted innings 2 (chaser)
   // bowlingTeamId = team that batted innings 1
@@ -286,10 +302,15 @@ export async function saveMatchRecord(matchState: any, winnerName: string, margi
   };
 
   const { error } = await supabase.from('matches').upsert(payload, { onConflict: 'match_id' });
-  if (error) console.error('[Supabase] saveMatchRecord error:', error);
+  if (error) {
+    console.error('[Supabase] saveMatchRecord error:', error);
+  } else {
+    // Auto-cleanup: remove stale live-state _t rows now that the final record is saved
+    cleanupLiveStateRows(matchState.matchId).catch(() => {});
+  }
 }
 
-// âââ DB: Fetch all players for leaderboard ââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Fetch all players for leaderboard Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function fetchLeaderboard(sortBy: 'career_runs' | 'total_wickets' | 'total_victories' = 'career_runs', limit = 50): Promise<PlayerProfile[]> {
   const { data, error } = await supabase
     .from('players')
@@ -304,7 +325,7 @@ export async function fetchLeaderboard(sortBy: 'career_runs' | 'total_wickets' |
   return (data || []) as PlayerProfile[];
 }
 
-// âââ DB: Update last_login timestamp âââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Update last_login timestamp Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function touchLastLogin(phone: string): Promise<void> {
   await supabase
     .from('players')
@@ -312,7 +333,7 @@ export async function touchLastLogin(phone: string): Promise<void> {
     .eq('phone', phone);
 }
 
-// âââ DB: Push live match state (called after each ball for broadcast/transfer) â
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Push live match state (called after each ball for broadcast/transfer) Ã¢ÂÂ
 // Strategy: INSERT with a unique per-call timestamp key instead of UPSERT.
 // This bypasses the UPDATE RLS policy on the matches table (which blocks upsert
 // after the first INSERT) by ensuring every push is a fresh INSERT with no conflict.
@@ -321,7 +342,7 @@ export async function pushLiveMatchState(matchState: any): Promise<void> {
   if (!matchState?.matchId) return;
   try {
     const isInn2 = matchState.currentInnings === 2;
-    // Determine which team is batting — battingTeamId tells us ('A' or 'B')
+    // Determine which team is batting â battingTeamId tells us ('A' or 'B')
     const battingTeamId = matchState.teams?.battingTeamId; // 'A' or 'B'
     const teamABatsNow = battingTeamId === 'A';
     // Unique key per call: original matchId + _t + timestamp
@@ -345,7 +366,7 @@ export async function pushLiveMatchState(matchState: any): Promise<void> {
         teamBScore = inn2Score; teamBWickets = inn2Wickets;
       }
     } else {
-      // Innings 1 — liveScore is the current batting team's score
+      // Innings 1 â liveScore is the current batting team's score
       if (teamABatsNow) {
         teamAScore = matchState.liveScore?.runs ?? 0;
         teamAWickets = matchState.liveScore?.wickets ?? 0;
@@ -381,10 +402,10 @@ export async function pushLiveMatchState(matchState: any): Promise<void> {
   }
 }
 
-// âââ DB: Fetch a match's full_state by match_id (for Transfer / Broadcast) ââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Fetch a match's full_state by match_id (for Transfer / Broadcast) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Checks two places:
-// 1. Exact match_id row â set by saveMatchRecord for completed matches.
-// 2. Live-state rows â inserted by pushLiveMatchState with key `${matchId}_t${ts}`.
+// 1. Exact match_id row Ã¢ÂÂ set by saveMatchRecord for completed matches.
+// 2. Live-state rows Ã¢ÂÂ inserted by pushLiveMatchState with key `${matchId}_t${ts}`.
 //    These exist because the UPDATE RLS policy blocks upsert; we INSERT fresh each ball.
 export async function fetchMatchById(matchId: string): Promise<any | null> {
   try {
@@ -396,7 +417,7 @@ export async function fetchMatchById(matchId: string): Promise<any | null> {
       .maybeSingle();
 
     if (exact && (exact as any).winner_name !== 'IN PROGRESS') {
-      // Completed match â return its final state directly
+      // Completed match Ã¢ÂÂ return its final state directly
       return (exact as any).full_state ?? null;
     }
 
@@ -416,6 +437,58 @@ export async function fetchMatchById(matchId: string): Promise<any | null> {
     // 3. Fall back to exact row if it exists (initial IN PROGRESS state, if any)
     return exact ? (exact as any).full_state ?? null : null;
   } catch (_) { return null; }
+}
+
+// âââ DB: Cleanup stale live-state rows for a completed match âââââââââââââââââ
+// After a match completes, delete all the intermediate _t rows that were
+// created by pushLiveMatchState. The final state is saved under the exact
+// match_id by saveMatchRecord, so these rows are no longer needed.
+export async function cleanupLiveStateRows(matchId: string): Promise<number> {
+  if (!matchId) return 0;
+  try {
+    const { data, error } = await supabase
+      .from('matches')
+      .delete()
+      .like('match_id', `${matchId}_t%`)
+      .select('match_id');
+
+    if (error) {
+      console.error('[22Y] cleanupLiveStateRows error:', error.code, error.message);
+      return 0;
+    }
+    const count = data?.length ?? 0;
+    if (count > 0) {
+      console.log(`[22Y] Cleaned up ${count} live-state rows for match ${matchId}`);
+    }
+    return count;
+  } catch (e) {
+    console.error('[22Y] cleanupLiveStateRows exception:', e);
+    return 0;
+  }
+}
+
+// âââ DB: Bulk cleanup old IN PROGRESS rows (housekeeping) ââââââââââââââââââââ
+// Call periodically to remove stale live-state rows older than `maxAgeDays`.
+// This prevents unbounded table growth from abandoned/crashed matches.
+export async function cleanupStaleMatches(maxAgeDays: number = 7): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('matches')
+      .delete()
+      .eq('winner_name', 'IN PROGRESS')
+      .lt('date_played', cutoff)
+      .select('match_id');
+
+    if (error) {
+      console.error('[22Y] cleanupStaleMatches error:', error.code, error.message);
+      return 0;
+    }
+    return data?.length ?? 0;
+  } catch (e) {
+    console.error('[22Y] cleanupStaleMatches exception:', e);
+    return 0;
+  }
 }
 
 // Compute the 6-digit passcode from a matchId (must match MatchCenter.generatePasscode)

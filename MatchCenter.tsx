@@ -264,9 +264,26 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       if (selectionTarget === 'STRIKER' && status === 'OPENERS') {
         e.preventDefault();
         skipHistoryPushRef.current = true;
-        setStatus('CONFIG');
+        setStatus('TOSS_FLIP');
         setSelectionTarget(null);
-        setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: null }, status: 'CONFIG' }));
+        setMatch(m => ({ ...m, crease: { ...m.crease, strikerId: null }, status: 'TOSS_FLIP' }));
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      // TOSS_FLIP step 2 (winner chosen) → step 1 (clear winner)
+      if (status === 'TOSS_FLIP' && match.toss.winnerId) {
+        e.preventDefault();
+        setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: null, decision: null } }));
+        window.history.pushState({ mc: true }, '');
+        return;
+      }
+      // TOSS_FLIP step 1 → back to CONFIG step 3
+      if (status === 'TOSS_FLIP' && !match.toss.winnerId) {
+        e.preventDefault();
+        skipHistoryPushRef.current = true;
+        setStatus('CONFIG');
+        setMatch(m => ({ ...m, status: 'CONFIG' }));
+        setConfigStep(3);
         window.history.pushState({ mc: true }, '');
         return;
       }
@@ -282,6 +299,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       }
       if (status === 'LIVE') {
         e.preventDefault();
+        setShowLeaveConfirm(true);
         window.history.pushState({ mc: true }, '');
         return;
       }
@@ -289,12 +307,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     window.history.pushState({ mc: true }, '');
     window.addEventListener('popstate', handleBackButton);
     return () => window.removeEventListener('popstate', handleBackButton);
-  }, [status, configStep, selectionTarget, playerActionMenu.open, showScorecardPreview, wicketWizard.open, showAddPlayer.open, editingTeamId, showShareModal, showShareSheet, showLiveScorecard]);
+  }, [status, configStep, selectionTarget, playerActionMenu.open, showScorecardPreview, wicketWizard.open, showAddPlayer.open, editingTeamId, showShareModal, showShareSheet, showLiveScorecard, match.toss.winnerId]);
 
   // Match Settings (mid-match)
   const [showMatchSettings, setShowMatchSettings] = useState(false);
   const [abandonConfirm, setAbandonConfirm] = useState(false);
   const [abandonReason, setAbandonReason] = useState('');
+  // Leave confirmation modal (replaces window.confirm for back button during LIVE)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // DLS (Rain Delay) state
   const [showDLSModal, setShowDLSModal] = useState(false);
@@ -2235,9 +2255,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     }
   };
 
+  const MAX_QR_DATA_LENGTH = 2500; // QR server limit ~2953 chars; keep safe margin
+
   const getQRCodeUrl = (data: string) => {
+    if (data.length > MAX_QR_DATA_LENGTH) {
+      console.warn(`[22Y] QR data too long (${data.length} chars). QR may fail to generate.`);
+    }
     return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=000000&margin=10`;
   };
+
+  const isQRSafe = (data: string) => data.length <= MAX_QR_DATA_LENGTH;
 
   // Compress match state to a URL-safe base64 string
   const compressMatchState = () => {
@@ -2389,7 +2416,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       <div className="main-header h-14 flex items-center px-6 border-b border-white/5 bg-black/50 backdrop-blur-md z-[100] shrink-0">
         <button onClick={() => {
           if (status === 'LIVE' || status === 'INNINGS_BREAK' || status === 'OPENERS') {
-            if (!window.confirm('Match in progress! Are you sure you want to leave? Your match is auto-saved and you can resume later.')) return;
+            setShowLeaveConfirm(true);
+            return;
           }
           if (status === 'SUMMARY') {
             localStorage.setItem('22YARDS_ACTIVE_MATCH', JSON.stringify({ ...match, status: 'COMPLETED' }));
@@ -2485,37 +2513,34 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {/* STEP 1: MATCH MODE SELECTION (Individual vs Tournament) */}
               {configStep === 1 && (
                 <div
-                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 flex flex-col"
+                  className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-5 flex flex-col"
                 >
-                  <div className="space-y-3">
-                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Match Type</h3>
-                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Choose your match format</p>
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-2xl uppercase italic text-[#00F0FF]">Match Type</h3>
+                    <p className="text-[10px] text-white/40 uppercase tracking-[0.15em]">Choose your match format</p>
                   </div>
 
-                  <div className="space-y-4 flex-1">
+                  <div className="space-y-3 flex-1">
                     {/* INDIVIDUAL MATCH CARD */}
                     <motion.button
                       onClick={() => {
                         setMatchMode('INDIVIDUAL');
                         setConfigStep(2);
                       }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`w-full p-8 rounded-[32px] border-2 transition-all ${
+                      whileTap={{ scale: 0.97 }}
+                      className={`w-full p-5 rounded-[24px] border-2 transition-all ${
                         matchMode === 'INDIVIDUAL'
-                          ? 'bg-[#00F0FF]/10 border-[#00F0FF] shadow-[0_0_40px_rgba(0,240,255,0.3)]'
+                          ? 'bg-[#00F0FF]/10 border-[#00F0FF] shadow-[0_0_30px_rgba(0,240,255,0.2)]'
                           : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-start space-x-6">
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center">
-                            <Swords size={32} className="text-[#00F0FF]" />
-                          </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center shrink-0">
+                          <Swords size={24} className="text-[#00F0FF]" />
                         </div>
                         <div className="flex-1 text-left">
-                          <h4 className="font-heading text-xl uppercase italic text-white mb-2">Individual Match</h4>
-                          <p className="text-[11px] text-white/60">Standalone friendly game between two teams</p>
+                          <h4 className="font-heading text-base uppercase italic text-white">Individual Match</h4>
+                          <p className="text-[10px] text-white/50 mt-0.5">Standalone friendly game between two teams</p>
                         </div>
                       </div>
                     </motion.button>
@@ -2526,23 +2551,20 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         setMatchMode('TOURNAMENT');
                         setConfigStep(2);
                       }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`w-full p-8 rounded-[32px] border-2 transition-all ${
+                      whileTap={{ scale: 0.97 }}
+                      className={`w-full p-5 rounded-[24px] border-2 transition-all ${
                         matchMode === 'TOURNAMENT'
-                          ? 'bg-[#39FF14]/10 border-[#39FF14] shadow-[0_0_40px_rgba(57,255,20,0.3)]'
+                          ? 'bg-[#39FF14]/10 border-[#39FF14] shadow-[0_0_30px_rgba(57,255,20,0.2)]'
                           : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="flex items-start space-x-6">
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 rounded-full bg-[#39FF14]/20 border border-[#39FF14] flex items-center justify-center">
-                            <Trophy size={32} className="text-[#39FF14]" />
-                          </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-full bg-[#39FF14]/20 border border-[#39FF14] flex items-center justify-center shrink-0">
+                          <Trophy size={24} className="text-[#39FF14]" />
                         </div>
                         <div className="flex-1 text-left">
-                          <h4 className="font-heading text-xl uppercase italic text-white mb-2">Tournament Match</h4>
-                          <p className="text-[11px] text-white/60">Linked to a tournament with multiple rounds</p>
+                          <h4 className="font-heading text-base uppercase italic text-white">Tournament Match</h4>
+                          <p className="text-[10px] text-white/50 mt-0.5">Linked to a tournament with multiple rounds</p>
                         </div>
                       </div>
                     </motion.button>
@@ -2576,11 +2598,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {/* STEP 3: MATCH DETAILS */}
               {configStep === 3 && (
                 <div
-                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-32"
+                  className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4 pb-28"
                 >
-                  <div className="space-y-3">
-                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Match Details</h3>
-                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Configure your match</p>
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-2xl uppercase italic text-[#00F0FF]">Match Details</h3>
+                    <p className="text-[10px] text-white/40 uppercase tracking-[0.15em]">Configure your match</p>
                   </div>
 
                   {/* MATCH TYPE SELECTOR - Horizontal Pills */}
@@ -2849,11 +2871,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {/* STEP 2: PREMIUM TEAM SELECTION */}
               {configStep === 2 && (
                 <div
-                  className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32"
+                  className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-5 pb-28"
                 >
-                  <div className="space-y-3">
-                    <h3 className="font-heading text-3xl uppercase italic text-[#00F0FF]">Team Selection</h3>
-                    <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Select or create your teams</p>
+                  <div className="space-y-1">
+                    <h3 className="font-heading text-2xl uppercase italic text-[#00F0FF]">Team Selection</h3>
+                    <p className="text-[10px] text-white/40 uppercase tracking-[0.15em]">Select or create your teams</p>
                   </div>
 
                   {/* TWO SLEEK TEAM CARDS */}
@@ -2873,7 +2895,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             {!isTeamSelected ? (
                               // EMPTY STATE
                               <div
-                                className="relative bg-gradient-to-br from-[#0A0A0A] to-[#111] rounded-[40px] border-2 border-dashed border-white/10 p-12 flex flex-col items-center justify-center hover:border-white/20 transition-all min-h-[280px]"
+                                className="relative bg-gradient-to-br from-[#0A0A0A] to-[#111] rounded-[28px] border-2 border-dashed border-white/10 p-8 flex flex-col items-center justify-center hover:border-white/20 transition-all min-h-[160px]"
                               >
                                 <div
                                   onClick={() => setTeamDrawer({ open: true, targetTeam: teamId, mode: 'SEARCH' })}
@@ -2911,7 +2933,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             ) : (
                               // FILLED STATE
                               <div
-                                className="bg-[#121212] border-2 border-[#39FF14]/30 rounded-[40px] p-6 space-y-4"
+                                className="bg-[#121212] border-2 border-[#39FF14]/30 rounded-[28px] p-5 space-y-3"
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex items-center space-x-4 flex-1">
@@ -3008,8 +3030,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     })}
                   </div>
 
-                  {/* THE VS BADGE CLIMAX */}
-                  <div className="relative h-32 flex items-center justify-center">
+                  {/* THE VS BADGE */}
+                  <div className="relative h-16 flex items-center justify-center">
                     <AnimatePresence>
                       {match.teams.teamA.name && match.teams.teamB.name && (
                         <>
@@ -3310,23 +3332,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             </>
 
             {/* CONFIG FOOTER - NAVIGATION */}
-            <div className="p-6 bg-[#050505] border-t border-white/5 z-[200] shrink-0 pb-10 shadow-[0_-20px_60px_rgba(0,0,0,0.9)] flex gap-3">
-              {configStep > 1 && (
-                <motion.button
-                  onClick={() => setConfigStep(configStep - 1)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-6 rounded-[24px] bg-white/5 border border-white/10 font-black uppercase tracking-[0.3em] text-sm text-white hover:bg-white/10 transition-all"
-                >
-                  Back
-                </motion.button>
-              )}
+            <div className="p-4 bg-[#050505] border-t border-white/5 z-[200] shrink-0 pb-8 shadow-[0_-20px_60px_rgba(0,0,0,0.9)] flex gap-3">
               {configStep < 3 ? (
                 <motion.button
                   onClick={() => setConfigStep(configStep + 1)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-6 rounded-[24px] bg-[#00F0FF] text-black font-black uppercase tracking-[0.3em] text-sm shadow-[0_0_30px_rgba(0,240,255,0.3)]"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="w-full py-5 rounded-[20px] bg-[#00F0FF] text-black font-black uppercase tracking-[0.3em] text-sm shadow-[0_0_30px_rgba(0,240,255,0.3)]"
                 >
                   Next
                 </motion.button>
@@ -3335,7 +3347,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   {!isConfigValid() && getTeamSetupWarnings().length > 0 && (
                     <div className="text-center space-y-1">
                       {getTeamSetupWarnings().map((w, i) => (
-                        <p key={i} className="text-[9px] font-black text-[#FF6D00] uppercase tracking-wider">{w}</p>
+                        <p key={i} className="text-[9px] font-black text-[#FF6D00] uppercase tracking-wide">{w}</p>
                       ))}
                       <p className="text-[8px] text-white/30">Tap a team card above → open squad → assign Captain & WK</p>
                     </div>
@@ -3347,8 +3359,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     <MotionButton
                       disabled={!isConfigValid()}
                       onClick={checkTeamConflicts}
-                      className={`flex-1 py-6 !rounded-[24px] font-black uppercase tracking-[0.3em] text-sm transition-all ${
-                        isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_12px_40px_rgba(57,255,20,0.4)]' : 'bg-white/5 text-white/25'
+                      className={`flex-1 py-5 !rounded-[20px] font-black uppercase tracking-[0.2em] text-sm transition-all ${
+                        isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_8px_30px_rgba(57,255,20,0.3)]' : 'bg-white/5 text-white/25'
                       }`}
                     >
                       Proceed to Toss
@@ -3429,54 +3441,50 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         {/* TOSS SCREEN - 2-step: Who Won → Bat/Bowl → straight to Openers */}
         {status === 'TOSS_FLIP' && (
           <div className="flex-1 flex flex-col overflow-hidden bg-[#050505]">
-            <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8 pb-32 flex flex-col items-center justify-center">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-5 pb-20 flex flex-col items-center justify-center">
               <>
                 {/* STEP 1: Who won the toss? */}
                 {!match.toss.winnerId && (
-                  <div
-                    className="space-y-6 w-full max-w-md text-center"
-                  >
-                    <div className="space-y-3">
-                      <Coins size={40} className="text-[#FFD600] mx-auto" />
-                      <h2 className="font-heading text-3xl uppercase italic text-white">Who Won The Toss?</h2>
-                      <p className="text-[11px] text-white/40 uppercase tracking-[0.2em]">Tap the winning team</p>
+                  <div className="space-y-4 w-full max-w-sm text-center">
+                    <div className="space-y-2">
+                      <Coins size={32} className="text-[#FFD600] mx-auto" />
+                      <h2 className="font-heading text-2xl uppercase italic text-white">Who Won The Toss?</h2>
+                      <p className="text-[10px] text-white/40 uppercase tracking-[0.15em]">Tap the winning team</p>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: 'A' } }))}
-                      className="w-full p-5 rounded-[24px] bg-gradient-to-r from-[#FFD600]/15 to-[#FFD600]/5 border-2 border-[#FFD600]/60 hover:border-[#FFD600] flex items-center gap-4 transition-all active:scale-95"
+                      className="w-full p-4 rounded-[20px] bg-gradient-to-r from-[#FFD600]/12 to-[#FFD600]/5 border-2 border-[#FFD600]/50 hover:border-[#FFD600] flex items-center gap-3 transition-all active:scale-[0.97]"
                     >
-                      <div className="w-12 h-12 rounded-full bg-[#FFD600]/20 border border-[#FFD600] flex items-center justify-center font-black text-[18px] text-[#FFD600] shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-[#FFD600]/20 border border-[#FFD600] flex items-center justify-center font-black text-sm text-[#FFD600] shrink-0">
                         A
                       </div>
-                      <p className="font-black text-[15px] uppercase text-[#FFD600] text-left">{match.teams.teamA.name}</p>
+                      <p className="font-black text-[14px] uppercase text-[#FFD600] text-left truncate">{match.teams.teamA.name}</p>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: 'B' } }))}
-                      className="w-full p-5 rounded-[24px] bg-gradient-to-r from-[#00F0FF]/15 to-[#00F0FF]/5 border-2 border-[#00F0FF]/60 hover:border-[#00F0FF] flex items-center gap-4 transition-all active:scale-95"
+                      className="w-full p-4 rounded-[20px] bg-gradient-to-r from-[#00F0FF]/12 to-[#00F0FF]/5 border-2 border-[#00F0FF]/50 hover:border-[#00F0FF] flex items-center gap-3 transition-all active:scale-[0.97]"
                     >
-                      <div className="w-12 h-12 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center font-black text-[18px] text-[#00F0FF] shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-[#00F0FF]/20 border border-[#00F0FF] flex items-center justify-center font-black text-sm text-[#00F0FF] shrink-0">
                         B
                       </div>
-                      <p className="font-black text-[15px] uppercase text-[#00F0FF] text-left">{match.teams.teamB.name}</p>
+                      <p className="font-black text-[14px] uppercase text-[#00F0FF] text-left truncate">{match.teams.teamB.name}</p>
                     </button>
                   </div>
                 )}
 
                 {/* STEP 2: Bat or Bowl? → directly goes to Openers */}
                 {match.toss.winnerId && (
-                  <div
-                    className="space-y-6 w-full max-w-md text-center"
-                  >
-                    <div className="space-y-3">
-                      <Trophy size={40} className="text-[#00F0FF] mx-auto" />
-                      <h2 className="font-heading text-3xl uppercase italic text-white">
+                  <div className="space-y-4 w-full max-w-sm text-center">
+                    <div className="space-y-1">
+                      <Trophy size={28} className="text-[#00F0FF] mx-auto" />
+                      <h2 className="font-heading text-xl uppercase italic text-white">
                         {getTeamObj(match.toss.winnerId).name}
                       </h2>
-                      <p className="text-[13px] font-black text-[#00F0FF] uppercase tracking-[0.2em]">Won the toss! What do they choose?</p>
+                      <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.15em]">Won the toss!</p>
                     </div>
 
                     <button
@@ -3493,11 +3501,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         setSelectionTarget('STRIKER');
                         setStatus('OPENERS');
                       }}
-                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#39FF14]/15 to-[#39FF14]/5 border-2 border-[#39FF14]/60 hover:border-[#39FF14] hover:shadow-[0_0_20px_rgba(57,255,20,0.2)] transition-all space-y-2 active:scale-95"
+                      className="w-full p-5 rounded-[20px] bg-gradient-to-r from-[#39FF14]/12 to-[#39FF14]/5 border-2 border-[#39FF14]/50 hover:border-[#39FF14] transition-all space-y-1 active:scale-[0.97]"
                     >
-                      <Zap size={28} className="text-[#39FF14] mx-auto" />
-                      <p className="font-black text-[16px] text-[#39FF14] uppercase">Bat First</p>
-                      <p className="text-[11px] text-white/50">Set the target</p>
+                      <Zap size={22} className="text-[#39FF14] mx-auto" />
+                      <p className="font-black text-[14px] text-[#39FF14] uppercase">Bat First</p>
+                      <p className="text-[10px] text-white/40">Set the target</p>
                     </button>
 
                     <button
@@ -3514,20 +3522,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         setSelectionTarget('STRIKER');
                         setStatus('OPENERS');
                       }}
-                      className="w-full p-6 rounded-[24px] bg-gradient-to-r from-[#BC13FE]/15 to-[#BC13FE]/5 border-2 border-[#BC13FE]/60 hover:border-[#BC13FE] hover:shadow-[0_0_20px_rgba(188,19,254,0.2)] transition-all space-y-2 active:scale-95"
+                      className="w-full p-5 rounded-[20px] bg-gradient-to-r from-[#BC13FE]/12 to-[#BC13FE]/5 border-2 border-[#BC13FE]/50 hover:border-[#BC13FE] transition-all space-y-1 active:scale-[0.97]"
                     >
-                      <Disc size={28} className="text-[#BC13FE] mx-auto" />
-                      <p className="font-black text-[16px] text-[#BC13FE] uppercase">Bowl First</p>
-                      <p className="text-[11px] text-white/50">Chase later</p>
-                    </button>
-
-                    {/* Go back to change winner */}
-                    <button
-                      type="button"
-                      onClick={() => setMatch(m => ({ ...m, toss: { ...m.toss, winnerId: null, decision: null } }))}
-                      className="text-[11px] font-black text-white/40 uppercase tracking-[0.1em] hover:text-white/50 transition-all"
-                    >
-                      Change toss winner
+                      <Disc size={22} className="text-[#BC13FE] mx-auto" />
+                      <p className="font-black text-[14px] text-[#BC13FE] uppercase">Bowl First</p>
+                      <p className="text-[10px] text-white/40">Chase later</p>
                     </button>
                   </div>
                 )}
@@ -3998,53 +3997,52 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 )}
               </AnimatePresence>
 
-              {/* TOP STATUS BAR */}
-              <div className="shrink-0 px-4 py-4 bg-black/60 backdrop-blur border-b border-white/5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1">
-                    <div className="text-base font-black text-white/60 uppercase tracking-wider">
-                      {getTeamInitials(battingTeamName)}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddPlayer({ open: true, team: 'batting' })}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all score-btn-plus"
-                    >
-                      <Plus size={12} />
-                    </button>
+              {/* ═══ COMPACT SCORE HEADER ═══ */}
+              <div className="shrink-0 px-3 pt-3 pb-2 bg-black/80 backdrop-blur-sm border-b border-white/5">
+                {/* Score line */}
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPlayer({ open: true, team: 'batting' })}
+                    className="flex items-center gap-1.5 active:opacity-70 transition-opacity"
+                  >
+                    <span className="text-xs font-black text-white/50 uppercase tracking-wide">{getTeamInitials(battingTeamName)}</span>
+                    <Plus size={10} className="text-white/30" />
+                  </button>
+                  <div className="text-center flex-1">
+                    <span className={`font-numbers text-4xl font-black tracking-tight ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-white'}`}>
+                      {match.liveScore.runs}<span className="text-white/40">/{match.liveScore.wickets}</span>
+                    </span>
+                    <span className={`ml-2 font-numbers text-sm ${fireMode ? 'text-[#FF6D00]/50' : iceMode ? 'text-[#80D8FF]/60' : 'text-white/40'}`}>
+                      ({overs}.{ballsInOver})
+                    </span>
                   </div>
-                  <div className="text-center">
-                    <div className={`font-numbers text-5xl font-black ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-[#00F0FF]'}`}>
-                      {match.liveScore.runs}/{match.liveScore.wickets}
-                    </div>
-                    <div className={`text-sm ${fireMode ? 'text-[#FF6D00]/60' : iceMode ? 'text-[#80D8FF]/80' : 'text-white/50'}`}>
-                      {overs}.{ballsInOver}/{match.currentInnings === 1 ? (match.config.reducedOvers1 || match.config.overs) : (match.config.reducedOvers2 || match.config.overs)} ov | CRR {crr}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddPlayer({ open: true, team: 'bowling' })}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all score-btn-plus"
-                    >
-                      <Plus size={12} />
-                    </button>
-                    <div className="text-base font-black text-white/60 uppercase tracking-wider">
-                      {getTeamInitials(bowlingTeamName)}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPlayer({ open: true, team: 'bowling' })}
+                    className="flex items-center gap-1.5 active:opacity-70 transition-opacity"
+                  >
+                    <Plus size={10} className="text-white/30" />
+                    <span className="text-xs font-black text-white/50 uppercase tracking-wide">{getTeamInitials(bowlingTeamName)}</span>
+                  </button>
                 </div>
-                {match.currentInnings === 2 && target > 0 && (
-                  <div className="text-[8px] text-white/70 uppercase tracking-wider text-center py-1 bg-white/[0.08] rounded">
-                    Need {need} off {ballsRemaining}b | RRR: {rrr}
-                  </div>
-                )}
-
+                {/* Run rate + target row */}
+                <div className="flex items-center justify-center gap-3 mt-0.5">
+                  <span className="text-[10px] font-bold text-white/40">CRR {crr}</span>
+                  {match.currentInnings === 2 && target > 0 && (
+                    <>
+                      <span className="text-white/20">|</span>
+                      <span className="text-[10px] font-bold text-white/40">Need {need} off {ballsRemaining}b</span>
+                      <span className="text-white/20">|</span>
+                      <span className="text-[10px] font-bold text-white/40">RRR {rrr}</span>
+                    </>
+                  )}
+                </div>
                 {/* DLS PAR SCORE */}
                 {dlsActive && match.currentInnings === 2 && match.config.isRainAffected && (
-                  <div className="dls-par-banner px-4 py-2 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-between mt-2">
-                    <span className="text-[9px] font-black text-[#FFD600]/60 uppercase tracking-wider">DLS Par</span>
-                    <span className="font-numbers text-sm font-black text-[#FFD600]">
+                  <div className="flex items-center justify-center gap-2 mt-1 px-3 py-1 rounded-lg bg-[#FFD600]/10 border border-[#FFD600]/15">
+                    <span className="text-[9px] font-black text-[#FFD600]/60 uppercase">DLS Par</span>
+                    <span className="font-numbers text-xs font-black text-[#FFD600]">
                       {getDLSParScore({
                         team1Score: match.config.innings1Score || 0,
                         matchOvers: match.config.reducedOvers2 || match.config.overs,
@@ -4053,239 +4051,180 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         team2OversTotal: match.config.reducedOvers2 || match.config.overs,
                       })}
                     </span>
-                    <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: match.liveScore.runs >= getDLSParScore({ team1Score: match.config.innings1Score || 0, matchOvers: match.config.reducedOvers2 || match.config.overs, team2OversRemaining: (match.config.reducedOvers2 || match.config.overs) - (match.liveScore.balls / 6), team2WicketsLost: match.liveScore.wickets, team2OversTotal: match.config.reducedOvers2 || match.config.overs }) ? '#39FF14' : '#FF003C' }}>
+                    <span className="text-[9px] font-black uppercase" style={{ color: match.liveScore.runs >= getDLSParScore({ team1Score: match.config.innings1Score || 0, matchOvers: match.config.reducedOvers2 || match.config.overs, team2OversRemaining: (match.config.reducedOvers2 || match.config.overs) - (match.liveScore.balls / 6), team2WicketsLost: match.liveScore.wickets, team2OversTotal: match.config.reducedOvers2 || match.config.overs }) ? '#39FF14' : '#FF003C' }}>
                       {match.liveScore.runs >= getDLSParScore({ team1Score: match.config.innings1Score || 0, matchOvers: match.config.reducedOvers2 || match.config.overs, team2OversRemaining: (match.config.reducedOvers2 || match.config.overs) - (match.liveScore.balls / 6), team2WicketsLost: match.liveScore.wickets, team2OversTotal: match.config.reducedOvers2 || match.config.overs }) ? 'AHEAD' : 'BEHIND'}
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* BATSMAN PANEL */}
-              <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01]">
-                {/* Striker Row */}
-                {striker && (
-                  <div className="mb-2 pb-2 border-b border-white/10">
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-7 h-7 flex items-center justify-center rounded-full bg-[#00F0FF]/20">
-                        <Zap size={16} className="text-[#00F0FF]" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setPlayerActionMenu({ open: true, playerId: striker.id, role: 'STRIKER' })}
-                        className="flex-1 font-black text-white uppercase min-w-0 truncate text-left active:text-[#00F0FF] transition-colors"
-                      >
-                        {striker.name}
-                      </button>
-                      <div className="font-numbers font-black text-white/80 text-right">
-                        {striker.runs || 0}
-                      </div>
-                      <div className="font-numbers font-black text-white/60 w-8 text-right">
-                        ({striker.balls || 0})
-                      </div>
-                      <div className="font-numbers font-black text-white/60 w-6 text-right">
-                        {striker.fours || 0}4
-                      </div>
-                      <div className="font-numbers font-black text-white/60 w-6 text-right">
-                        {striker.sixes || 0}6
-                      </div>
-                      <div className={`font-numbers font-black w-10 text-right ${fireMode ? 'text-[#FFD600]' : iceMode ? 'text-[#E1BEE7]' : 'text-[#BC13FE]'}`}>
-                        {strikerSR}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {/* Non-Striker Row */}
-                {nonStriker && (
-                  <div className="mb-2">
-                    <div className="flex items-center gap-3 text-xs text-white/60">
-                      <div className="w-5" />
-                      <button
-                        type="button"
-                        onClick={() => setPlayerActionMenu({ open: true, playerId: nonStriker.id, role: 'NON_STRIKER' })}
-                        className="flex-1 font-black uppercase min-w-0 truncate text-left active:text-[#00F0FF] transition-colors"
-                      >
-                        {nonStriker.name}
-                      </button>
-                      <div className="font-numbers font-black text-right">
-                        {nonStriker.runs || 0}
-                      </div>
-                      <div className="font-numbers font-black w-8 text-right">
-                        ({nonStriker.balls || 0})
-                      </div>
-                      <div className="font-numbers font-black w-6 text-right">
-                        {nonStriker.fours || 0}4
-                      </div>
-                      <div className="font-numbers font-black w-6 text-right">
-                        {nonStriker.sixes || 0}6
-                      </div>
-                      <div className="font-numbers font-black w-10 text-right">
-                        {nonStrikerSR}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {/* Partnership Band */}
-                <div className="text-xs px-3 py-1.5 rounded bg-gradient-to-r from-[#4DB6AC]/30 to-[#4DB6AC]/10 border border-[#4DB6AC]/20 text-white/70 font-black uppercase">
-                  P'ship: {partnershipRuns}({partnershipBallCount}b) | {wicketNumber}th Wkt
+              {/* ═══ BATSMAN + BOWLER COMPACT PANEL ═══ */}
+              <div className="shrink-0 px-3 py-2 border-b border-white/5 bg-white/[0.02] space-y-1">
+                {/* Column headers */}
+                <div className="flex items-center gap-2 text-[8px] font-black text-white/25 uppercase tracking-wider px-1">
+                  <div className="flex-1">Batsman</div>
+                  <div className="w-8 text-right">R</div>
+                  <div className="w-8 text-right">B</div>
+                  <div className="w-6 text-right">4s</div>
+                  <div className="w-6 text-right">6s</div>
+                  <div className="w-9 text-right">SR</div>
                 </div>
-              </div>
-
-              {/* BOWLER PANEL */}
-              {bowler && (
-                <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01]">
-                  <div className="flex items-center gap-3 text-sm mb-2">
+                {/* Striker */}
+                {striker && (
+                  <button
+                    type="button"
+                    onClick={() => setPlayerActionMenu({ open: true, playerId: striker.id, role: 'STRIKER' })}
+                    className="w-full flex items-center gap-2 px-1 py-1.5 rounded-lg hover:bg-white/5 active:bg-white/10 transition-all"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-[#00F0FF] shrink-0" />
+                    <div className="flex-1 font-black text-[13px] text-white uppercase truncate text-left">{striker.name}</div>
+                    <div className="font-numbers font-black text-[13px] text-white w-8 text-right">{striker.runs || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/50 w-8 text-right">{striker.balls || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/50 w-6 text-right">{striker.fours || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/50 w-6 text-right">{striker.sixes || 0}</div>
+                    <div className={`font-numbers text-[11px] font-bold w-9 text-right ${fireMode ? 'text-[#FFD600]' : iceMode ? 'text-[#E1BEE7]' : 'text-[#BC13FE]'}`}>{strikerSR}</div>
+                  </button>
+                )}
+                {/* Non-Striker */}
+                {nonStriker && (
+                  <button
+                    type="button"
+                    onClick={() => setPlayerActionMenu({ open: true, playerId: nonStriker.id, role: 'NON_STRIKER' })}
+                    className="w-full flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-white/5 active:bg-white/10 transition-all"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-transparent border border-white/20 shrink-0" />
+                    <div className="flex-1 font-black text-[11px] text-white/50 uppercase truncate text-left">{nonStriker.name}</div>
+                    <div className="font-numbers text-[11px] text-white/50 w-8 text-right">{nonStriker.runs || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/40 w-8 text-right">{nonStriker.balls || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/40 w-6 text-right">{nonStriker.fours || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/40 w-6 text-right">{nonStriker.sixes || 0}</div>
+                    <div className="font-numbers text-[11px] text-white/40 w-9 text-right">{nonStrikerSR}</div>
+                  </button>
+                )}
+                {/* Partnership + Bowler in one row */}
+                <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                  <div className="flex-1 text-[9px] font-bold text-[#4DB6AC] uppercase">
+                    P'ship {partnershipRuns}({partnershipBallCount}b)
+                  </div>
+                  {bowler && (
                     <button
                       type="button"
                       onClick={() => setPlayerActionMenu({ open: true, playerId: bowler.id, role: 'BOWLER' })}
-                      className="flex-1 font-black text-white uppercase min-w-0 truncate text-left active:text-[#00F0FF] transition-colors"
+                      className="flex items-center gap-2 active:opacity-70 transition-opacity"
                     >
-                      {bowler.name}
+                      <span className="text-[10px] font-black text-white/60 uppercase truncate max-w-[80px]">{bowler.name}</span>
+                      <span className="font-numbers text-[10px] text-white/50">{bowlerOvers}-{bowler.runs_conceded || 0}-{bowler.wickets || 0}</span>
+                      <span className={`font-numbers text-[10px] font-bold ${fireMode ? 'text-[#FFD600]' : iceMode ? 'text-[#E1BEE7]' : 'text-[#BC13FE]'}`}>E{bowlerEcon}</span>
                     </button>
-                    <div className="font-numbers font-black text-white/80">
-                      {bowlerOvers} ov
-                    </div>
-                    <div className="font-numbers font-black text-white/80 w-8 text-right">
-                      {bowler.runs_conceded || 0}r
-                    </div>
-                    <div className="font-numbers font-black text-white/80 w-6 text-right">
-                      {bowler.wickets || 0}w
-                    </div>
-                    <div className={`font-numbers font-black w-10 text-right ${fireMode ? 'text-[#FFD600]' : iceMode ? 'text-[#E1BEE7]' : 'text-[#BC13FE]'}`}>
-                      {bowlerEcon}
-                    </div>
-                  </div>
-                  <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-[#BC13FE] h-full transition-all"
-                      style={{ width: `${Math.min(100, (bowlerOversComplete / bowlerMaxOvers) * 100)}%` }}
-                    />
-                  </div>
-                  <div className="text-[10px] text-white/60 mt-1 uppercase font-black">
-                    {bowlerOversComplete}/{bowlerMaxOvers} overs
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* CURRENT OVER TICKER */}
-              <div className="shrink-0 px-4 py-4 border-b border-white/5 bg-white/[0.01] flex justify-center gap-2">
+              {/* ═══ OVER TICKER ═══ */}
+              <div className="shrink-0 px-3 py-2 border-b border-white/5 bg-white/[0.01] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <span className="text-[9px] font-black text-white/30 uppercase shrink-0 mr-1">This Over</span>
                 {currentOverBalls.map((ball, idx) => {
-                  let bgColor = 'bg-white/20';
+                  let bgColor = 'bg-white/15';
+                  let textColor = 'text-white/70';
                   let displayText = '0';
 
                   if (ball.isWicket) {
-                    bgColor = 'bg-[#FF003C]';
+                    bgColor = 'bg-[#FF003C]'; textColor = 'text-white';
                     displayText = 'W';
                   } else if (ball.type === 'WD') {
-                    bgColor = 'bg-[#FF6D00]';
+                    bgColor = 'bg-[#FF6D00]/80'; textColor = 'text-white';
                     displayText = 'Wd';
                   } else if (ball.type === 'NB') {
-                    bgColor = 'bg-[#FF6D00]';
+                    bgColor = 'bg-[#FF6D00]/80'; textColor = 'text-white';
                     displayText = 'Nb';
                   } else if (ball.runsScored === 4) {
-                    bgColor = 'bg-[#BC13FE]';
+                    bgColor = 'bg-[#BC13FE]'; textColor = 'text-white';
                     displayText = '4';
                   } else if (ball.runsScored === 6) {
-                    bgColor = 'bg-[#FFD600]';
+                    bgColor = 'bg-[#FFD600]'; textColor = 'text-black';
                     displayText = '6';
                   } else if (ball.runsScored > 0) {
-                    bgColor = 'bg-white/30';
+                    bgColor = 'bg-white/25'; textColor = 'text-white';
                     displayText = String(ball.runsScored);
                   }
 
                   return (
                     <div
                       key={idx}
-                      className={`w-10 h-10 ${bgColor} rounded-full flex items-center justify-center text-xs font-black text-white/90`}
+                      className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center text-[10px] font-black ${textColor} shrink-0`}
                     >
                       {displayText}
                     </div>
                   );
                 })}
+                {currentOverBalls.length === 0 && (
+                  <span className="text-[10px] text-white/20 italic">New over</span>
+                )}
               </div>
 
-              {/* SCORING BUTTONS */}
-              <div className="flex-1 flex flex-col overflow-y-auto no-scrollbar p-2 gap-1.5">
-                {/* Row 1: 0, 1, 4, WD */}
-                <div className="grid grid-cols-4 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleScore(0)}
-                    className="min-h-[38px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
-                  >
-                    0
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScore(1)}
-                    className="min-h-[38px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
-                  >
-                    1
-                  </button>
+              {/* ═══ SCORING KEYPAD — CricHeroes-style ═══ */}
+              <div className="flex-1 flex flex-col p-2.5 gap-2 overflow-hidden">
+                {/* Primary runs: 0 1 2 3 */}
+                <div className="grid grid-cols-4 gap-2 flex-1">
+                  {[0, 1, 2, 3].map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => handleScore(r)}
+                      className="bg-white/[0.08] hover:bg-white/15 text-white font-black rounded-2xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xl flex items-center justify-center"
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                {/* Boundary + Extras: 4 6 WD NB */}
+                <div className="grid grid-cols-4 gap-2 flex-1">
                   <button
                     type="button"
                     onClick={() => handleScore(4)}
-                    className="min-h-[38px] bg-[#BC13FE]/20 hover:bg-[#BC13FE]/30 text-[#BC13FE] font-black rounded-lg border border-[#BC13FE]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="bg-[#BC13FE]/15 hover:bg-[#BC13FE]/25 text-[#BC13FE] font-black rounded-2xl border border-[#BC13FE]/30 active:scale-[0.93] transition-all select-none touch-manipulation text-xl flex items-center justify-center"
                   >
                     4
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPendingExtra('WD')}
-                    className={`min-h-[38px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation text-sm font-black ${
-                      pendingExtra === 'WD'
-                        ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
-                        : 'bg-[#FF6D00]/40 text-[#FF6D00] border-[#FF6D00]/60 hover:bg-[#FF6D00]/50'
-                    }`}
-                  >
-                    WD
-                  </button>
-                </div>
-
-                {/* Row 2: 2, 3, 6, NB */}
-                <div className="grid grid-cols-4 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleScore(2)}
-                    className="min-h-[34px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
-                  >
-                    2
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScore(3)}
-                    className="min-h-[34px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-sm score-btn-plain"
-                  >
-                    3
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => handleScore(6)}
-                    className="min-h-[34px] bg-[#FFD600]/20 hover:bg-[#FFD600]/30 text-[#FFD600] font-black rounded-lg border border-[#FFD600]/40 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="bg-[#FFD600]/15 hover:bg-[#FFD600]/25 text-[#FFD600] font-black rounded-2xl border border-[#FFD600]/30 active:scale-[0.93] transition-all select-none touch-manipulation text-xl flex items-center justify-center"
                   >
                     6
                   </button>
                   <button
                     type="button"
+                    onClick={() => setPendingExtra('WD')}
+                    className={`rounded-2xl border active:scale-[0.93] transition-all select-none touch-manipulation text-sm font-black flex items-center justify-center ${
+                      pendingExtra === 'WD'
+                        ? 'bg-[#FF6D00] text-black border-[#FF6D00] shadow-[0_0_15px_rgba(255,109,0,0.4)]'
+                        : 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30 hover:bg-[#FF6D00]/25'
+                    }`}
+                  >
+                    WD
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPendingExtra('NB')}
-                    className={`min-h-[34px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation text-sm font-black ${
+                    className={`rounded-2xl border active:scale-[0.93] transition-all select-none touch-manipulation text-sm font-black flex items-center justify-center ${
                       pendingExtra === 'NB'
-                        ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
-                        : 'bg-[#FF6D00]/40 text-[#FF6D00] border-[#FF6D00]/60 hover:bg-[#FF6D00]/50'
+                        ? 'bg-[#FF6D00] text-black border-[#FF6D00] shadow-[0_0_15px_rgba(255,109,0,0.4)]'
+                        : 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30 hover:bg-[#FF6D00]/25'
                     }`}
                   >
                     NB
                   </button>
                 </div>
-
-                {/* Row 3: BYE, LB, 5, 7 */}
-                <div className="grid grid-cols-4 gap-1.5 text-sm">
+                {/* Secondary: BYE LB 5 7 */}
+                <div className="grid grid-cols-4 gap-2" style={{ flex: '0.6' }}>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('BYE')}
-                    className={`min-h-[30px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation font-black text-xs ${
+                    className={`rounded-xl border active:scale-[0.93] transition-all select-none touch-manipulation text-xs font-black flex items-center justify-center ${
                       pendingExtra === 'BYE'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
-                        : 'bg-[#FF6D00]/30 text-[#FF6D00] border-[#FF6D00]/50 hover:bg-[#FF6D00]/40'
+                        : 'bg-[#FF6D00]/10 text-[#FF6D00]/80 border-[#FF6D00]/20 hover:bg-[#FF6D00]/20'
                     }`}
                   >
                     BYE
@@ -4293,10 +4232,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('LB')}
-                    className={`min-h-[30px] rounded-lg border active:scale-95 transition-all select-none touch-manipulation font-black text-xs ${
+                    className={`rounded-xl border active:scale-[0.93] transition-all select-none touch-manipulation text-xs font-black flex items-center justify-center ${
                       pendingExtra === 'LB'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
-                        : 'bg-[#FF6D00]/30 text-[#FF6D00] border-[#FF6D00]/50 hover:bg-[#FF6D00]/40'
+                        : 'bg-[#FF6D00]/10 text-[#FF6D00]/80 border-[#FF6D00]/20 hover:bg-[#FF6D00]/20'
                     }`}
                   >
                     LB
@@ -4304,30 +4243,27 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => handleScore(5)}
-                    className="min-h-[30px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
+                    className="bg-white/[0.06] hover:bg-white/12 text-white/60 font-black rounded-xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xs flex items-center justify-center"
                   >
                     5
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(7)}
-                    className="min-h-[30px] bg-white/10 hover:bg-white/20 text-white font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs score-btn-plain"
+                    className="bg-white/[0.06] hover:bg-white/12 text-white/60 font-black rounded-xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xs flex items-center justify-center"
                   >
                     7
                   </button>
                 </div>
-
-                {/* Row 4: WICKET, SWAP, UNDO */}
               </div>
 
-
-              {/* BOTTOM ACTION BAR: WICKET, SWAP, UNDO + PREVIEW */}
-              <div className="shrink-0 px-2 pb-2 pt-1 space-y-1">
-                <div className="grid grid-cols-4 gap-1.5">
+              {/* ═══ BOTTOM ACTION BAR ═══ */}
+              <div className="shrink-0 px-2.5 pb-3 pt-1.5 space-y-1.5 bg-black/40">
+                <div className="grid grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => setWicketWizard({ open: true })}
-                    className="col-span-2 h-[40px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-lg border border-[#FF003C]/60 active:scale-95 transition-all select-none touch-manipulation text-sm"
+                    className="col-span-2 h-[46px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-xl border border-[#FF003C]/60 active:scale-[0.95] transition-all select-none touch-manipulation text-sm tracking-wider"
                   >
                     WICKET
                   </button>
@@ -4339,7 +4275,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         crease: { ...m.crease, strikerId: m.crease.nonStrikerId, nonStrikerId: m.crease.strikerId }
                       }));
                     }}
-                    className="h-[40px] bg-[#4DB6AC]/20 hover:bg-[#4DB6AC]/30 text-[#4DB6AC] font-black rounded-lg border border-[#4DB6AC]/40 active:scale-95 transition-all select-none touch-manipulation text-xs"
+                    className="h-[46px] bg-[#4DB6AC]/15 hover:bg-[#4DB6AC]/25 text-[#4DB6AC] font-black rounded-xl border border-[#4DB6AC]/30 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
                   >
                     SWAP
                   </button>
@@ -4347,7 +4283,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     type="button"
                     onClick={handleUndo}
                     disabled={!match.history || match.history.length === 0}
-                    className="h-[40px] bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-lg border border-white/20 active:scale-95 transition-all select-none touch-manipulation text-xs"
+                    className="h-[46px] bg-white/[0.06] hover:bg-white/12 disabled:opacity-25 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-xl border border-white/10 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
                   >
                     UNDO
                   </button>
@@ -4355,16 +4291,16 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <button
                   type="button"
                   onClick={() => setShowScorecardPreview(true)}
-                  className={`w-full h-[42px] font-black rounded-lg border active:scale-[0.98] transition-all select-none touch-manipulation text-sm flex items-center justify-center gap-2 score-btn-preview ${
+                  className={`w-full h-[38px] font-black rounded-xl border active:scale-[0.98] transition-all select-none touch-manipulation text-xs flex items-center justify-center gap-2 ${
                     fireMode
-                      ? 'bg-[#FF6D00]/20 text-[#FF6D00] border-[#FF6D00]/40 hover:bg-[#FF6D00]/30'
+                      ? 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30'
                       : iceMode
-                      ? 'bg-[#80D8FF]/20 text-[#80D8FF] border-[#80D8FF]/40 hover:bg-[#80D8FF]/30'
-                      : 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30 hover:bg-[#00F0FF]/25'
+                      ? 'bg-[#80D8FF]/15 text-[#80D8FF] border-[#80D8FF]/30'
+                      : 'bg-[#00F0FF]/10 text-[#00F0FF]/80 border-[#00F0FF]/20'
                   }`}
                 >
-                  <ClipboardList size={16} />
-                  PREVIEW SCORECARD
+                  <ClipboardList size={14} />
+                  SCORECARD
                 </button>
               </div>
 
@@ -6435,19 +6371,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <button
                   onClick={() => {
                     const squad = getTeamObj(editingTeamId)?.squad || [];
-                    if (squad.length > 0) {
-                      if (!isCaptainSelected() && !isWicketKeeperSelected()) {
-                        alert('Please select a Captain and a Wicket Keeper before closing.');
-                        return;
-                      }
-                      if (!isCaptainSelected()) {
-                        alert('Please select a Captain before closing.');
-                        return;
-                      }
-                      if (!isWicketKeeperSelected()) {
-                        alert('Please select a Wicket Keeper before closing.');
-                        return;
-                      }
+                    if (squad.length > 0 && (!isCaptainSelected() || !isWicketKeeperSelected())) {
+                      // Don't close — the blinking prompt guides the user
+                      return;
                     }
                     setEditingTeamId(null);
                   }}
@@ -6705,19 +6631,30 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 </button>
               </div>
 
-              <div className="p-6 border-t border-white/5 flex gap-3">
-                <button
-                  onClick={() => setEditingTeamId(null)}
-                  className="flex-1 py-3 rounded-[20px] bg-white/5 border border-white/10 font-black text-[11px] uppercase text-white hover:bg-white/10 transition-all"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => setEditingTeamId(null)}
-                  className="flex-1 py-3 rounded-[20px] bg-[#39FF14] text-black font-black text-[11px] uppercase hover:shadow-[0_0_20px_rgba(57,255,20,0.3)] transition-all"
-                >
-                  Save Squadron
-                </button>
+              <div className="p-4 border-t border-white/5">
+                {isCaptainSelected() && isWicketKeeperSelected() ? (
+                  <button
+                    onClick={() => setEditingTeamId(null)}
+                    className="w-full py-4 rounded-[20px] bg-[#39FF14] text-black font-black text-[12px] uppercase tracking-[0.2em] hover:shadow-[0_0_20px_rgba(57,255,20,0.3)] transition-all active:scale-[0.98]"
+                  >
+                    Save Squadron
+                  </button>
+                ) : (
+                  <motion.div
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-full py-4 rounded-[20px] bg-[#FF6D00]/15 border-2 border-dashed border-[#FF6D00]/50 text-center"
+                  >
+                    <p className="text-[11px] font-black text-[#FF6D00] uppercase tracking-[0.2em]">
+                      {!isCaptainSelected() && !isWicketKeeperSelected()
+                        ? 'Select Captain & Wicket Keeper'
+                        : !isCaptainSelected()
+                        ? 'Select Captain'
+                        : 'Select Wicket Keeper'}
+                    </p>
+                    <p className="text-[9px] text-[#FF6D00]/60 mt-1">Tap the crown or glove icon next to a player</p>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -8231,6 +8168,53 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         isActive={showCameraRecorder}
         onClose={() => setShowCameraRecorder(false)}
       />
+
+      {/* ═══ LEAVE MATCH CONFIRMATION MODAL ═══ */}
+      <AnimatePresence>
+        {showLeaveConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[5000] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-[#0A0A0A] border border-white/10 rounded-[28px] p-8 space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 bg-[#FF003C]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ShieldAlert size={28} className="text-[#FF003C]" />
+                </div>
+                <h3 className="font-heading text-xl uppercase italic text-white">Match In Progress</h3>
+                <p className="text-[11px] text-white/40 leading-relaxed">
+                  Your match is auto-saved. You can resume from the Dugout anytime.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setShowLeaveConfirm(false);
+                    if (match.matchId) sessionStorage.removeItem(`22Y_I_AM_SCORER_${match.matchId}`);
+                    onBack();
+                  }}
+                  className="w-full py-4 rounded-[16px] bg-[#FF003C]/15 border border-[#FF003C]/30 text-[#FF003C] font-black text-[11px] uppercase tracking-wider hover:bg-[#FF003C]/25 transition-all"
+                >
+                  Save & Leave
+                </button>
+                <button
+                  onClick={() => setShowLeaveConfirm(false)}
+                  className="w-full py-3 rounded-[16px] bg-white/5 border border-white/10 text-white/50 font-black text-[11px] uppercase tracking-wider hover:bg-white/10 transition-all"
+                >
+                  Continue Match
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

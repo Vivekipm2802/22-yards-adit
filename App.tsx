@@ -56,8 +56,9 @@ import Archive from './pages/Archive';
 import Tournaments from './pages/Tournaments';
 import Profile from './pages/Profile';
 import { AuthContext } from './AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import LiveScoreboard from './pages/LiveScoreboard';
-import { fetchMatchById, supabase } from './lib/supabase';
+import { fetchMatchById, supabase, cleanupStaleMatches } from './lib/supabase';
 
 export type Page = 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'PROFILE' | 'FOLLOW_MATCH';
 
@@ -163,6 +164,9 @@ const App: React.FC = () => {
       localStorage.removeItem('22YARDS_USER_DATA');
       setUserData(null);
     }
+
+    // Housekeeping: cleanup stale IN PROGRESS rows older than 7 days
+    cleanupStaleMatches(7).catch(() => {});
   }, []);
 
   /* ── Resume: after login, load match state from Supabase → localStorage → MATCH_CENTER ── */
@@ -366,12 +370,12 @@ const App: React.FC = () => {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'DUGOUT': return <Dugout onNavigate={setActivePage} onUpgrade={() => setShowUpgradeModal(true)} />;
-      case 'MATCH_CENTER': return <MCErrorBoundary><MatchCenter onBack={() => setActivePage('DUGOUT')} onNavigate={(page) => setActivePage(page as Page)} /></MCErrorBoundary>;
-      case 'PERFORMANCE': return <Performance userAvatar={userData.avatar} />;
-      case 'ARENA': return <Arena />;
-      case 'HISTORY': return <Archive />;
-      case 'TOURNAMENTS': return <Tournaments />;
+      case 'DUGOUT': return <ErrorBoundary fallbackTitle="Dugout Error" onReset={() => setActivePage('DUGOUT')}><Dugout onNavigate={setActivePage} onUpgrade={() => setShowUpgradeModal(true)} /></ErrorBoundary>;
+      case 'MATCH_CENTER': return <ErrorBoundary fallbackTitle="Match Center Error" onReset={() => setActivePage('DUGOUT')}><MatchCenter onBack={() => setActivePage('DUGOUT')} onNavigate={(page) => setActivePage(page as Page)} /></ErrorBoundary>;
+      case 'PERFORMANCE': return <ErrorBoundary fallbackTitle="Performance Error" onReset={() => setActivePage('DUGOUT')}><Performance userAvatar={userData.avatar} /></ErrorBoundary>;
+      case 'ARENA': return <ErrorBoundary fallbackTitle="Arena Error" onReset={() => setActivePage('DUGOUT')}><Arena /></ErrorBoundary>;
+      case 'HISTORY': return <ErrorBoundary fallbackTitle="Archive Error" onReset={() => setActivePage('DUGOUT')}><Archive /></ErrorBoundary>;
+      case 'TOURNAMENTS': return <ErrorBoundary fallbackTitle="Tournaments Error" onReset={() => setActivePage('DUGOUT')}><Tournaments /></ErrorBoundary>;
       case 'FOLLOW_MATCH': {
         const followId = localStorage.getItem('22Y_FOLLOWING_MATCH');
         if (!followId) return <Dugout onNavigate={setActivePage} onUpgrade={() => setShowUpgradeModal(true)} />;
@@ -482,19 +486,32 @@ const App: React.FC = () => {
 
         {/* Bottom Tab Bar */}
         {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && activePage !== 'FOLLOW_MATCH' && (
-          <div className="bg-black/80 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
-            {navItems.map((item) => (
+          <div className="bg-black/90 backdrop-blur-2xl border-t-2 border-white/25 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
+            {navItems.map((item) => {
+              const isActive = activePage === item.id;
+              return (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id as Page)}
-                className={`flex flex-col items-center space-y-1 group transition-all ${activePage === item.id ? 'text-[#00F0FF]' : 'text-white/20'}`}
+                className="flex flex-col items-center space-y-1 group transition-all"
+                style={{ color: isActive ? '#00F0FF' : '#ffffff' }}
               >
-                <div className={`p-2 rounded-xl transition-all ${activePage === item.id ? 'bg-[#00F0FF]/10 shadow-[0_0_15px_rgba(0,240,255,0.2)]' : 'group-hover:bg-white/5'}`}>
-                  <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
+                <div
+                  className="p-2 rounded-xl transition-all"
+                  style={isActive
+                    ? { background: 'rgba(0,240,255,0.3)', boxShadow: '0 0 25px rgba(0,240,255,0.5)' }
+                    : { background: 'rgba(255,255,255,0.25)', boxShadow: '0 0 20px rgba(255,255,255,0.35), 0 0 40px rgba(255,255,255,0.15)' }
+                  }
+                >
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2.2} />
                 </div>
-                <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-all ${activePage === item.id ? 'opacity-100' : 'opacity-40 group-hover:opacity-60'}`}>{item.label}</span>
+                <span
+                  className="text-[7px] font-black uppercase tracking-[0.2em]"
+                  style={{ opacity: 1, textShadow: isActive ? 'none' : '0 0 8px rgba(255,255,255,0.6)' }}
+                >{item.label}</span>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
 

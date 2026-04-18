@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 
@@ -25,3 +24,4 @@ const MotionButton: React.FC<MotionButtonProps> = ({ children, onClick, classNam
 };
 
 export default MotionButton;
+// @ts-nocheck

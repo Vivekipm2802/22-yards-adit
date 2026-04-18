@@ -93,10 +93,10 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
 
   // Quick actions - CricHeroes inspired
   const quickActions = [
-    { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, color: '#00F0FF', bg: 'from-[#00F0FF]/20 to-[#00F0FF]/5' },
-    { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, color: '#39FF14', bg: 'from-[#39FF14]/20 to-[#39FF14]/5' },
-    { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, color: '#FF6B35', bg: 'from-[#FF6B35]/20 to-[#FF6B35]/5' },
-    { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, color: '#BC13FE', bg: 'from-[#BC13FE]/20 to-[#BC13FE]/5' },
+    { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, color: '#00F0FF', bg: 'from-[#00F0FF]/70 to-[#00F0FF]/30' },
+    { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, color: '#39FF14', bg: 'from-[#39FF14]/70 to-[#39FF14]/30' },
+    { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, color: '#FF6B35', bg: 'from-[#FF6B35]/70 to-[#FF6B35]/30' },
+    { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, color: '#BC13FE', bg: 'from-[#BC13FE]/70 to-[#BC13FE]/30' },
   ];
 
   return (
@@ -111,16 +111,16 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             {/* Avatar */}
-            <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#00F0FF]/30 shadow-[0_0_20px_rgba(0,240,255,0.15)] shrink-0">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#00F0FF]/60 shadow-[0_0_25px_rgba(0,240,255,0.4)] shrink-0">
               <img src={userData?.avatar} className="w-full h-full object-cover" alt="" />
             </div>
             <div>
-              <p className="text-[11px] font-medium text-white/40 tracking-wide">{greeting}</p>
+              <p className="text-[11px] font-medium text-white/80 tracking-wide">{greeting}</p>
               <h1 className="font-heading text-2xl tracking-tight text-white leading-tight uppercase">{firstName}</h1>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Rank</p>
+            <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">Rank</p>
             <p className="font-heading text-2xl text-[#00F0FF] leading-tight">{displayRank}</p>
           </div>
         </div>
@@ -128,18 +128,18 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
         {/* Main CTA Start Match */}
         <button
           onClick={() => onNavigate('MATCH_CENTER')}
-          className="w-full relative overflow-hidden rounded-2xl border border-[#00F0FF]/20 group active:scale-[0.98] transition-transform"
+          className="w-full relative overflow-hidden rounded-2xl border-2 border-[#00F0FF]/70 group active:scale-[0.98] transition-transform shadow-[0_0_30px_rgba(0,240,255,0.2)]"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-[#00F0FF]/10 via-transparent to-[#00F0FF]/5" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#00F0FF]/5 blur-[60px] rounded-full" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#00F0FF]/40 via-[#00F0FF]/20 to-[#00F0FF]/30" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#00F0FF]/20 blur-[60px] rounded-full" />
           <div className="relative z-10 flex items-center justify-between p-5">
             <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 rounded-xl bg-[#00F0FF]/15 flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+              <div className="w-14 h-14 rounded-xl bg-[#00F0FF]/40 flex items-center justify-center shadow-[0_0_30px_rgba(0,240,255,0.5)]">
                 <Swords size={26} className="text-[#00F0FF]" />
               </div>
               <div className="text-left">
                 <h2 className="font-heading text-xl text-white uppercase tracking-tight">Start New Match</h2>
-                <p className="text-[10px] text-white/40 font-medium tracking-wide mt-0.5">Score, analyze and share live</p>
+                <p className="text-[10px] text-white/80 font-medium tracking-wide mt-0.5">Score, analyze and share live</p>
               </div>
             </div>
             <div className="w-10 h-10 rounded-full bg-[#00F0FF] flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(0,240,255,0.4)]">
@@ -157,7 +157,7 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
           <motion.section variants={itemVariants}>
             <button
               onClick={() => onNavigate('FOLLOW_MATCH')}
-              className="w-full flex items-center justify-between p-4 rounded-2xl border border-[#BC13FE]/20 bg-[#BC13FE]/5 group active:scale-[0.98] transition-transform"
+              className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-[#BC13FE]/60 bg-[#BC13FE]/25 group active:scale-[0.98] transition-transform shadow-[0_0_20px_rgba(188,19,254,0.2)]"
             >
               <div className="flex items-center space-x-3">
                 <div className="relative">
@@ -171,7 +171,7 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
                 </div>
                 <div className="text-left">
                   <p className="text-[12px] font-black text-white uppercase tracking-wider">Following a Match</p>
-                  <p className="text-[9px] text-white/30 font-medium">Tap to view live scorecard</p>
+                  <p className="text-[9px] text-white/70 font-medium">Tap to view live scorecard</p>
                 </div>
               </div>
               <ChevronRight size={16} className="text-[#BC13FE]/60 group-hover:text-[#BC13FE]" />
@@ -183,7 +183,7 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
       {/* YOUR STATS Cricket Profile Card */}
       <motion.section variants={itemVariants}>
         <div className="flex items-center justify-between mb-3 px-1">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40">Your Cricket</h3>
+          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/80">Your Cricket</h3>
           <button onClick={() => onNavigate('PERFORMANCE')} className="text-[10px] font-black text-[#00F0FF] uppercase tracking-wider flex items-center gap-1">
             View All <ChevronRight size={12} />
           </button>
@@ -192,24 +192,24 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
           <div className="grid grid-cols-4 gap-3 text-center">
             <div className="space-y-1">
               <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalMatches}</p>
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Matches</p>
+              <p className="text-[8px] font-black text-white/70 uppercase tracking-widest">Matches</p>
             </div>
             <div className="space-y-1">
               <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalRuns.toLocaleString()}</p>
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Runs</p>
+              <p className="text-[8px] font-black text-white/70 uppercase tracking-widest">Runs</p>
             </div>
             <div className="space-y-1">
               <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalWickets}</p>
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Wickets</p>
+              <p className="text-[8px] font-black text-white/70 uppercase tracking-widest">Wickets</p>
             </div>
             <div className="space-y-1">
               <p className="font-numbers text-2xl font-bold text-[#00F0FF] leading-none">{careerStats.bestScore}</p>
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">Best</p>
+              <p className="text-[8px] font-black text-white/70 uppercase tracking-widest">Best</p>
             </div>
           </div>
           {careerStats.totalMatches === 0 && (
             <div className="mt-4 pt-3 border-t border-white/5 text-center">
-              <p className="text-[11px] text-white/30">Start your first match to see your stats here!</p>
+              <p className="text-[11px] text-white/70">Start your first match to see your stats here!</p>
             </div>
           )}
         </GlassCard>
@@ -222,16 +222,16 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
             <button
               key={action.id}
               onClick={() => onNavigate(action.id as any)}
-              className="relative overflow-hidden rounded-2xl border border-white/5 hover:border-white/10 transition-all text-left group active:scale-[0.97]"
+              className="relative overflow-hidden rounded-2xl border-2 border-white/30 hover:border-white/50 transition-all text-left group active:scale-[0.97] shadow-[0_0_20px_rgba(255,255,255,0.05)]"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${action.bg} opacity-60`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${action.bg} opacity-90`} />
               <div className="relative z-10 p-5 flex flex-col space-y-3">
-                <div className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <action.icon size={22} style={{ color: isLightMode ? '#991b1b' : action.color }} strokeWidth={2} />
                 </div>
                 <div>
                   <p className="text-[13px] font-black text-white uppercase tracking-wider leading-none">{action.label}</p>
-                  <p className="text-[9px] text-white/30 font-medium mt-1">{action.desc}</p>
+                  <p className="text-[9px] text-white/70 font-medium mt-1">{action.desc}</p>
                 </div>
               </div>
             </button>
@@ -241,56 +241,56 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
 
       {/* DISCOVER Feature Cards */}
       <motion.section variants={itemVariants} className="space-y-3">
-        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 px-1">Discover</h3>
+        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/80 px-1">Discover</h3>
 
         {/* Arena Ground Finder */}
         <button
           onClick={() => onNavigate('ARENA')}
-          className="w-full flex items-center p-4 rounded-2xl glass-premium border-white/5 hover:border-[#00F0FF]/15 transition-all text-left group active:scale-[0.98]"
+          className="w-full flex items-center p-4 rounded-2xl glass-premium border border-white/20 hover:border-[#00F0FF]/50 transition-all text-left group active:scale-[0.98]"
         >
-          <div className="w-12 h-12 rounded-xl bg-[#00F0FF]/10 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-[#00F0FF]/25 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform shrink-0">
             <MapPin size={22} style={{ color: isLightMode ? '#991b1b' : '#00F0FF' }} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none mb-1">Find Grounds</p>
-            <p className="text-[9px] text-white/25 font-medium truncate">Discover cricket grounds near you</p>
+            <p className="text-[9px] text-white/70 font-medium truncate">Discover cricket grounds near you</p>
           </div>
-          <ChevronRight size={16} className="text-white/10 group-hover:text-[#00F0FF] shrink-0" />
+          <ChevronRight size={16} className="text-white/50 group-hover:text-[#00F0FF] shrink-0" />
         </button>
 
         {/* Leaderboard teaser */}
         <button
           onClick={() => onNavigate('PERFORMANCE')}
-          className="w-full flex items-center p-4 rounded-2xl glass-premium border-white/5 hover:border-[#39FF14]/15 transition-all text-left group active:scale-[0.98]"
+          className="w-full flex items-center p-4 rounded-2xl glass-premium border border-white/20 hover:border-[#39FF14]/50 transition-all text-left group active:scale-[0.98]"
         >
-          <div className="w-12 h-12 rounded-xl bg-[#39FF14]/10 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-[#39FF14]/25 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform shrink-0">
             <Award size={22} style={{ color: isLightMode ? '#991b1b' : '#39FF14' }} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none mb-1">Leaderboard</p>
-            <p className="text-[9px] text-white/25 font-medium truncate">See where you rank among players</p>
+            <p className="text-[9px] text-white/70 font-medium truncate">See where you rank among players</p>
           </div>
-          <ChevronRight size={16} className="text-white/10 group-hover:text-[#39FF14] shrink-0" />
+          <ChevronRight size={16} className="text-white/50 group-hover:text-[#39FF14] shrink-0" />
         </button>
       </motion.section>
 
       {/* UPGRADE Elite Squadron */}
       <motion.section variants={itemVariants}>
-        <div className="relative p-[1px] rounded-2xl overflow-hidden bg-gradient-to-br from-[#00F0FF]/40 via-[#00F0FF]/10 to-transparent">
+        <div className="relative p-[2px] rounded-2xl overflow-hidden bg-gradient-to-br from-[#00F0FF]/90 via-[#00F0FF]/50 to-[#00F0FF]/30 shadow-[0_0_30px_rgba(0,240,255,0.25)]">
           <div className="bg-[#020617] p-6 rounded-[15px] flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-[#00F0FF]/20 blur-xl rounded-full" />
+                <div className="absolute inset-0 bg-[#00F0FF]/40 blur-xl rounded-full" />
                 <Crown size={28} className="text-[#00F0FF] relative z-10 drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]" />
               </div>
               <div>
                 <h3 className="font-heading text-lg text-white tracking-tight uppercase leading-none">Go Elite</h3>
-                <p className="text-[9px] font-medium text-white/30 mt-1">Unlock advanced stats and rankings</p>
+                <p className="text-[9px] font-medium text-white/70 mt-1">Unlock advanced stats and rankings</p>
               </div>
             </div>
             <MotionButton
               onClick={onUpgrade}
-              className="bg-[#00F0FF] text-black !rounded-xl font-black text-[9px] !py-3 !px-5 shadow-[0_0_15px_#00F0FF33]"
+              className="bg-[#00F0FF] text-black !rounded-xl font-black text-[9px] !py-3 !px-5 shadow-[0_0_25px_#00F0FF66]"
             >
               UPGRADE
             </MotionButton>
