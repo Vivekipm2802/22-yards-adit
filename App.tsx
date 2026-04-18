@@ -486,17 +486,17 @@ const App: React.FC = () => {
 
         {/* Bottom Tab Bar */}
         {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && activePage !== 'FOLLOW_MATCH' && (
-          <div className="bg-black/80 backdrop-blur-2xl border-t border-white/15 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
+          <div className="bg-black/90 backdrop-blur-2xl border-t-2 border-white/25 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id as Page)}
-                className={`flex flex-col items-center space-y-1 group transition-all ${activePage === item.id ? 'text-[#00F0FF]' : 'text-white/40'}`}
+                className={`flex flex-col items-center space-y-1 group transition-all ${activePage === item.id ? 'text-[#00F0FF]' : 'text-white/60'}`}
               >
-                <div className={`p-2 rounded-xl transition-all ${activePage === item.id ? 'bg-[#00F0FF]/20 shadow-[0_0_20px_rgba(0,240,255,0.35)]' : 'group-hover:bg-white/10'}`}>
+                <div className={`p-2 rounded-xl transition-all ${activePage === item.id ? 'bg-[#00F0FF]/30 shadow-[0_0_25px_rgba(0,240,255,0.5)]' : 'group-hover:bg-white/15'}`}>
                   <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
                 </div>
-                <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-all ${activePage === item.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-80'}`}>{item.label}</span>
+                <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-all ${activePage === item.id ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`}>{item.label}</span>
               </button>
             ))}
           </div>
