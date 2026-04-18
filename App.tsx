@@ -487,18 +487,31 @@ const App: React.FC = () => {
         {/* Bottom Tab Bar */}
         {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && activePage !== 'FOLLOW_MATCH' && (
           <div className="bg-black/90 backdrop-blur-2xl border-t-2 border-white/25 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+              const isActive = activePage === item.id;
+              return (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id as Page)}
-                className={`flex flex-col items-center space-y-1 group transition-all ${activePage === item.id ? 'text-[#00F0FF]' : 'text-white'}`}
+                className="flex flex-col items-center space-y-1 group transition-all"
+                style={{ color: isActive ? '#00F0FF' : '#ffffff' }}
               >
-                <div className={`p-2 rounded-xl transition-all ${activePage === item.id ? 'bg-[#00F0FF]/30 shadow-[0_0_25px_rgba(0,240,255,0.5)]' : 'bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.15)] group-hover:bg-white/20 group-hover:shadow-[0_0_18px_rgba(255,255,255,0.25)]'}`}>
-                  <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
+                <div
+                  className="p-2 rounded-xl transition-all"
+                  style={isActive
+                    ? { background: 'rgba(0,240,255,0.3)', boxShadow: '0 0 25px rgba(0,240,255,0.5)' }
+                    : { background: 'rgba(255,255,255,0.12)', boxShadow: '0 0 14px rgba(255,255,255,0.2)' }
+                  }
+                >
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </div>
-                <span className={`text-[7px] font-black uppercase tracking-[0.2em] transition-all ${activePage === item.id ? 'opacity-100' : 'opacity-90 group-hover:opacity-100'}`}>{item.label}</span>
+                <span
+                  className="text-[7px] font-black uppercase tracking-[0.2em]"
+                  style={{ opacity: isActive ? 1 : 0.95 }}
+                >{item.label}</span>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
