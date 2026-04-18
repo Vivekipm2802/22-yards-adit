@@ -88,6 +88,8 @@ const App: React.FC = () => {
   useEffect(() => {
     window.history.replaceState({ page: 'DUGOUT' }, '', window.location.pathname + window.location.search);
     const handlePopState = (e: PopStateEvent) => {
+      // Ignore popstate events owned by MatchCenter (back-step navigation)
+      if (e.state && e.state.mc) return;
       if (e.state && e.state.page) {
         _setActivePage(e.state.page as Page);
       } else {
