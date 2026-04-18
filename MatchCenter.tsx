@@ -146,6 +146,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [tossFlipPhase, setTossFlipPhase] = useState('WAITING');
   const [phoneQuery, setPhoneQuery] = useState('');
   const [editingTeamNameId, setEditingTeamNameId] = useState<TeamID | null>(null);
+  const [logoPopupTeamId, setLogoPopupTeamId] = useState<TeamID | null>(null);
   const [tossCall, setTossCall] = useState<{ teamA: 'HEADS' | 'TAILS'; teamB: 'HEADS' | 'TAILS' }>({ teamA: 'HEADS', teamB: 'TAILS' });
   const [tossResult, setTossResult] = useState<'HEADS' | 'TAILS' | null>(null);
   const [tossPhase, setTossPhase] = useState<'CALL' | 'FLIP' | 'WINNER' | 'DECISION' | 'RESULT'>('CALL');
@@ -2938,16 +2939,125 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                 <div className="flex items-start justify-between">
                                   <div className="flex items-center space-x-4 flex-1">
                                     <div className="relative">
-                                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-xl font-black text-black overflow-hidden shadow-xl">
+                                      {/* Clickable logo — tap to change */}
+                                      <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setLogoPopupTeamId(logoPopupTeamId === teamId ? null : teamId)}
+                                        className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF6D00] flex items-center justify-center font-heading text-xl font-black text-black overflow-hidden shadow-xl relative group"
+                                      >
                                         {team.logo ? (
                                           <img src={team.logo} className="w-full h-full object-cover" alt={team.name} />
                                         ) : (
                                           getTeamInitials(team.name)
                                         )}
-                                      </div>
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                                          <Camera size={18} className="text-white" />
+                                        </div>
+                                      </motion.button>
+
+                                      {/* Logo customization popup */}
+                                      <AnimatePresence>
+                                        {logoPopupTeamId === teamId && (
+                                          <motion.div
+                                            initial={{ opacity: 0, scale: 0.9, y: -5 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.9, y: -5 }}
+                                            className="absolute top-full left-0 mt-2 z-50 bg-[#1a1a1a] border border-white/20 rounded-2xl p-3 shadow-2xl min-w-[200px]"
+                                          >
+                                            <p className="text-[9px] font-black text-[#00F0FF] uppercase tracking-[0.2em] mb-2">Team Logo</p>
+                                            <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 cursor-pointer transition-all mb-2">
+                                              <Camera size={14} className="text-[#00F0FF]" />
+                                              <span className="text-xs text-white font-bold">Upload Image</span>
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                  if (e.target.files?.[0]) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (event) => {
+                                                      const key = teamId === 'A' ? 'teamA' : 'teamB';
+                                                      setMatch(m => ({
+                                                        ...m,
+                                                        teams: {
+                                                          ...m.teams,
+                                                          [key]: {
+                                                            ...m.teams[key],
+                                                            logo: event.target?.result as string
+                                                          }
+                                                        }
+                                                      }));
+                                                      setLogoPopupTeamId(null);
+                                                    };
+                                                    reader.readAsDataURL(e.target.files[0]);
+                                                  }
+                                                }}
+                                                className="hidden"
+                                              />
+                                            </label>
+                                            {team.logo && (
+                                              <button
+                                                onClick={() => {
+                                                  const key = teamId === 'A' ? 'teamA' : 'teamB';
+                                                  setMatch(m => ({
+                                                    ...m,
+                                                    teams: { ...m.teams, [key]: { ...m.teams[key], logo: undefined } }
+                                                  }));
+                                                  setLogoPopupTeamId(null);
+                                                }}
+                                                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-all text-red-400"
+                                              >
+                                                <X size={14} />
+                                                <span className="text-xs font-bold">Remove Logo</span>
+                                              </button>
+                                            )}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <h4 className="font-heading text-lg uppercase italic text-white truncate">{team.name}</h4>
+                                      {/* Clickable team name — tap to inline edit */}
+                                      {editingTeamNameId === teamId ? (
+                                        <input
+                                          type="text"
+                                          autoFocus
+                                          defaultValue={team.name}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                                              if (val) {
+                                                const key = teamId === 'A' ? 'teamA' : 'teamB';
+                                                setMatch(m => ({
+                                                  ...m,
+                                                  teams: { ...m.teams, [key]: { ...m.teams[key], name: val } }
+                                                }));
+                                              }
+                                              setEditingTeamNameId(null);
+                                            }
+                                            if (e.key === 'Escape') setEditingTeamNameId(null);
+                                          }}
+                                          onBlur={(e) => {
+                                            const val = e.target.value.trim().toUpperCase();
+                                            if (val) {
+                                              const key = teamId === 'A' ? 'teamA' : 'teamB';
+                                              setMatch(m => ({
+                                                ...m,
+                                                teams: { ...m.teams, [key]: { ...m.teams[key], name: val } }
+                                              }));
+                                            }
+                                            setEditingTeamNameId(null);
+                                          }}
+                                          className="w-full bg-white/10 border border-[#00F0FF]/40 rounded-xl px-3 py-1.5 text-white font-heading text-lg uppercase italic outline-none focus:border-[#00F0FF] focus:shadow-[0_0_12px_rgba(0,240,255,0.3)]"
+                                        />
+                                      ) : (
+                                        <button
+                                          onClick={() => setEditingTeamNameId(teamId)}
+                                          className="flex items-center gap-1.5 group w-full"
+                                        >
+                                          <h4 className="font-heading text-lg uppercase italic text-white truncate group-hover:text-[#00F0FF] transition-colors">{team.name}</h4>
+                                          <Edit2 size={12} className="text-white/20 group-hover:text-[#00F0FF] shrink-0 transition-colors" />
+                                        </button>
+                                      )}
                                       <p className="text-[10px] text-white/40 uppercase tracking-[0.2em]">{(team.squad || []).length} Players</p>
                                     </div>
                                   </div>
