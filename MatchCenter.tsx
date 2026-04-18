@@ -4116,7 +4116,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </AnimatePresence>
 
               {/* ═══ COMPACT SCORE HEADER ═══ */}
-              <div className="shrink-0 px-3 pt-3 pb-2 bg-black/80 backdrop-blur-sm border-b border-white/5">
+              <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-white/5">
                 {/* Score line */}
                 <div className="flex items-center justify-between">
                   <button
@@ -4128,7 +4128,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     <Plus size={10} className="text-white/30" />
                   </button>
                   <div className="text-center flex-1">
-                    <span className={`font-numbers text-4xl font-black tracking-tight ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-white'}`}>
+                    <span className={`font-numbers text-3xl font-black tracking-tight ${fireMode ? 'text-[#FF6D00]' : iceMode ? 'text-[#80D8FF]' : 'text-white'}`}>
                       {match.liveScore.runs}<span className="text-white/40">/{match.liveScore.wickets}</span>
                     </span>
                     <span className={`ml-2 font-numbers text-sm ${fireMode ? 'text-[#FF6D00]/50' : iceMode ? 'text-[#80D8FF]/60' : 'text-white/40'}`}>
@@ -4177,7 +4177,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* ═══ BATSMAN + BOWLER COMPACT PANEL ═══ */}
-              <div className="shrink-0 px-3 py-2 border-b border-white/5 bg-white/[0.02] space-y-1">
+              <div className="shrink-0 px-3 py-1.5 border-b border-white/5 space-y-0.5">
                 {/* Column headers */}
                 <div className="flex items-center gap-2 text-[8px] font-black text-white/25 uppercase tracking-wider px-1">
                   <div className="flex-1">Batsman</div>
@@ -4239,7 +4239,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* ═══ OVER TICKER ═══ */}
-              <div className="shrink-0 px-3 py-2 border-b border-white/5 bg-white/[0.01] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <div className="shrink-0 px-3 py-1.5 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 <span className="text-[9px] font-black text-white/30 uppercase shrink-0 mr-1">This Over</span>
                 {currentOverBalls.map((ball, idx) => {
                   let bgColor = 'bg-white/15';
@@ -4269,7 +4269,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   return (
                     <div
                       key={idx}
-                      className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center text-[10px] font-black ${textColor} shrink-0`}
+                      className={`w-7 h-7 ${bgColor} rounded-full flex items-center justify-center text-[9px] font-black ${textColor} shrink-0`}
                     >
                       {displayText}
                     </div>
@@ -4281,40 +4281,40 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* ═══ SCORING KEYPAD — CricHeroes-style ═══ */}
-              <div className="flex-1 flex flex-col p-2.5 gap-2 overflow-hidden">
+              <div className="flex-1 flex flex-col px-2 py-1.5 gap-1.5 overflow-hidden">
                 {/* Primary runs: 0 1 2 3 */}
-                <div className="grid grid-cols-4 gap-2 flex-1">
+                <div className="grid grid-cols-4 gap-1.5 flex-1">
                   {[0, 1, 2, 3].map(r => (
                     <button
                       key={r}
                       type="button"
                       onClick={() => handleScore(r)}
-                      className="bg-white/[0.08] hover:bg-white/15 text-white font-black rounded-2xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xl flex items-center justify-center"
+                      className="bg-white/[0.08] hover:bg-white/15 text-white font-black rounded-xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-lg flex items-center justify-center"
                     >
                       {r}
                     </button>
                   ))}
                 </div>
                 {/* Boundary + Extras: 4 6 WD NB */}
-                <div className="grid grid-cols-4 gap-2 flex-1">
+                <div className="grid grid-cols-4 gap-1.5 flex-1">
                   <button
                     type="button"
                     onClick={() => handleScore(4)}
-                    className="bg-[#BC13FE]/15 hover:bg-[#BC13FE]/25 text-[#BC13FE] font-black rounded-2xl border border-[#BC13FE]/30 active:scale-[0.93] transition-all select-none touch-manipulation text-xl flex items-center justify-center"
+                    className="bg-[#BC13FE]/15 hover:bg-[#BC13FE]/25 text-[#BC13FE] font-black rounded-xl border border-[#BC13FE]/30 active:scale-[0.93] transition-all select-none touch-manipulation text-lg flex items-center justify-center"
                   >
                     4
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(6)}
-                    className="bg-[#FFD600]/15 hover:bg-[#FFD600]/25 text-[#FFD600] font-black rounded-2xl border border-[#FFD600]/30 active:scale-[0.93] transition-all select-none touch-manipulation text-xl flex items-center justify-center"
+                    className="bg-[#FFD600]/15 hover:bg-[#FFD600]/25 text-[#FFD600] font-black rounded-xl border border-[#FFD600]/30 active:scale-[0.93] transition-all select-none touch-manipulation text-lg flex items-center justify-center"
                   >
                     6
                   </button>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('WD')}
-                    className={`rounded-2xl border active:scale-[0.93] transition-all select-none touch-manipulation text-sm font-black flex items-center justify-center ${
+                    className={`rounded-xl border active:scale-[0.93] transition-all select-none touch-manipulation text-sm font-black flex items-center justify-center ${
                       pendingExtra === 'WD'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00] shadow-[0_0_15px_rgba(255,109,0,0.4)]'
                         : 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30 hover:bg-[#FF6D00]/25'
@@ -4325,7 +4325,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('NB')}
-                    className={`rounded-2xl border active:scale-[0.93] transition-all select-none touch-manipulation text-sm font-black flex items-center justify-center ${
+                    className={`rounded-xl border active:scale-[0.93] transition-all select-none touch-manipulation text-sm font-black flex items-center justify-center ${
                       pendingExtra === 'NB'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00] shadow-[0_0_15px_rgba(255,109,0,0.4)]'
                         : 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30 hover:bg-[#FF6D00]/25'
@@ -4335,11 +4335,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   </button>
                 </div>
                 {/* Secondary: BYE LB 5 7 */}
-                <div className="grid grid-cols-4 gap-2" style={{ flex: '0.6' }}>
+                <div className="grid grid-cols-4 gap-1.5" style={{ flex: '0.55' }}>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('BYE')}
-                    className={`rounded-xl border active:scale-[0.93] transition-all select-none touch-manipulation text-xs font-black flex items-center justify-center ${
+                    className={`rounded-lg border active:scale-[0.93] transition-all select-none touch-manipulation text-xs font-black flex items-center justify-center ${
                       pendingExtra === 'BYE'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
                         : 'bg-[#FF6D00]/10 text-[#FF6D00]/80 border-[#FF6D00]/20 hover:bg-[#FF6D00]/20'
@@ -4350,7 +4350,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => setPendingExtra('LB')}
-                    className={`rounded-xl border active:scale-[0.93] transition-all select-none touch-manipulation text-xs font-black flex items-center justify-center ${
+                    className={`rounded-lg border active:scale-[0.93] transition-all select-none touch-manipulation text-xs font-black flex items-center justify-center ${
                       pendingExtra === 'LB'
                         ? 'bg-[#FF6D00] text-black border-[#FF6D00]'
                         : 'bg-[#FF6D00]/10 text-[#FF6D00]/80 border-[#FF6D00]/20 hover:bg-[#FF6D00]/20'
@@ -4361,14 +4361,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   <button
                     type="button"
                     onClick={() => handleScore(5)}
-                    className="bg-white/[0.06] hover:bg-white/12 text-white/60 font-black rounded-xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xs flex items-center justify-center"
+                    className="bg-white/[0.06] hover:bg-white/12 text-white/60 font-black rounded-lg border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xs flex items-center justify-center"
                   >
                     5
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScore(7)}
-                    className="bg-white/[0.06] hover:bg-white/12 text-white/60 font-black rounded-xl border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xs flex items-center justify-center"
+                    className="bg-white/[0.06] hover:bg-white/12 text-white/60 font-black rounded-lg border border-white/10 active:scale-[0.93] transition-all select-none touch-manipulation text-xs flex items-center justify-center"
                   >
                     7
                   </button>
@@ -4376,12 +4376,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* ═══ BOTTOM ACTION BAR ═══ */}
-              <div className="shrink-0 px-2.5 pb-3 pt-1.5 space-y-1.5 bg-black/40">
-                <div className="grid grid-cols-4 gap-2">
+              <div className="shrink-0 px-2 pb-2 pt-1 space-y-1">
+                <div className="grid grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => setWicketWizard({ open: true })}
-                    className="col-span-2 h-[46px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-xl border border-[#FF003C]/60 active:scale-[0.95] transition-all select-none touch-manipulation text-sm tracking-wider"
+                    className="col-span-2 h-[40px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-xl border border-[#FF003C]/60 active:scale-[0.95] transition-all select-none touch-manipulation text-sm tracking-wider"
                   >
                     WICKET
                   </button>
@@ -4393,7 +4393,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         crease: { ...m.crease, strikerId: m.crease.nonStrikerId, nonStrikerId: m.crease.strikerId }
                       }));
                     }}
-                    className="h-[46px] bg-[#4DB6AC]/15 hover:bg-[#4DB6AC]/25 text-[#4DB6AC] font-black rounded-xl border border-[#4DB6AC]/30 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
+                    className="h-[40px] bg-[#4DB6AC]/15 hover:bg-[#4DB6AC]/25 text-[#4DB6AC] font-black rounded-xl border border-[#4DB6AC]/30 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
                   >
                     SWAP
                   </button>
@@ -4401,7 +4401,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     type="button"
                     onClick={handleUndo}
                     disabled={!match.history || match.history.length === 0}
-                    className="h-[46px] bg-white/[0.06] hover:bg-white/12 disabled:opacity-25 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-xl border border-white/10 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
+                    className="h-[40px] bg-white/[0.06] hover:bg-white/12 disabled:opacity-25 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-xl border border-white/10 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
                   >
                     UNDO
                   </button>
@@ -4409,7 +4409,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <button
                   type="button"
                   onClick={() => setShowScorecardPreview(true)}
-                  className={`w-full h-[38px] font-black rounded-xl border active:scale-[0.98] transition-all select-none touch-manipulation text-xs flex items-center justify-center gap-2 ${
+                  className={`w-full h-[34px] font-black rounded-lg border active:scale-[0.98] transition-all select-none touch-manipulation text-[11px] flex items-center justify-center gap-1.5 ${
                     fireMode
                       ? 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30'
                       : iceMode
@@ -4417,7 +4417,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       : 'bg-[#00F0FF]/10 text-[#00F0FF]/80 border-[#00F0FF]/20'
                   }`}
                 >
-                  <ClipboardList size={14} />
+                  <ClipboardList size={13} />
                   SCORECARD
                 </button>
               </div>
