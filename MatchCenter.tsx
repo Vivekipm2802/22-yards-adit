@@ -2418,7 +2418,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       <input type="file" ref={logoInputRef} onChange={handleLogoFileChange} className="hidden" accept="image/*" />
 
       {/* HEADER */}
-      <div className="main-header h-14 flex items-center px-6 border-b border-white/5 bg-black/50 backdrop-blur-md z-[100] shrink-0">
+      <div className="main-header h-14 flex items-center px-6 border-b border-white/5 z-[100] shrink-0">
         <button onClick={() => {
           if (status === 'LIVE' || status === 'INNINGS_BREAK' || status === 'OPENERS') {
             setShowLeaveConfirm(true);
