@@ -500,14 +500,14 @@ const App: React.FC = () => {
                   className="p-2 rounded-xl transition-all"
                   style={isActive
                     ? { background: 'rgba(0,240,255,0.3)', boxShadow: '0 0 25px rgba(0,240,255,0.5)' }
-                    : { background: 'rgba(255,255,255,0.12)', boxShadow: '0 0 14px rgba(255,255,255,0.2)' }
+                    : { background: 'rgba(255,255,255,0.25)', boxShadow: '0 0 20px rgba(255,255,255,0.35), 0 0 40px rgba(255,255,255,0.15)' }
                   }
                 >
-                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2.2} />
                 </div>
                 <span
                   className="text-[7px] font-black uppercase tracking-[0.2em]"
-                  style={{ opacity: isActive ? 1 : 0.95 }}
+                  style={{ opacity: 1, textShadow: isActive ? 'none' : '0 0 8px rgba(255,255,255,0.6)' }}
                 >{item.label}</span>
               </button>
               );
