@@ -305,10 +305,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         return;
       }
     };
-    window.history.pushState({ mc: true }, '');
     window.addEventListener('popstate', handleBackButton);
     return () => window.removeEventListener('popstate', handleBackButton);
   }, [status, configStep, selectionTarget, playerActionMenu.open, showScorecardPreview, wicketWizard.open, showAddPlayer.open, editingTeamId, showShareModal, showShareSheet, showLiveScorecard, match.toss.winnerId]);
+
+  // Push one history entry on mount so the first back press has something to pop
+  useEffect(() => {
+    window.history.pushState({ mc: true }, '');
+  }, []);
 
   // Match Settings (mid-match)
   const [showMatchSettings, setShowMatchSettings] = useState(false);
