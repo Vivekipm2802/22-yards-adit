@@ -39,8 +39,10 @@ const Archive: React.FC = () => {
           ? cloudProfile.archive_vault : [];
         const seen = new Set();
         const merged = [...cloudHist, ...localHist].filter(m => {
-          if (!m?.id || seen.has(m.id)) return false;
-          seen.add(m.id); return true;
+          if (!m) return false;
+          const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+          if (seen.has(mid)) return false;
+          seen.add(mid); return true;
         }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
         mergedHistForTeams = merged;  // Update reference for team extraction
         setHistory(merged);
