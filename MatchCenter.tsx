@@ -795,7 +795,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const handleWicketAction = (type: string, runs = 0) => {
     if (type === 'RETIRED OUT') {
       setWicketWizard({ open: false });
-      // Retired Out: mark batsman as out, no ball bowled, no bowler wicket credit
+      // Retired Out: mark batsman as out, increment wicket count, no ball bowled, no bowler wicket credit
       setMatch(m => {
         const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
         const updatedBattingSquad = (m.teams[battingTeamKey]?.squad || []).map(p => {
@@ -804,9 +804,60 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           }
           return p;
         });
+        const newWickets = m.liveScore.wickets + 1;
+        const squadSize = (m.teams[battingTeamKey]?.squad || []).length;
+        const allOutWickets = Math.max(1, squadSize - 1);
+
+        // Check if all out after retired out
+        if (newWickets >= allOutWickets) {
+          const newLiveScore = { ...m.liveScore, wickets: newWickets };
+          const _innEffOvers = m.currentInnings === 1
+            ? (m.config.reducedOvers1 || m.config.overs)
+            : (m.config.reducedOvers2 || m.config.overs);
+
+          if (m.currentInnings === 1) {
+            const newConfig = { ...m.config, innings1Score: newLiveScore.runs, innings1Wickets: newWickets, innings1Balls: newLiveScore.balls, innings1Completed: true };
+            setOverlayAnim('INNINGS_BREAK');
+            setTimeout(() => { setOverlayAnim(null); setStatus('INNINGS_BREAK'); }, 2000);
+            return {
+              ...m,
+              status: 'INNINGS_BREAK',
+              config: newConfig,
+              teams: { ...m.teams, [battingTeamKey]: { ...m.teams[battingTeamKey], squad: updatedBattingSquad } },
+              liveScore: newLiveScore,
+              crease: { ...m.crease, strikerId: null },
+            };
+          } else {
+            // Innings 2 — determine winner
+            const inn1Score = m.config.innings1Score || 0;
+            const inn2Score = newLiveScore.runs;
+            const battingTeamName = getTeamObj(m.teams.battingTeamId)?.name || 'Team';
+            const bowlingTeamName = getTeamObj(m.teams.bowlingTeamId)?.name || 'Team';
+            if (inn2Score >= (m.config.target || inn1Score + 1)) {
+              const wicketsLeft = Math.max(0, allOutWickets - newWickets);
+              setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}` });
+            } else if (inn2Score === inn1Score) {
+              setShowSuperOverPrompt(true);
+            } else {
+              const runDiff = inn1Score - inn2Score;
+              setWinnerTeam({ name: bowlingTeamName, id: m.teams.bowlingTeamId, margin: `Won by ${runDiff} run${runDiff !== 1 ? 's' : ''}` });
+            }
+            setTimeout(() => setStatus('SUMMARY'), 100);
+            return {
+              ...m,
+              status: 'COMPLETED',
+              teams: { ...m.teams, [battingTeamKey]: { ...m.teams[battingTeamKey], squad: updatedBattingSquad } },
+              liveScore: newLiveScore,
+              crease: { ...m.crease, strikerId: null },
+            };
+          }
+        }
+
+        // Not all out — select new batsman
         return {
           ...m,
           teams: { ...m.teams, [battingTeamKey]: { ...m.teams[battingTeamKey], squad: updatedBattingSquad } },
+          liveScore: { ...m.liveScore, wickets: newWickets },
           crease: { ...m.crease, strikerId: null },
         };
       });
@@ -4974,7 +5025,45 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
               {/* NEW BATSMAN SELECTION */}
               <AnimatePresence>
-                {selectionTarget === 'NEW_BATSMAN' && (
+                {selectionTarget === 'NEW_BATSMAN' && (() => {
+                  const availableBatsmen = (getTeamObj(match.teams.battingTeamId)?.squad || [])
+                    .filter(p => !p.isOut && p.id !== match.crease.nonStrikerId && p.id !== match.crease.strikerId);
+                  // Safety net: if no batsmen available, auto-end innings
+                  if (availableBatsmen.length === 0) {
+                    setTimeout(() => {
+                      setSelectionTarget(null);
+                      const battingTeamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+                      const squadSize = (match.teams[battingTeamKey]?.squad || []).length;
+                      const allOutWickets = Math.max(1, squadSize - 1);
+                      setMatch(m => {
+                        if (m.status === 'COMPLETED' || m.status === 'INNINGS_BREAK') return m;
+                        const newLiveScore = { ...m.liveScore, wickets: allOutWickets };
+                        if (m.currentInnings === 1) {
+                          const newConfig = { ...m.config, innings1Score: newLiveScore.runs, innings1Wickets: allOutWickets, innings1Balls: newLiveScore.balls, innings1Completed: true };
+                          setOverlayAnim('INNINGS_BREAK');
+                          setTimeout(() => { setOverlayAnim(null); setStatus('INNINGS_BREAK'); }, 2000);
+                          return { ...m, status: 'INNINGS_BREAK', config: newConfig, liveScore: newLiveScore };
+                        } else {
+                          const inn1Score = m.config.innings1Score || 0;
+                          const inn2Score = newLiveScore.runs;
+                          const battingTeamName = getTeamObj(m.teams.battingTeamId)?.name || 'Team';
+                          const bowlingTeamName = getTeamObj(m.teams.bowlingTeamId)?.name || 'Team';
+                          if (inn2Score >= (m.config.target || inn1Score + 1)) {
+                            setWinnerTeam({ name: battingTeamName, id: m.teams.battingTeamId, margin: `Won by 0 wickets` });
+                          } else if (inn2Score === inn1Score) {
+                            setShowSuperOverPrompt(true);
+                          } else {
+                            const runDiff = inn1Score - inn2Score;
+                            setWinnerTeam({ name: bowlingTeamName, id: m.teams.bowlingTeamId, margin: `Won by ${runDiff} run${runDiff !== 1 ? 's' : ''}` });
+                          }
+                          setTimeout(() => setStatus('SUMMARY'), 100);
+                          return { ...m, status: 'COMPLETED', liveScore: newLiveScore };
+                        }
+                      });
+                    }, 50);
+                    return null;
+                  }
+                  return (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -4995,9 +5084,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       </div>
                       <div className="flex-1 overflow-y-auto p-3">
                         <div className="space-y-2">
-                          {(getTeamObj(match.teams.battingTeamId)?.squad || [])
-                            .filter(p => !p.isOut && p.id !== match.crease.nonStrikerId && p.id !== match.crease.strikerId)
-                            .map(player => (
+                          {availableBatsmen.map(player => (
                             <motion.button
                               key={player.id}
                               type="button"
@@ -5026,7 +5113,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       </div>
                     </motion.div>
                   </motion.div>
-                )}
+                  );
+                })()}
               </AnimatePresence>
 
               {/* NEXT BOWLER SELECTION */}
