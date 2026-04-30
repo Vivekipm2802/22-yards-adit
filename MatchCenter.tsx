@@ -618,34 +618,38 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     requestAnimationFrame(animate);
   }, [summaryPhase, match.config.innings1Score, match.liveScore.runs]);
 
-  // FIRE MODE + ICE MODE: Monitor CRR during live scoring (with hysteresis to prevent flicker)
+  // FIRE MODE + ICE MODE: Monitor CRR during live scoring
+  // Activation: CRR >= 15 (fire) or CRR < 4 (ice), both require 6+ legal balls
+  // Deactivation: CRR drops below 14 (fire) or rises above 4.5 (ice) for 3 consecutive legal balls
   useEffect(() => {
     if (status !== 'LIVE') return;
     const balls = match.liveScore.balls || 0;
     const crr = balls > 0 ? (match.liveScore.runs / balls) * 6 : 0;
 
-    // FIRE MODE: CRR >= 15 to trigger, < 14 to revert
-    if (crr >= 15 && !fireMode && !fireModeDeclined && !fireModeBanner) {
+    // FIRE MODE ACTIVATION: CRR >= 15, at least 6 balls bowled
+    if (balls >= 6 && crr >= 15 && !fireMode && !fireModeDeclined && !fireModeBanner) {
       if (iceMode) { setIceMode(false); setIceModeDeclined(false); setIceModeBallCount(0); }
       setFireModeBanner(true);
     }
-    if (crr < 14 && fireMode) {
-      setFireMode(false);
+
+    // FIRE MODE DEACTIVATION CHECK: if CRR bounces back above 14, reset the deactivation counter
+    if (fireMode && crr >= 14) {
       setFireModeBallCount(0);
     }
 
-    // ICE MODE: CRR < 4 to trigger, >= 4.5 to revert
-    // Only after 6+ balls, and only if fire mode isn't active
+    // ICE MODE ACTIVATION: CRR < 4, at least 6 balls bowled, fire mode not active
     if (balls >= 6 && crr < 4 && crr > 0 && !iceMode && !iceModeDeclined && !iceModeBanner && !fireMode) {
       setIceModeBanner(true);
     }
-    if (crr >= 4.5 && iceMode) {
-      setIceMode(false);
+
+    // ICE MODE DEACTIVATION CHECK: if CRR drops back below 4.5, reset the deactivation counter
+    if (iceMode && crr < 4.5) {
       setIceModeBallCount(0);
     }
   }, [match.liveScore.runs, match.liveScore.balls, status]);
 
-  // Auto-deactivate fire/ice mode after 3+ legal balls
+  // Deactivate fire/ice after 3 consecutive legal balls with CRR beyond threshold
+  // Ball counting happens in commitBall — only counts when CRR is in the deactivation zone
   useEffect(() => {
     if (fireMode && fireModeBallCount >= 3) {
       setFireMode(false);
@@ -1422,10 +1426,29 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       };
     });
 
-    // Track legal balls for fire/ice auto-deactivation
+    // Track legal balls for fire/ice deactivation — only count when CRR is in the deactivation zone
     if (!extra || extra === 'BYE' || extra === 'LB') {
-      if (fireMode) setFireModeBallCount(c => c + 1);
-      if (iceMode) setIceModeBallCount(c => c + 1);
+      // Use post-ball state to check CRR
+      const postBalls = (match.liveScore.balls || 0) + 1;
+      const postRuns = (match.liveScore.runs || 0) + runs + (0); // extras handled separately
+      const postCRR = postBalls > 0 ? (postRuns / postBalls) * 6 : 0;
+
+      // Fire mode: only count balls where CRR < 14 (deactivation zone)
+      if (fireMode) {
+        if (postCRR < 14) {
+          setFireModeBallCount(c => c + 1);
+        } else {
+          setFireModeBallCount(0); // CRR recovered, reset counter
+        }
+      }
+      // Ice mode: only count balls where CRR > 4.5 (deactivation zone)
+      if (iceMode) {
+        if (postCRR > 4.5) {
+          setIceModeBallCount(c => c + 1);
+        } else {
+          setIceModeBallCount(0); // CRR dropped back, reset counter
+        }
+      }
     }
   };
 
