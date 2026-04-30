@@ -208,14 +208,24 @@ export function buildStatsFromHistory(history: any[]): Partial<PlayerProfile> {
 
 // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Fetch player by phone Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function fetchPlayerByPhone(phone: string): Promise<PlayerProfile | null> {
+  // Normalize phone same way as syncMatchToSupabase to ensure consistency
+  const cleanPhone = phone.replace(/[\s\-\+]/g, '').replace(/^(91|0)/, '').slice(-10);
+  console.log(`[22Y-FETCH] Fetching player: raw="${phone}" clean="${cleanPhone}"`);
+
   const { data, error } = await supabase
     .from('players')
     .select('*')
-    .eq('phone', phone)
-    .single();
+    .eq('phone', cleanPhone)
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-    console.error('[Supabase] fetchPlayerByPhone error:', error);
+  if (error) {
+    console.error('[22Y-FETCH] Error:', error.code, error.message);
+    return null;
+  }
+  if (data) {
+    console.log(`[22Y-FETCH] Found: name=${data.name}, career_runs=${data.career_runs}, vault_size=${(data.archive_vault || []).length}`);
+  } else {
+    console.log(`[22Y-FETCH] No player found for phone=${cleanPhone}`);
   }
   return data as PlayerProfile | null;
 }
@@ -253,20 +263,35 @@ export async function syncMatchToSupabase(
   try {
     // Normalize phone: strip spaces, +91, leading 0 — keep last 10 digits
     const cleanPhone = phone.replace(/[\s\-\+]/g, '').replace(/^(91|0)/, '').slice(-10);
-    if (cleanPhone.length !== 10) return false;
+    if (cleanPhone.length !== 10) {
+      console.warn('[22Y-SYNC] Invalid phone after normalization:', phone, '->', cleanPhone);
+      return false;
+    }
+
+    console.log(`[22Y-SYNC] Starting sync for phone=${cleanPhone}, localHistory=${localHistory.length} matches`);
 
     // Step 1: Fetch existing cloud vault so we MERGE, never overwrite
     let cloudHistory: any[] = [];
     try {
-      const { data: existing } = await supabase
+      const { data: existing, error: fetchErr } = await supabase
         .from('players')
-        .select('archive_vault')
+        .select('archive_vault, career_runs, phone')
         .eq('phone', cleanPhone)
-        .single();
-      if (existing?.archive_vault && Array.isArray(existing.archive_vault)) {
-        cloudHistory = existing.archive_vault;
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.warn('[22Y-SYNC] Fetch existing error:', fetchErr.code, fetchErr.message);
+      } else if (existing) {
+        console.log(`[22Y-SYNC] Found existing cloud record: career_runs=${existing.career_runs}, vault_size=${(existing.archive_vault || []).length}`);
+        if (existing.archive_vault && Array.isArray(existing.archive_vault)) {
+          cloudHistory = existing.archive_vault;
+        }
+      } else {
+        console.log('[22Y-SYNC] No existing cloud record found — will create new');
       }
-    } catch (_) { /* no existing row — that's fine */ }
+    } catch (fetchEx) {
+      console.warn('[22Y-SYNC] Fetch exception:', fetchEx);
+    }
 
     // Step 2: Merge local + cloud history, dedup by match ID
     const seenIds = new Set<string>();
@@ -288,41 +313,38 @@ export async function syncMatchToSupabase(
       }
     }
 
+    console.log(`[22Y-SYNC] Merged: ${localHistory.length} local + ${cloudHistory.length} cloud = ${mergedHistory.length} unique matches`);
+
     // Step 3: Build stats from the FULL merged history
     const statsUpdate = buildStatsFromHistory(mergedHistory);
-    const update: Partial<PlayerProfile> = {
+    console.log(`[22Y-SYNC] Computed stats: career_runs=${statsUpdate.career_runs}, matches=${statsUpdate.matches_played}`);
+
+    const payload: any = {
+      player_id: generatePlayerId(cleanPhone),
+      phone: cleanPhone,
+      name: newMatchRecord.playerName || 'Unknown',
       ...statsUpdate,
       archive_vault: mergedHistory,
       last_login: new Date().toISOString(),
     };
 
-    // Step 4: Try update first
-    const { error } = await supabase
+    // Step 4: UPSERT directly — this handles both insert and update in one call
+    // Previous code used .update() which silently affected 0 rows on phone mismatch
+    const { data: upsertData, error: upsertErr } = await supabase
       .from('players')
-      .update(update)
-      .eq('phone', cleanPhone);
+      .upsert(payload, { onConflict: 'phone' })
+      .select('phone, career_runs, matches_played')
+      .maybeSingle();
 
-    if (error) {
-      console.error('[Supabase] syncMatchToSupabase update error:', error);
-      // Fallback: upsert if row doesn't exist yet
-      const { error: upsertErr } = await supabase
-        .from('players')
-        .upsert({
-          player_id: generatePlayerId(cleanPhone),
-          phone: cleanPhone,
-          name: newMatchRecord.playerName || 'Unknown',
-          ...update,
-        }, { onConflict: 'phone' });
-
-      if (upsertErr) {
-        console.error('[Supabase] syncMatchToSupabase upsert fallback error:', upsertErr);
-        return false;
-      }
+    if (upsertErr) {
+      console.error('[22Y-SYNC] UPSERT FAILED:', upsertErr.code, upsertErr.message, upsertErr.details);
+      return false;
     }
 
+    console.log(`[22Y-SYNC] UPSERT SUCCESS: phone=${upsertData?.phone}, career_runs=${upsertData?.career_runs}, matches=${upsertData?.matches_played}`);
     return true;
   } catch (e) {
-    console.error('[Supabase] syncMatchToSupabase exception:', e);
+    console.error('[22Y-SYNC] Exception:', e);
     return false;
   }
 }
