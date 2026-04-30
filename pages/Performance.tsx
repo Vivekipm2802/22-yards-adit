@@ -42,8 +42,10 @@ const Performance: React.FC<{ userAvatar?: string }> = ({ userAvatar }) => {
       : [];
     const seenMatchIds = new Set<string>();
     const userHistory = [...cloudHistory, ...localHistory].filter((m: any) => {
-      if (!m?.id || seenMatchIds.has(m.id)) return false;
-      seenMatchIds.add(m.id);
+      if (!m) return false;
+      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+      if (seenMatchIds.has(mid)) return false;
+      seenMatchIds.add(mid);
       return true;
     });
 
