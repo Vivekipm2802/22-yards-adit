@@ -3450,7 +3450,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             </>
 
             {/* CONFIG FOOTER - NAVIGATION */}
-            <div className="p-4 bg-[#050505] border-t border-white/5 z-[200] shrink-0 pb-8 shadow-[0_-20px_60px_rgba(0,0,0,0.9)] flex gap-3">
+            <div className="p-4 bg-[#050505] border-t border-white/5 z-[200] shrink-0 pb-8 flex gap-3">
               {configStep < 3 ? (
                 <motion.button
                   onClick={() => setConfigStep(configStep + 1)}
@@ -7157,7 +7157,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       {(status === 'SUPER_OVER' && superOverState) && (
         <div className="fixed inset-0 z-[5500] bg-[#050505] flex flex-col overflow-auto">
           {/* Header */}
-          <div className="super-over-header h-14 flex items-center px-5 border-b border-white/5 bg-black/80 backdrop-blur-md shrink-0">
+          <div className="super-over-header h-14 flex items-center px-5 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-3 flex-1">
               <Swords size={18} className="text-[#FFD600]" />
               <span className="font-heading text-sm uppercase italic text-[#FFD600]">
