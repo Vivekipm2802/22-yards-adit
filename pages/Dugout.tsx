@@ -13,7 +13,7 @@ import { fetchLeaderboard } from '../lib/supabase';
 // ─── CRICKET API CONFIG ────────────────────────────────────────────
 // Sign up free at https://cricketdata.org to get your API key.
 // Replace the empty string below with your key (GUID format).
-const CRIC_API_KEY = '';
+const CRIC_API_KEY = 'c1556ae3-98ce-486b-bc41-bb040cad03bb';
 const CRIC_API_BASE = 'https://api.cricapi.com/v1';
 const POLL_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
