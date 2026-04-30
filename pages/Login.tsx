@@ -62,12 +62,25 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
 
       if (existingProfile) {
-        // Returning player: hydrate localStorage from Supabase archive_vault
+        // Returning player: merge Supabase archive_vault with any local history
         if (!globalVault[cleanPhone]) {
           globalVault[cleanPhone] = { history: [], teams: [], name: cleanName, role, city: cleanCity };
         }
         if (existingProfile.archive_vault && existingProfile.archive_vault.length > 0) {
-          globalVault[cleanPhone].history = existingProfile.archive_vault;
+          const localHist = globalVault[cleanPhone].history || [];
+          const cloudHist = existingProfile.archive_vault;
+          // Merge: dedup by match ID, keep both local and cloud matches
+          const seenIds = new Set<string>();
+          const merged: any[] = [];
+          for (const m of cloudHist) {
+            const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+            if (!seenIds.has(mid)) { seenIds.add(mid); merged.push(m); }
+          }
+          for (const m of localHist) {
+            const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+            if (!seenIds.has(mid)) { seenIds.add(mid); merged.push(m); }
+          }
+          globalVault[cleanPhone].history = merged;
         }
         localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
 
