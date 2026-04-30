@@ -1240,7 +1240,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       if (m.status === 'COMPLETED' || m.status === 'INNINGS_BREAK') return m;
       const _bKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
       const _sqSize = (m.teams[_bKey]?.squad || []).length;
-      const _allOut = Math.max(1, _sqSize - 1);
+      const _allOut = Math.max(1, Math.min(_sqSize - 1, 10));
       if (m.liveScore.wickets >= _allOut) return m;
       const _effOvers = m.currentInnings === 1
         ? (m.config.reducedOvers1 || m.config.overs)
@@ -5052,8 +5052,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 {selectionTarget === 'NEW_BATSMAN' && (() => {
                   const availableBatsmen = (getTeamObj(match.teams.battingTeamId)?.squad || [])
                     .filter(p => !p.isOut && p.id !== match.crease.nonStrikerId && p.id !== match.crease.strikerId);
-                  // Safety net: if no batsmen available, auto-end innings
-                  if (availableBatsmen.length === 0) {
+                  // Safety net: if no batsmen available AND wickets warrant all-out, auto-end innings
+                  const battingTeamKeyCheck = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+                  const squadSizeCheck = (match.teams[battingTeamKeyCheck]?.squad || []).length;
+                  const allOutWicketsCheck = Math.max(1, Math.min(squadSizeCheck - 1, 10));
+                  if (availableBatsmen.length === 0 && match.liveScore.wickets >= allOutWicketsCheck) {
                     setTimeout(() => {
                       setSelectionTarget(null);
                       const battingTeamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
