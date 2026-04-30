@@ -928,6 +928,80 @@
       border-color: rgba(204,16,16,0.2) !important;
     }
 
+    /* ══════════════════════════════════════════════════════════════════
+       SUPER OVER — Keep dark dramatic theme even in light mode.
+       These are full-screen overlays that should always stay dark.
+       ══════════════════════════════════════════════════════════════════ */
+
+    /* Super Over prompt (Match Tied popup) */
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] {
+        background-color: rgba(0,0,0,0.95) !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#0A0A0A\] {
+        background-color: #0A0A0A !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white { color: #ffffff !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-black { color: #000000 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#FFD600\]\/30 { border-color: rgba(255,214,0,0.3) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#FFD600\]\/10 { background-color: rgba(255,214,0,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#FFD600\] { color: #FFD600 !important; }
+
+    /* Super Over full screen (z-5500) */
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] {
+        background-color: #050505 !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white { color: #ffffff !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/80 { color: rgba(255,255,255,0.8) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/70 { color: rgba(255,255,255,0.7) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/40 { color: rgba(255,255,255,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/30 { color: rgba(255,255,255,0.3) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-white\/25 { color: rgba(255,255,255,0.25) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-black { color: #000000 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .border-white\/5 { border-color: rgba(255,255,255,0.05) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-white\/10 { background-color: rgba(255,255,255,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-white\/\[0\.08\] { background-color: rgba(255,255,255,0.08) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-\[\#0A0A0A\] { background-color: #0A0A0A !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-\[\#050505\] { background-color: #050505 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-black\/95 { background-color: rgba(0,0,0,0.95) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-\[\#FFD600\] { color: #FFD600 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-\[\#FF003C\] { color: #FF003C !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-\[\#39FF14\] { color: #39FF14 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-\[\#00F0FF\] { color: #00F0FF !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .text-\[\#BC13FE\] { color: #BC13FE !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-\[\#FF003C\] { background-color: #FF003C !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-\[\#FFD600\] { background-color: #FFD600 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5500\] .super-over-header { background-color: #0A0A0A !important; }
+
+    /* Match Tied screen (z-[5000] with "Match Tied!" heading) */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\].bg-black\/95 {
+        background-color: rgba(0,0,0,0.95) !important;
+        background: rgba(0,0,0,0.95) !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-\[\#0A0A0A\] {
+        background-color: #0A0A0A !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white { color: #ffffff !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/40 { color: rgba(255,255,255,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-black { color: #000000 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/10 { background-color: rgba(255,255,255,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#FFD600\] { color: #FFD600 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#FF003C\] { color: #FF003C !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#00F0FF\] { color: #00F0FF !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#39FF14\] { color: #39FF14 !important; }
+
     </style>
 </head>
 <body>
