@@ -5802,8 +5802,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                       <p className="text-[10px] font-black text-[#FFD600] uppercase tracking-wider">Man of the Match</p>
                                       <Trophy size={16} className="text-[#FFD600]" />
                                     </div>
-                                    <p className="text-[16px] font-black text-white">{motm.name}</p>
-                                    <p className="text-[9px] text-white/50">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
+                                    <div className="flex items-center gap-3">
+                                      <img src={getPlayerAvatar(motm)} className="w-12 h-12 rounded-full border-2 border-[#FFD600]/40" />
+                                      <div>
+                                        <p className="text-[16px] font-black text-white">{motm.name}</p>
+                                        <p className="text-[9px] text-white/50">{getTeamObj(motm.teamId || innings1TeamId).name}</p>
+                                      </div>
+                                    </div>
                                     <div className="flex gap-3 pt-1">
                                       {(motm.runs || 0) > 0 && <span className="text-[11px] font-numbers font-black text-[#00F0FF]">{motm.runs} runs ({motm.balls || 0}b)</span>}
                                       {(motm.wickets || 0) > 0 && <span className="text-[11px] font-numbers font-black text-[#FF6D00]">{motm.wickets}W</span>}
@@ -5819,8 +5824,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                   {topScorer?.name && (
                                     <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
                                       <p className="text-[8px] font-black text-[#00F0FF] uppercase tracking-wider">🏏 Top Scorer</p>
-                                      <p className="text-[12px] font-black text-white">{topScorer.name}</p>
-                                      <p className="text-[8px] text-white/40">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <img src={getPlayerAvatar(topScorer)} className="w-8 h-8 rounded-full border border-[#00F0FF]/30" />
+                                        <div>
+                                          <p className="text-[12px] font-black text-white">{topScorer.name}</p>
+                                          <p className="text-[8px] text-white/40">{getTeamObj(topScorer.teamId || innings1TeamId).name}</p>
+                                        </div>
+                                      </div>
                                       <div className="flex flex-wrap gap-1 text-[8px] font-numbers pt-1">
                                         <span className="text-[#00F0FF] font-black">{topScorer.runs || 0}({topScorer.balls || 0})</span>
                                         {(topScorer.fours || 0) > 0 && <span className="text-white/30">{topScorer.fours}×4</span>}
@@ -5832,8 +5842,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                   {bestBowler?.name && (
                                     <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
                                       <p className="text-[8px] font-black text-[#FF6D00] uppercase tracking-wider">🎯 Best Bowler</p>
-                                      <p className="text-[12px] font-black text-white">{bestBowler.name}</p>
-                                      <p className="text-[8px] text-white/40">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <img src={getPlayerAvatar(bestBowler)} className="w-8 h-8 rounded-full border border-[#FF6D00]/30" />
+                                        <div>
+                                          <p className="text-[12px] font-black text-white">{bestBowler.name}</p>
+                                          <p className="text-[8px] text-white/40">{getTeamObj(bestBowler.teamId || innings2TeamId).name}</p>
+                                        </div>
+                                      </div>
                                       <div className="flex gap-1 text-[8px] font-numbers pt-1">
                                         <span className="text-[#FF6D00] font-black">{bestBowler.wickets || 0}/{bestBowler.runs_conceded || 0}</span>
                                         <span className="text-white/30">({Math.floor((bestBowler.balls_bowled || 0) / 6)}.{(bestBowler.balls_bowled || 0) % 6} ov)</span>
@@ -5844,8 +5859,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                   {highestSR?.name && (
                                     <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
                                       <p className="text-[8px] font-black text-[#BC13FE] uppercase tracking-wider">⚡ Fastest SR</p>
-                                      <p className="text-[12px] font-black text-white">{highestSR.name}</p>
-                                      <p className="text-[8px] text-white/40">{getTeamObj(highestSR.teamId || innings1TeamId).name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <img src={getPlayerAvatar(highestSR)} className="w-8 h-8 rounded-full border border-[#BC13FE]/30" />
+                                        <div>
+                                          <p className="text-[12px] font-black text-white">{highestSR.name}</p>
+                                          <p className="text-[8px] text-white/40">{getTeamObj(highestSR.teamId || innings1TeamId).name}</p>
+                                        </div>
+                                      </div>
                                       <p className="text-[10px] font-numbers font-black text-[#BC13FE]">{(((highestSR.runs || 0) / (highestSR.balls || 1)) * 100).toFixed(1)}</p>
                                       <p className="text-[7px] text-white/25 font-numbers">{highestSR.runs || 0}({highestSR.balls || 0})</p>
                                     </div>
@@ -5853,8 +5873,13 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                   {bestEconomy?.name && (
                                     <div className="p-4 rounded-[20px] bg-white/5 border border-white/10 space-y-2">
                                       <p className="text-[8px] font-black text-[#4DB6AC] uppercase tracking-wider">🧊 Best Economy</p>
-                                      <p className="text-[12px] font-black text-white">{bestEconomy.name}</p>
-                                      <p className="text-[8px] text-white/40">{getTeamObj(bestEconomy.teamId || innings2TeamId).name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <img src={getPlayerAvatar(bestEconomy)} className="w-8 h-8 rounded-full border border-[#4DB6AC]/30" />
+                                        <div>
+                                          <p className="text-[12px] font-black text-white">{bestEconomy.name}</p>
+                                          <p className="text-[8px] text-white/40">{getTeamObj(bestEconomy.teamId || innings2TeamId).name}</p>
+                                        </div>
+                                      </div>
                                       <p className="text-[10px] font-numbers font-black text-[#4DB6AC]">{((bestEconomy.runs_conceded || 0) / ((bestEconomy.balls_bowled || 1) / 6)).toFixed(1)}</p>
                                       <p className="text-[7px] text-white/25 font-numbers">{bestEconomy.wickets || 0}/{bestEconomy.runs_conceded || 0}</p>
                                     </div>
@@ -5917,24 +5942,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                       </div>
                                     </div>
                                   )}
-                                </div>
-                              )}
-
-                              {/* ═══ KEY MOMENTS ═══ */}
-                              {keyMoments.length > 0 && (
-                                <div className="p-4 rounded-[20px] bg-white/[0.03] border border-white/[0.06] space-y-3">
-                                  <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">Key Moments</p>
-                                  <div className="space-y-2">
-                                    {keyMoments.slice(0, 12).map((m, idx) => (
-                                      <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.04]">
-                                        <span className="text-[14px]">{m.icon}</span>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-[9px] font-black text-white truncate">{m.text}</p>
-                                          <p className="text-[7px] text-white/30">Inn {m.innings} · {m.over} ov</p>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
                                 </div>
                               )}
 
@@ -6051,20 +6058,56 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           </div>
                         </div>
 
-                        {/* Bowlers Section */}
+                        {/* Bowling — Innings 1 (bowled by innings2TeamId) */}
                         <div className="space-y-3 pt-4 border-t border-white/10">
-                          <h4 className="text-[10px] font-black text-[#00F0FF] uppercase">Bowling</h4>
-                          {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
-                            <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 text-[8px]">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="font-black text-white">{player.name}</p>
-                                  <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6}</p>
+                          <h4 className="text-[10px] font-black text-[#00F0FF] uppercase">Bowling — {getTeamObj(innings2TeamId).name}</h4>
+                          {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).length > 0 ? (
+                            (getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                              <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 text-[8px]">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <img src={getPlayerAvatar(player)} className="w-7 h-7 rounded-full" />
+                                    <div>
+                                      <p className="font-black text-white">{player.name}</p>
+                                      <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-numbers text-[#FF6D00] font-black">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                                    <p className="text-white/30 font-numbers">Econ {((player.runs_conceded || 0) / Math.max(1, (player.balls_bowled || 0) / 6)).toFixed(1)}</p>
+                                  </div>
                                 </div>
-                                <p className="font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
                               </div>
-                            </div>
-                          ))}
+                            ))
+                          ) : (
+                            <p className="text-[8px] text-white/30 italic">No bowling data</p>
+                          )}
+                        </div>
+
+                        {/* Bowling — Innings 2 (bowled by innings1TeamId) */}
+                        <div className="space-y-3 pt-4 border-t border-white/10">
+                          <h4 className="text-[10px] font-black text-[#39FF14] uppercase">Bowling — {getTeamObj(innings1TeamId).name}</h4>
+                          {(getTeamObj(innings1TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).length > 0 ? (
+                            (getTeamObj(innings1TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                              <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 text-[8px]">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <img src={getPlayerAvatar(player)} className="w-7 h-7 rounded-full" />
+                                    <div>
+                                      <p className="font-black text-white">{player.name}</p>
+                                      <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-numbers text-[#FF6D00] font-black">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                                    <p className="text-white/30 font-numbers">Econ {((player.runs_conceded || 0) / Math.max(1, (player.balls_bowled || 0) / 6)).toFixed(1)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-[8px] text-white/30 italic">No bowling data</p>
+                          )}
                         </div>
                       </motion.div>
                     )}
