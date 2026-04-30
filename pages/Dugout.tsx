@@ -1,15 +1,11 @@
 // @ts-nocheck
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Swords, LineChart, Map, Crown, Zap,
-  ChevronRight, Activity, Target,
-  Trophy, Star, TrendingUp, MapPin, Eye, Radio,
-  Play, Users, BarChart3, Award, Flame, Shield,
-  Clock, ChevronUp, Sparkles, CircleDot, Lightbulb,
-  ChevronLeft, Info
+  Swords, Crown, ChevronRight, Radio,
+  Play, BarChart3, Clock, Trophy, MapPin, Award,
+  Lightbulb
 } from 'lucide-react';
-import GlassCard from '../components/GlassCard';
 import MotionButton from '../components/MotionButton';
 import { useAuth } from '../AuthContext';
 import { fetchLeaderboard } from '../lib/supabase';
@@ -21,41 +17,33 @@ interface DugoutProps {
 
 const containerVariants: any = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08, delayChildren: 0.15 }
-  }
+  visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.1 } }
 };
-
 const itemVariants: any = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as any }
-  }
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as any } }
 };
 
-// ─── CRICKET FACTS DATABASE ─────────────────────────────────────────
+// ─── CRICKET FACTS ──────────────────────────────────────────────────
 const CRICKET_FACTS = [
   { stat: '100', label: 'International centuries by Sachin Tendulkar — the all-time record across all formats', category: 'Batting' },
-  { stat: '26', label: 'Balls taken by AB de Villiers for the fastest ODI century ever (2015 vs West Indies)', category: 'Records' },
-  { stat: '400*', label: 'Brian Lara\'s unbeaten 400 — highest individual Test score, set in 2004 vs England', category: 'Batting' },
-  { stat: '10/10', label: 'Anil Kumble took all 10 wickets in a Test innings vs Pakistan (1999) — only the 2nd ever', category: 'Bowling' },
-  { stat: '264', label: 'Rohit Sharma\'s 264 vs Sri Lanka — highest individual ODI score in history', category: 'Batting' },
+  { stat: '26', label: 'Balls taken by AB de Villiers for the fastest ODI century ever, against West Indies in 2015', category: 'Records' },
+  { stat: '400*', label: 'Brian Lara\'s unbeaten 400 — the highest individual Test score, set in 2004 vs England', category: 'Batting' },
+  { stat: '10/10', label: 'Anil Kumble took all 10 wickets in a Test innings vs Pakistan in 1999 — only the 2nd ever', category: 'Bowling' },
+  { stat: '264', label: 'Rohit Sharma\'s 264 vs Sri Lanka — the highest individual ODI score in history', category: 'Batting' },
   { stat: '6×6', label: 'Yuvraj Singh hit 6 sixes in an over off Stuart Broad at the 2007 T20 World Cup', category: 'Records' },
   { stat: '800', label: 'Test wickets by Muttiah Muralitharan — the most by any bowler in cricket history', category: 'Bowling' },
-  { stat: '183*', label: 'MS Dhoni smashed 183* vs Sri Lanka in 2005 — the highest by an Indian wicketkeeper', category: 'Batting' },
-  { stat: '1st', label: 'The first cricket Test match was played between Australia and England in 1877 in Melbourne', category: 'History' },
-  { stat: '49', label: 'Lowest Test total — South Africa bowled out for 49 by India at Johannesburg (2024)', category: 'Records' },
-  { stat: '5', label: 'Number of Cricket World Cup wins by Australia — the most by any nation', category: 'History' },
-  { stat: '99.94', label: 'Don Bradman\'s career Test average — widely considered the greatest statistical achievement in any sport', category: 'Batting' },
-  { stat: '4/12', label: 'Bumrah\'s spell in the 2023 WC semifinal — he conceded just 12 runs in 4 overs vs New Zealand', category: 'Bowling' },
-  { stat: '12', label: 'Minutes — the shortest completed Test innings in history (England vs Australia, 1902)', category: 'History' },
-  { stat: '2011', label: 'India won the Cricket World Cup at home — Dhoni sealed it with a six at Wankhede', category: 'History' },
+  { stat: '183*', label: 'MS Dhoni smashed 183* vs Sri Lanka in 2005 — highest by an Indian wicketkeeper in ODIs', category: 'Batting' },
+  { stat: '1877', label: 'The first-ever cricket Test match was played between Australia and England in Melbourne', category: 'History' },
+  { stat: '49', label: 'Lowest Test total — South Africa bowled out for 49 by India at Johannesburg in 2024', category: 'Records' },
+  { stat: '5', label: 'Number of Cricket World Cup wins by Australia — the most by any nation in history', category: 'History' },
+  { stat: '99.94', label: 'Don Bradman\'s career Test average — widely considered the greatest statistical achievement in sport', category: 'Batting' },
+  { stat: '4/12', label: 'Bumrah\'s spell in the 2023 WC semifinal — conceded just 12 runs in 4 overs vs New Zealand', category: 'Bowling' },
+  { stat: '2011', label: 'India won the Cricket World Cup at home — Dhoni sealed it with a six at Wankhede Stadium', category: 'History' },
+  { stat: '56', label: 'Days — the longest Test match ever played. England vs South Africa, 1939, ended as a draw', category: 'History' },
 ];
 
-// ─── TODAY'S MATCHES (simulated schedule) ───────────────────────────
+// ─── TODAY'S MATCHES ────────────────────────────────────────────────
 const generateTodayMatches = () => {
   const teams = [
     { name: 'MI', full: 'Mumbai Indians', color: '#004BA0' },
@@ -73,92 +61,81 @@ const generateTodayMatches = () => {
   const month = new Date().getMonth();
   const seed = day + month * 31;
   const pick = (arr: any[], offset: number) => arr[(seed + offset) % arr.length];
-
-  const t1 = pick(teams, 0);
-  let t2 = pick(teams, 3);
+  const t1 = pick(teams, 0); let t2 = pick(teams, 3);
   if (t2.name === t1.name) t2 = pick(teams, 5);
-  const t3 = pick(teams, 7);
-  let t4 = pick(teams, 9);
+  const t3 = pick(teams, 7); let t4 = pick(teams, 9);
   if (t4.name === t3.name) t4 = pick(teams, 11);
-
-  const venues = ['Wankhede, Mumbai', 'M.A. Chidambaram, Chennai', 'Eden Gardens, Kolkata', 'Narendra Modi, Ahmedabad', 'M. Chinnaswamy, Bengaluru', 'Arun Jaitley, Delhi', 'Rajiv Gandhi, Hyderabad'];
+  const venues = ['Wankhede, Mumbai', 'Chepauk, Chennai', 'Eden Gardens, Kolkata', 'Motera, Ahmedabad', 'Chinnaswamy, Bengaluru', 'Arun Jaitley, Delhi', 'Rajiv Gandhi, Hyderabad'];
   return [
     { team1: t1, team2: t2, time: '7:30 PM', venue: pick(venues, 1), status: 'upcoming' as const },
     { team1: t3, team2: t4, time: '3:30 PM', venue: pick(venues, 4), status: 'completed' as const, result: `${t3.name} won by ${(seed % 7) + 2} wickets` },
   ];
 };
 
-// ─── CRICKET TIPS DATABASE ──────────────────────────────────────────
+// ─── CRICKET TIPS ───────────────────────────────────────────────────
 const CRICKET_TIPS = [
-  { title: 'Watch the Ball Early', tip: 'Pick up the ball from the bowler\'s hand. The earlier you see it, the more time you have to judge length and play your shot.', category: 'Batting' },
-  { title: 'Land on the Seam', tip: 'Focus on landing the ball on the seam consistently. Even on flat pitches, a seam-up delivery can extract movement.', category: 'Bowling' },
-  { title: 'Stay Side-On', tip: 'When bowling, keep your body side-on at the crease. It helps generate pace and natural outswing to right-handers.', category: 'Bowling' },
-  { title: 'Soft Hands in Defence', tip: 'Relax your grip when defending. Soft hands absorb pace and prevent edges from carrying to the slip cordon.', category: 'Batting' },
-  { title: 'Walk-In With the Bowler', tip: 'Start walking in as the bowler runs up. It keeps you on your toes and gives you a split-second advantage.', category: 'Fielding' },
-  { title: 'Play Under Your Eyes', tip: 'Keep your head still and play the ball under your eyes. If your head falls over, your balance is gone.', category: 'Batting' },
-  { title: 'Hit the Top of Off', tip: 'Bowl a consistent good length on off stump. The most dismissals in cricket history come from this corridor.', category: 'Bowling' },
-  { title: 'Rotate the Strike', tip: 'In limited overs, singles keep the scoreboard ticking. Rotate strike to keep the pressure off yourself.', category: 'Batting' },
-  { title: 'Backup Every Ball', tip: 'Always back up throws at the non-striker\'s end. Lazy backing up costs run-out opportunities.', category: 'Fielding' },
+  { title: 'Watch the Ball Early', tip: 'Pick up the ball from the bowler\'s hand. The earlier you see it, the more time you get to judge length.', category: 'Batting' },
+  { title: 'Land on the Seam', tip: 'Focus on landing the ball on the seam consistently. Even on flat pitches, seam-up deliveries extract movement.', category: 'Bowling' },
+  { title: 'Stay Side-On', tip: 'Keep your body side-on at the crease. It generates pace and natural outswing to right-handers.', category: 'Bowling' },
+  { title: 'Soft Hands in Defence', tip: 'Relax your grip when defending. Soft hands absorb pace and prevent edges carrying to the cordon.', category: 'Batting' },
+  { title: 'Walk-In With the Bowler', tip: 'Start walking in as the bowler runs up. It keeps you alert and gives you a split-second advantage.', category: 'Fielding' },
+  { title: 'Play Under Your Eyes', tip: 'Keep your head still and play the ball under your eyes. If your head falls over, balance is gone.', category: 'Batting' },
+  { title: 'Hit the Top of Off', tip: 'Bowl a consistent good length on off stump. Most dismissals in cricket come from this corridor.', category: 'Bowling' },
+  { title: 'Rotate the Strike', tip: 'In limited overs, singles keep the scoreboard ticking. Rotate to keep pressure off yourself.', category: 'Batting' },
   { title: 'Use the Crease', tip: 'Step across or back to create new angles. Using the crease width makes you harder to bowl to.', category: 'Batting' },
-  { title: 'Set a Yorker Length', tip: 'Practice hitting the base of the stumps in death overs. A good yorker is almost impossible to hit for six.', category: 'Bowling' },
-  { title: 'Ground Your Bat', tip: 'When running between wickets, always ground your bat past the crease. A dive is the last resort, not the first.', category: 'Running' },
-  { title: 'Read the Conditions', tip: 'Check the pitch before the toss — cracks, grass, dampness. Conditions dictate whether to bat or bowl first.', category: 'Strategy' },
-  { title: 'Follow Through Fully', tip: 'Complete your bowling action — don\'t stop at delivery. A full follow-through improves accuracy and reduces injury.', category: 'Bowling' },
+  { title: 'Set a Yorker Length', tip: 'Practice hitting the base of the stumps at the death. A good yorker is nearly impossible to hit for six.', category: 'Bowling' },
+  { title: 'Read the Conditions', tip: 'Check the pitch before the toss — cracks, grass, dampness. Conditions dictate batting or bowling first.', category: 'Strategy' },
+  { title: 'Follow Through Fully', tip: 'Complete your bowling action after delivery. A full follow-through improves accuracy and reduces injury.', category: 'Bowling' },
 ];
+
+// ─── STUMPS SVG ─────────────────────────────────────────────────────
+const StumpsSVG = () => (
+  <svg width="60" height="80" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute top-4 right-6 opacity-[0.04]">
+    <rect x="15" y="12" width="3" height="68" rx="1.5" fill="white"/>
+    <rect x="28" y="12" width="3" height="68" rx="1.5" fill="white"/>
+    <rect x="41" y="12" width="3" height="68" rx="1.5" fill="white"/>
+    <rect x="13" y="8" width="16" height="3" rx="1.5" fill="white"/>
+    <rect x="30" y="8" width="16" height="3" rx="1.5" fill="white"/>
+  </svg>
+);
 
 const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
   const { userData } = useAuth();
-  const isLightMode = typeof document !== 'undefined' && document.documentElement?.dataset?.theme === 'light';
 
-  // Calculate real career stats from the Vault
   const careerStats = useMemo(() => {
     const activePhone = userData?.phone || '';
     const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
     const profileData = globalVault[activePhone] || { history: [], teams: [] };
     const history = profileData.history || [];
-
     const totalRuns = history.reduce((acc: number, match: any) => acc + (parseInt(match.runs) || 0), 0);
     const totalMatches = history.length;
     const totalWickets = history.reduce((acc: number, match: any) => acc + (parseInt(match.wickets) || 0), 0);
-    const bestScore = history.reduce((best: number, match: any) => {
-      const runs = parseInt(match.runs) || 0;
-      return runs > best ? runs : best;
-    }, 0);
-    const avg = totalMatches > 0 ? (totalRuns / totalMatches).toFixed(1) : '0.0';
-    return { totalRuns, totalMatches, totalWickets, bestScore, avg };
+    const bestScore = history.reduce((best: number, match: any) => Math.max(best, parseInt(match.runs) || 0), 0);
+    return { totalRuns, totalMatches, totalWickets, bestScore };
   }, [userData]);
 
-  // Real impact rank from Supabase leaderboard
   const [cloudRank, setCloudRank] = useState<string | null>(null);
   useEffect(() => {
     if (!userData?.phone) return;
     fetchLeaderboard('career_runs', 100)
       .then(leaders => {
         const idx = leaders.findIndex(l => l.phone === userData.phone);
-        if (idx >= 0) setCloudRank(`#${idx + 1}`);
-        else setCloudRank(careerStats.totalRuns > 0 ? '#-' : 'NEW');
+        setCloudRank(idx >= 0 ? `#${idx + 1}` : careerStats.totalRuns > 0 ? '#-' : 'NEW');
       })
-      .catch(() => {
-        setCloudRank(careerStats.totalRuns > 1000 ? '#12' : careerStats.totalRuns > 0 ? '#42' : 'NEW');
-      });
+      .catch(() => setCloudRank(careerStats.totalRuns > 0 ? '#-' : 'NEW'));
   }, [userData?.phone]);
-  const displayRank = cloudRank ?? 'NEW';
 
-  // Greeting
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    const h = new Date().getHours();
+    return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
   }, []);
 
   const firstName = userData?.name?.split(' ')[0] || 'Player';
 
-  // ─── FACTS CAROUSEL STATE ──────────────────────────────────────
-  const [factIndex, setFactIndex] = useState(0);
-  const shuffledFacts = useMemo(() => {
+  // Facts carousel
+  const [factIdx, setFactIdx] = useState(0);
+  const facts = useMemo(() => {
     const arr = [...CRICKET_FACTS];
-    // Fisher-Yates shuffle seeded by day
     const seed = new Date().getDate() + new Date().getMonth() * 31;
     for (let i = arr.length - 1; i > 0; i--) {
       const j = (seed * (i + 1) + 7) % (i + 1);
@@ -166,364 +143,303 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
     }
     return arr;
   }, []);
-
-  // Auto-rotate facts every 5s
   useEffect(() => {
-    const timer = setInterval(() => {
-      setFactIndex(prev => (prev + 1) % shuffledFacts.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [shuffledFacts.length]);
+    const t = setInterval(() => setFactIdx(p => (p + 1) % facts.length), 5000);
+    return () => clearInterval(t);
+  }, [facts.length]);
 
-  // ─── TODAY'S MATCHES ───────────────────────────────────────────
   const todayMatches = useMemo(() => generateTodayMatches(), []);
 
-  // ─── TIP OF THE DAY ───────────────────────────────────────────
   const todayTip = useMemo(() => {
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    return CRICKET_TIPS[dayOfYear % CRICKET_TIPS.length];
+    const doy = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    return CRICKET_TIPS[doy % CRICKET_TIPS.length];
   }, []);
 
-  // Quick actions
   const quickActions = [
-    { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, accent: '#00F0FF' },
-    { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, accent: '#39FF14' },
-    { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, accent: '#FF6B35' },
-    { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, accent: '#BC13FE' },
+    { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, dot: '#00F0FF' },
+    { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, dot: '#39FF14' },
+    { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, dot: '#FF6B35' },
+    { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, dot: '#BC13FE' },
   ];
 
-  const categoryColor = (cat: string) => {
-    switch (cat) {
-      case 'Batting': return '#00F0FF';
-      case 'Bowling': return '#39FF14';
-      case 'Records': return '#FFD600';
-      case 'History': return '#BC13FE';
-      case 'Fielding': return '#FF6B35';
-      case 'Running': return '#FF6B35';
-      case 'Strategy': return '#FFD600';
-      default: return '#00F0FF';
-    }
+  const catColor = (c: string) => {
+    const m: Record<string, string> = { Batting: '#00F0FF', Bowling: '#39FF14', Records: '#FFD600', History: '#BC13FE', Fielding: '#FF6B35', Strategy: '#FFD600' };
+    return m[c] || '#00F0FF';
   };
+
+  const currentFact = facts[factIdx % facts.length];
 
   return (
     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="max-w-6xl mx-auto px-5 py-6 space-y-5 pb-40 scroll-container"
+      variants={containerVariants} initial="hidden" animate="visible"
+      className="max-w-6xl mx-auto px-6 py-8 space-y-0 pb-40 scroll-container"
     >
-      {/* HERO SECTION — Greeting + Avatar */}
-      <motion.section variants={itemVariants}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center space-x-3.5">
-            <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20 shrink-0">
-              <img src={userData?.avatar} className="w-full h-full object-cover" alt="" />
-            </div>
-            <div>
-              <p className="text-[11px] font-medium text-white/50 tracking-wide">{greeting}</p>
-              <h1 className="font-heading text-xl tracking-tight text-white leading-tight uppercase">{firstName}</h1>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[8px] font-bold text-white/40 uppercase tracking-[0.15em]">Rank</p>
-            <p className="font-heading text-xl text-[#00F0FF] leading-tight">{displayRank}</p>
-          </div>
-        </div>
+      {/* ═══════════════════════════════════════════════════════════
+          HERO — Editorial, typography-first. Zeldman: "Content
+          precedes design. Design in the absence of content is not
+          design, it's decoration."
+          ═══════════════════════════════════════════════════════════ */}
+      <motion.section variants={itemVariants} className="relative mb-8">
+        <StumpsSVG />
 
-        {/* Main CTA */}
+        {/* Greeting — understated, small, soft */}
+        <p className="text-[12px] font-medium text-white/35 tracking-[0.04em]">{greeting}</p>
+
+        {/* Name — the largest element on screen. Confident. */}
+        <h1 className="font-heading text-[42px] text-white leading-[1] tracking-tight uppercase mt-1">{firstName}</h1>
+
+        {/* Accent underline — short, precise */}
+        <div className="w-10 h-[2px] bg-[#00F0FF]/60 rounded-full mt-3" />
+
+        {/* Rank — floating right, subtle */}
+        <div className="absolute top-0 right-0 text-right">
+          <p className="text-[7px] font-bold text-white/25 uppercase tracking-[0.2em]">Rank</p>
+          <p className="font-heading text-[28px] text-[#00F0FF] leading-[1] tracking-tight mt-0.5">{cloudRank ?? 'NEW'}</p>
+        </div>
+      </motion.section>
+
+      {/* ═══ STATS — Horizontal scorecard with hairline dividers ═══ */}
+      <motion.section variants={itemVariants} className="mb-8">
+        <div className="border-t border-b border-white/[0.06] py-4">
+          <div className="flex items-baseline justify-between">
+            {[
+              { val: careerStats.totalMatches, lbl: 'Matches', accent: false },
+              { val: careerStats.totalRuns.toLocaleString(), lbl: 'Runs', accent: false },
+              { val: careerStats.totalWickets, lbl: 'Wickets', accent: false },
+              { val: careerStats.bestScore, lbl: 'Best', accent: true },
+            ].map((s, i) => (
+              <React.Fragment key={s.lbl}>
+                {i > 0 && <div className="w-px h-8 bg-white/[0.06] self-center" />}
+                <div className="text-center flex-1">
+                  <p className={`font-numbers text-[26px] font-bold leading-none tracking-tight ${s.accent ? 'text-[#00F0FF]' : 'text-white'}`}>{s.val}</p>
+                  <p className="text-[7px] font-bold text-white/25 uppercase tracking-[0.15em] mt-2">{s.lbl}</p>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+          {careerStats.totalMatches === 0 && (
+            <p className="text-[10px] text-white/20 text-center mt-3 pt-3 border-t border-white/[0.04]">Play your first match to see stats here</p>
+          )}
+        </div>
+      </motion.section>
+
+      {/* ═══ START MATCH — Single, confident CTA ═══ */}
+      <motion.section variants={itemVariants} className="mb-8">
         <button
           onClick={() => onNavigate('MATCH_CENTER')}
-          className="w-full rounded-xl border border-[#00F0FF]/25 bg-[#00F0FF]/[0.06] group active:scale-[0.98] transition-all"
+          className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-white/[0.06] bg-white/[0.015] active:bg-white/[0.04] transition-all group active:scale-[0.98]"
         >
-          <div className="flex items-center justify-between px-5 py-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-11 h-11 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/20 flex items-center justify-center">
-                <Swords size={20} className="text-[#00F0FF]" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-[14px] font-black text-white uppercase tracking-wide">Start New Match</h2>
-                <p className="text-[10px] text-white/45 font-medium mt-0.5">Score, analyze and share live</p>
-              </div>
-            </div>
-            <ChevronRight size={18} className="text-[#00F0FF]/50 group-hover:text-[#00F0FF] transition-colors" />
+          <div>
+            <h2 className="text-[13px] font-black text-white uppercase tracking-[0.12em]">Start New Match</h2>
+            <p className="text-[9px] text-white/30 font-medium mt-1 tracking-wide">Score, analyze and share live</p>
+          </div>
+          <div className="w-8 h-8 rounded-full border border-[#00F0FF]/25 flex items-center justify-center group-hover:border-[#00F0FF]/50 transition-colors">
+            <ChevronRight size={14} className="text-[#00F0FF]/60" />
           </div>
         </button>
       </motion.section>
 
-      {/* Follow Match Shortcut */}
+      {/* Follow Match — only when active */}
       {(() => {
-        const followId = typeof localStorage !== 'undefined' ? localStorage.getItem('22Y_FOLLOWING_MATCH') : null;
-        if (!followId) return null;
+        const fid = typeof localStorage !== 'undefined' ? localStorage.getItem('22Y_FOLLOWING_MATCH') : null;
+        if (!fid) return null;
         return (
-          <motion.section variants={itemVariants}>
+          <motion.section variants={itemVariants} className="mb-8">
             <button
               onClick={() => onNavigate('FOLLOW_MATCH')}
-              className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-[#BC13FE]/25 bg-[#BC13FE]/[0.06] group active:scale-[0.98] transition-all"
+              className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-[#BC13FE]/20 bg-[#BC13FE]/[0.04] active:scale-[0.98] transition-all group"
             >
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="w-9 h-9 rounded-lg bg-[#BC13FE]/10 border border-[#BC13FE]/20 flex items-center justify-center">
-                    <Radio size={18} className="text-[#BC13FE]" />
-                  </div>
-                  <div className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-[#FF003C] flex items-center gap-0.5">
-                    <div className="w-1 h-1 rounded-full bg-white animate-pulse" />
-                    <span className="text-[6px] font-black text-white uppercase">Live</span>
-                  </div>
+                  <Radio size={18} className="text-[#BC13FE]/70" />
+                  <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF003C] animate-pulse" />
                 </div>
-                <div className="text-left">
-                  <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none">Following a Match</p>
-                  <p className="text-[9px] text-white/40 font-medium mt-1">Tap to view live scorecard</p>
+                <div>
+                  <p className="text-[11px] font-black text-white uppercase tracking-wider">Following a Match</p>
+                  <p className="text-[9px] text-white/25 mt-0.5">Tap to view live scorecard</p>
                 </div>
               </div>
-              <ChevronRight size={16} className="text-[#BC13FE]/40 group-hover:text-[#BC13FE]" />
+              <ChevronRight size={14} className="text-[#BC13FE]/30" />
             </button>
           </motion.section>
         );
       })()}
 
-      {/* ═══ CRICKET FACTS CAROUSEL ═══ */}
-      <motion.section variants={itemVariants}>
-        <div className="flex items-center justify-between mb-2.5 px-0.5">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Did You Know</h3>
-          <div className="flex items-center gap-1.5">
-            {shuffledFacts.slice(0, 5).map((_, i) => (
+      {/* ═══ DID YOU KNOW — Pull-quote, editorial ═══ */}
+      <motion.section variants={itemVariants} className="mb-8">
+        <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em] mb-3">Did You Know</p>
+
+        <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={factIdx}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.35 }}
+              className="px-5 py-5"
+            >
+              {/* The stat — massive, typographic centerpiece */}
+              <div className="flex items-start justify-between mb-3">
+                <p className="font-heading text-[36px] text-[#00F0FF] leading-[1] tracking-tight">{currentFact.stat}</p>
+                <span
+                  className="text-[7px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-full mt-1.5"
+                  style={{
+                    color: catColor(currentFact.category),
+                    backgroundColor: catColor(currentFact.category) + '10',
+                    border: `1px solid ${catColor(currentFact.category)}20`,
+                  }}
+                >{currentFact.category}</span>
+              </div>
+              <p className="text-[11px] text-white/40 leading-[1.6]">{currentFact.label}</p>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Progress dots */}
+          <div className="flex items-center justify-center gap-1.5 pb-4">
+            {facts.slice(0, 5).map((_, i) => (
               <button
                 key={i}
-                onClick={() => setFactIndex(i)}
-                className="transition-all"
+                onClick={() => setFactIdx(i)}
+                className="transition-all duration-300"
                 style={{
-                  width: i === factIndex % 5 ? 16 : 4,
-                  height: 4,
+                  width: i === factIdx % 5 ? 14 : 4,
+                  height: 3,
                   borderRadius: 2,
-                  backgroundColor: i === factIndex % 5 ? '#00F0FF' : 'rgba(255,255,255,0.15)',
+                  backgroundColor: i === factIdx % 5 ? '#00F0FF' : 'rgba(255,255,255,0.1)',
                 }}
               />
             ))}
           </div>
         </div>
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={factIndex}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.3 }}
-              className="p-4 flex items-start gap-4"
-            >
-              <div className="shrink-0 w-16 h-16 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-                <span className="font-heading text-xl text-[#00F0FF] leading-none">{shuffledFacts[factIndex % shuffledFacts.length].stat}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <span
-                  className="inline-block text-[7px] font-bold uppercase tracking-[0.15em] px-2 py-0.5 rounded-full mb-1.5"
-                  style={{
-                    color: categoryColor(shuffledFacts[factIndex % shuffledFacts.length].category),
-                    backgroundColor: categoryColor(shuffledFacts[factIndex % shuffledFacts.length].category) + '15',
-                    border: `1px solid ${categoryColor(shuffledFacts[factIndex % shuffledFacts.length].category)}30`,
-                  }}
-                >
-                  {shuffledFacts[factIndex % shuffledFacts.length].category}
-                </span>
-                <p className="text-[11px] text-white/60 leading-relaxed">{shuffledFacts[factIndex % shuffledFacts.length].label}</p>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
       </motion.section>
 
-      {/* YOUR CRICKET — Stats Strip */}
-      <motion.section variants={itemVariants}>
-        <div className="flex items-center justify-between mb-2.5 px-0.5">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Your Cricket</h3>
-          <button onClick={() => onNavigate('PERFORMANCE')} className="text-[10px] font-bold text-[#00F0FF]/70 uppercase tracking-wider flex items-center gap-0.5 hover:text-[#00F0FF] transition-colors">
-            View All <ChevronRight size={11} />
-          </button>
+      {/* ═══ TODAY'S MATCHES — Editorial scorecard ═══ */}
+      <motion.section variants={itemVariants} className="mb-8">
+        <div className="flex items-baseline justify-between mb-3">
+          <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em]">Today's Matches</p>
+          <p className="text-[9px] text-white/15 font-medium">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
         </div>
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
-          <div className="grid grid-cols-4 gap-3 text-center">
-            <div>
-              <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalMatches}</p>
-              <p className="text-[8px] font-bold text-white/35 uppercase tracking-[0.12em] mt-1.5">Matches</p>
-            </div>
-            <div>
-              <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalRuns.toLocaleString()}</p>
-              <p className="text-[8px] font-bold text-white/35 uppercase tracking-[0.12em] mt-1.5">Runs</p>
-            </div>
-            <div>
-              <p className="font-numbers text-2xl font-bold text-white leading-none">{careerStats.totalWickets}</p>
-              <p className="text-[8px] font-bold text-white/35 uppercase tracking-[0.12em] mt-1.5">Wickets</p>
-            </div>
-            <div>
-              <p className="font-numbers text-2xl font-bold text-[#00F0FF] leading-none">{careerStats.bestScore}</p>
-              <p className="text-[8px] font-bold text-white/35 uppercase tracking-[0.12em] mt-1.5">Best</p>
-            </div>
-          </div>
-          {careerStats.totalMatches === 0 && (
-            <div className="mt-3.5 pt-3 border-t border-white/[0.06] text-center">
-              <p className="text-[10px] text-white/35">Start your first match to see stats here</p>
-            </div>
-          )}
-        </div>
-      </motion.section>
 
-      {/* ═══ TODAY'S MATCHES ═══ */}
-      <motion.section variants={itemVariants}>
-        <div className="flex items-center justify-between mb-2.5 px-0.5">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Today's Matches</h3>
-          <span className="text-[9px] font-medium text-white/25">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-        </div>
         <div className="space-y-2">
-          {todayMatches.map((match, i) => (
-            <div key={i} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+          {todayMatches.map((m, i) => (
+            <div key={i} className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-5 py-4">
+              {/* Status row */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  {match.status === 'upcoming' ? (
-                    <span className="text-[7px] font-bold uppercase tracking-wider text-[#FFD600] bg-[#FFD600]/10 border border-[#FFD600]/25 px-2 py-0.5 rounded-full">Upcoming</span>
-                  ) : (
-                    <span className="text-[7px] font-bold uppercase tracking-wider text-white/40 bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-full">Completed</span>
-                  )}
+                  <div className={`w-1.5 h-1.5 rounded-full ${m.status === 'upcoming' ? 'bg-[#FFD600]/60' : 'bg-white/15'}`} />
+                  <span className={`text-[7px] font-bold uppercase tracking-[0.12em] ${m.status === 'upcoming' ? 'text-[#FFD600]/60' : 'text-white/25'}`}>
+                    {m.status === 'upcoming' ? 'Upcoming' : 'Completed'}
+                  </span>
                 </div>
-                <span className="text-[9px] text-white/30 font-medium">{match.time}</span>
+                <span className="text-[9px] text-white/20 font-medium">{m.time}</span>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-black text-white"
-                    style={{ backgroundColor: match.team1.color + '30', border: `1px solid ${match.team1.color}50` }}
-                  >
-                    {match.team1.name}
-                  </div>
-                  <span className="text-[10px] font-bold text-white/25 uppercase">vs</span>
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-black text-white"
-                    style={{ backgroundColor: match.team2.color + '30', border: `1px solid ${match.team2.color}50` }}
-                  >
-                    {match.team2.name}
-                  </div>
+              {/* Teams — typographic, no boxes */}
+              <div className="flex items-baseline justify-between">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-[18px] font-black text-white tracking-wide">{m.team1.name}</span>
+                  <span className="text-[10px] font-medium text-white/15">vs</span>
+                  <span className="text-[18px] font-black text-white tracking-wide">{m.team2.name}</span>
                 </div>
-                <div className="text-right">
-                  <p className="text-[9px] text-white/30">{match.venue}</p>
-                </div>
+                <span className="text-[8px] text-white/15 font-medium">{m.venue}</span>
               </div>
 
-              {match.status === 'completed' && match.result && (
-                <p className="text-[9px] text-[#39FF14]/70 font-medium mt-2.5 pt-2.5 border-t border-white/[0.05]">{match.result}</p>
+              {/* Result */}
+              {m.status === 'completed' && m.result && (
+                <p className="text-[9px] text-[#39FF14]/50 font-medium mt-2.5 pt-2.5 border-t border-white/[0.04]">{m.result}</p>
               )}
             </div>
           ))}
         </div>
       </motion.section>
 
-      {/* QUICK ACTIONS */}
-      <motion.section variants={itemVariants}>
-        <div className="grid grid-cols-2 gap-2.5">
-          {quickActions.map((action) => (
+      {/* ═══ QUICK ACTIONS — Minimal grid, dot accents ═══ */}
+      <motion.section variants={itemVariants} className="mb-8">
+        <div className="grid grid-cols-2 gap-2">
+          {quickActions.map((a) => (
             <button
-              key={action.id}
-              onClick={() => onNavigate(action.id as any)}
-              className="rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group active:scale-[0.97]"
+              key={a.id}
+              onClick={() => onNavigate(a.id as any)}
+              className="rounded-xl border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] text-left group active:scale-[0.97] transition-all"
             >
-              <div className="p-4 flex flex-col space-y-3">
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: `${action.accent}10`, border: `1px solid ${action.accent}25` }}
-                >
-                  <action.icon size={18} style={{ color: action.accent }} strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none">{action.label}</p>
-                  <p className="text-[9px] text-white/35 font-medium mt-1">{action.desc}</p>
-                </div>
+              <div className="px-4 py-4">
+                {/* Accent dot instead of icon box */}
+                <div className="w-2 h-2 rounded-full mb-4" style={{ backgroundColor: a.dot, opacity: 0.5 }} />
+                <p className="text-[11px] font-black text-white uppercase tracking-[0.1em] leading-none">{a.label}</p>
+                <p className="text-[8px] text-white/20 font-medium mt-1.5">{a.desc}</p>
               </div>
             </button>
           ))}
         </div>
       </motion.section>
 
-      {/* ═══ TIP OF THE DAY ═══ */}
-      <motion.section variants={itemVariants}>
-        <div className="flex items-center justify-between mb-2.5 px-0.5">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Tip of the Day</h3>
-          <span
-            className="text-[7px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full"
-            style={{
-              color: categoryColor(todayTip.category),
-              backgroundColor: categoryColor(todayTip.category) + '12',
-              border: `1px solid ${categoryColor(todayTip.category)}25`,
-            }}
-          >
-            {todayTip.category}
-          </span>
-        </div>
-        <div className="rounded-xl border border-[#FFD600]/15 bg-[#FFD600]/[0.03] p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#FFD600]/10 border border-[#FFD600]/20 flex items-center justify-center shrink-0 mt-0.5">
-              <Lightbulb size={16} className="text-[#FFD600]" />
-            </div>
-            <div>
+      {/* ═══ TIP OF THE DAY — Left-border accent, Zeldman pull-quote ═══ */}
+      <motion.section variants={itemVariants} className="mb-8">
+        <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em] mb-3">Tip of the Day</p>
+        <div className="flex">
+          {/* Left accent bar */}
+          <div className="w-[2px] rounded-full shrink-0 mr-4" style={{ backgroundColor: catColor(todayTip.category), opacity: 0.4 }} />
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
               <h4 className="text-[12px] font-black text-white uppercase tracking-wide leading-none">{todayTip.title}</h4>
-              <p className="text-[10px] text-white/50 leading-relaxed mt-1.5">{todayTip.tip}</p>
+              <span
+                className="text-[6px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full"
+                style={{
+                  color: catColor(todayTip.category),
+                  backgroundColor: catColor(todayTip.category) + '10',
+                  border: `1px solid ${catColor(todayTip.category)}18`,
+                }}
+              >{todayTip.category}</span>
             </div>
+            <p className="text-[10px] text-white/30 leading-[1.7]">{todayTip.tip}</p>
           </div>
         </div>
       </motion.section>
 
-      {/* DISCOVER */}
-      <motion.section variants={itemVariants} className="space-y-2">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 px-0.5 mb-1">Discover</h3>
+      {/* ═══ DISCOVER ═══ */}
+      <motion.section variants={itemVariants} className="space-y-2 mb-8">
+        <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em] mb-1">Discover</p>
 
         <button
           onClick={() => onNavigate('ARENA')}
-          className="w-full flex items-center px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group active:scale-[0.98]"
+          className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] text-left group active:scale-[0.98] transition-all"
         >
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center mr-3.5 shrink-0"
-            style={{ backgroundColor: '#00F0FF10', border: '1px solid #00F0FF25' }}
-          >
-            <MapPin size={18} style={{ color: '#00F0FF' }} />
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]/50" />
+            <div>
+              <p className="text-[10px] font-black text-white uppercase tracking-[0.1em]">Find Grounds</p>
+              <p className="text-[8px] text-white/20 mt-0.5">Cricket grounds near you</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-black text-white uppercase tracking-wider leading-none">Find Grounds</p>
-            <p className="text-[9px] text-white/35 font-medium mt-1">Discover cricket grounds near you</p>
-          </div>
-          <ChevronRight size={14} className="text-white/20 group-hover:text-white/50 shrink-0" />
+          <ChevronRight size={12} className="text-white/15" />
         </button>
 
         <button
           onClick={() => onNavigate('PERFORMANCE')}
-          className="w-full flex items-center px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group active:scale-[0.98]"
+          className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] text-left group active:scale-[0.98] transition-all"
         >
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center mr-3.5 shrink-0"
-            style={{ backgroundColor: '#39FF1410', border: '1px solid #39FF1425' }}
-          >
-            <Award size={18} style={{ color: '#39FF14' }} />
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#39FF14]/50" />
+            <div>
+              <p className="text-[10px] font-black text-white uppercase tracking-[0.1em]">Leaderboard</p>
+              <p className="text-[8px] text-white/20 mt-0.5">See where you rank among players</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-black text-white uppercase tracking-wider leading-none">Leaderboard</p>
-            <p className="text-[9px] text-white/35 font-medium mt-1">See where you rank among players</p>
-          </div>
-          <ChevronRight size={14} className="text-white/20 group-hover:text-white/50 shrink-0" />
+          <ChevronRight size={12} className="text-white/15" />
         </button>
       </motion.section>
 
-      {/* UPGRADE */}
+      {/* ═══ UPGRADE ═══ */}
       <motion.section variants={itemVariants}>
-        <div className="rounded-xl border border-[#00F0FF]/15 bg-[#00F0FF]/[0.03] p-5 flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/20 flex items-center justify-center">
-              <Crown size={20} className="text-[#00F0FF]" />
-            </div>
-            <div>
-              <h3 className="text-[13px] font-black text-white tracking-wide uppercase leading-none">Go Elite</h3>
-              <p className="text-[9px] font-medium text-white/35 mt-1">Unlock advanced stats & rankings</p>
-            </div>
+        <div className="flex items-center justify-between px-5 py-4 rounded-xl border border-[#00F0FF]/10 bg-[#00F0FF]/[0.02]">
+          <div>
+            <h3 className="text-[12px] font-black text-white tracking-[0.1em] uppercase leading-none">Go Elite</h3>
+            <p className="text-[8px] font-medium text-white/25 mt-1.5">Unlock advanced stats & rankings</p>
           </div>
           <MotionButton
             onClick={onUpgrade}
-            className="bg-[#00F0FF] text-black !rounded-lg font-black text-[9px] !py-2.5 !px-4"
+            className="bg-[#00F0FF] text-black !rounded-lg font-black text-[8px] !py-2 !px-4 tracking-[0.1em]"
           >
             UPGRADE
           </MotionButton>
