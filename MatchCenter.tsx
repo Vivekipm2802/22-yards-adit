@@ -738,28 +738,25 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       };
     });
 
+    const teamId = squadConflict.teamId;
+    const key = teamId === 'A' ? 'teamA' : 'teamB';
     setSquadConflict(null);
 
-    // After merge, go to squad selection so user picks playing members
-    // For START FRESH, go straight to toss
+    // ADD TO TEAM: merge done, now open squad selection so user picks playing members
+    // START FRESH: just close modal, team stays as entered
+    // Both return to CONFIG — user continues setting up match rules normally
     if (resolveType === 'EXISTING') {
-      // Show squad selection for the merged team — pre-select all
-      const teamId = squadConflict.teamId;
-      const key = teamId === 'A' ? 'teamA' : 'teamB';
-      // Need to get merged squad after setMatch — use setTimeout to read updated state
       setTimeout(() => {
         setMatch(m => {
           const squad = m.teams[key]?.squad || [];
           setSelectedPlayerIds(new Set(squad.map((p: any) => p.id)));
-          return m; // no mutation, just reading
+          return m;
         });
-        setSquadSelectionSource('CONFLICT');
+        setSquadSelectionSource('DRAWER');
         setSquadSelectionTeamId(teamId);
       }, 50);
-    } else {
-      setMatch(m => ({ ...m, toss: { winnerId: null, decision: null } }));
-      setStatus('TOSS_FLIP');
     }
+    // For both: stay on CONFIG screen — no transition to toss
   };
 
   const handleSaveYouTubeConfig = (config: LiveStreamConfig) => {
@@ -3812,15 +3809,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             teams: { ...m.teams, [k]: { ...m.teams[k], squad: filteredSquad } }
                           };
                         });
-                        const source = squadSelectionSource;
                         setSquadSelectionTeamId(null);
                         setSelectedPlayerIds(new Set());
-
-                        if (source === 'CONFLICT') {
-                          // Came from ADD TO TEAM conflict flow → check other team or proceed to toss
-                          setTimeout(() => checkTeamConflicts(), 100);
-                        }
-                        // source === 'DRAWER' → just close and return to CONFIG screen (do nothing extra)
+                        // Always return to CONFIG — user continues setting up match rules
                       }}
                       disabled={selectedPlayerIds.size < 2}
                       className={`w-full py-5 !rounded-[24px] font-black tracking-[0.3em] ${
