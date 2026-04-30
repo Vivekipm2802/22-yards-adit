@@ -38,9 +38,9 @@ const Archive: React.FC = () => {
         const cloudHist = (cloudProfile?.archive_vault && Array.isArray(cloudProfile.archive_vault))
           ? cloudProfile.archive_vault : [];
         const seen = new Set();
-        const merged = [...cloudHist, ...localHist].filter(m => {
+        const merged = [...localHist, ...cloudHist].filter(m => {
           if (!m) return false;
-          const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+          const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.ballsFaced}-${m.opponent}-${m.result}`;
           if (seen.has(mid)) return false;
           seen.add(mid); return true;
         }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
