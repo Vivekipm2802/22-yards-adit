@@ -24,11 +24,12 @@ interface DugoutProps {
 
 const fadeIn: any = {
   hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 1, 0.5, 1] as any } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 1, 0.5, 1] as any } }
 };
 const stagger: any = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.1 } }
+  initial: false,
+  hidden: { opacity: 1 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.05 } }
 };
 
 // ─── STATIC DATA ───────────────────────────────────────────────────
