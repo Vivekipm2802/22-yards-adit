@@ -381,11 +381,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     archivedTeamId: string;
   } | null>(null);
 
-  // Squad selection: after merge, user picks which players play this match
-  const [squadSelectionTeamId, setSquadSelectionTeamId] = useState<TeamID | null>(null);
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
-  const [squadSelectionSource, setSquadSelectionSource] = useState<'DRAWER' | 'CONFLICT'>('DRAWER');
-
   useEffect(() => {
     // Don't persist match state when we've handed off scoring to another device
     if (forcedSpectatorMode) return;
@@ -707,29 +702,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
     setMatch(m => {
       const key = squadConflict.teamId === 'A' ? 'teamA' : 'teamB';
-      let mergedSquad = m.teams[key].squad || [];
-
-      if (resolveType === 'EXISTING') {
-        // ADD TO TEAM: merge archived roster into current squad (dedup by name)
-        const archivedPlayers = (squadConflict.existingSquad || []);
-        const currentNames = new Set((mergedSquad).map((p: any) => p.name?.toUpperCase()));
-        const newFromArchive = archivedPlayers.filter((p: any) => !currentNames.has(p.name?.toUpperCase()));
-        mergedSquad = [...mergedSquad, ...newFromArchive.map((p: any) => ({
-          ...p,
-          // Reset stats for the new match
-          runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, wicketType: null,
-          overs: 0, oversBowled: 0, runsConceded: 0, wicketsTaken: 0, maidens: 0,
-          dotBalls: 0, catches: 0, runOuts: 0, stumpings: 0, extras: 0,
-        }))];
-      }
-
       return {
         ...m,
         teams: {
           ...m.teams,
           [key]: {
             ...m.teams[key],
-            squad: mergedSquad,
             resolutionMode: resolveType,
             resolutionHandled: true,
             linkedArchivedId: resolveType === 'EXISTING' ? squadConflict.archivedTeamId : null
@@ -738,25 +716,9 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       };
     });
 
-    const teamId = squadConflict.teamId;
-    const key = teamId === 'A' ? 'teamA' : 'teamB';
     setSquadConflict(null);
-
-    // ADD TO TEAM: merge done, now open squad selection so user picks playing members
-    // START FRESH: just close modal, team stays as entered
-    // Both return to CONFIG — user continues setting up match rules normally
-    if (resolveType === 'EXISTING') {
-      setTimeout(() => {
-        setMatch(m => {
-          const squad = m.teams[key]?.squad || [];
-          setSelectedPlayerIds(new Set(squad.map((p: any) => p.id)));
-          return m;
-        });
-        setSquadSelectionSource('DRAWER');
-        setSquadSelectionTeamId(teamId);
-      }, 50);
-    }
-    // For both: stay on CONFIG screen — no transition to toss
+    setMatch(m => ({ ...m, toss: { winnerId: null, decision: null } }));
+    setStatus('TOSS_FLIP');
   };
 
   const handleSaveYouTubeConfig = (config: LiveStreamConfig) => {
@@ -3433,28 +3395,20 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                         <motion.button
                                           key={team.name}
                                           onClick={() => {
-                                            const targetKey = teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB';
-                                            const resetSquad = resetPlayerStats(team.squad || []);
                                             setMatch(m => ({
                                               ...m,
                                               teams: {
                                                 ...m.teams,
-                                                [targetKey]: {
-                                                  ...m.teams[targetKey],
+                                                [teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB']: {
+                                                  ...m.teams[teamDrawer.targetTeam === 'A' ? 'teamA' : 'teamB'],
                                                   name: team.name,
                                                   logo: team.logo || '',
-                                                  squad: resetSquad
+                                                  squad: resetPlayerStats(team.squad || [])
                                                 }
                                               }
                                             }));
                                             setTeamSearchQuery('');
                                             setTeamDrawer({ open: false, targetTeam: null, mode: 'SEARCH' });
-                                            // Open squad selection if team has 3+ players
-                                            if (resetSquad.length >= 3) {
-                                              setSelectedPlayerIds(new Set(resetSquad.map((p: any) => p.id)));
-                                              setSquadSelectionSource('DRAWER');
-                                              setSquadSelectionTeamId(teamDrawer.targetTeam);
-                                            }
                                           }}
                                           whileHover={{ scale: 1.02 }}
                                           whileTap={{ scale: 0.98 }}
@@ -3708,125 +3662,19 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       onClick={() => handleResolveConflict('EXISTING')}
                       className="w-full bg-[#00F0FF] text-black py-5 !rounded-[24px] font-black tracking-[0.3em]"
                     >
-                      ADD TO TEAM
+                      ARCHIVE LINKAGE
                     </MotionButton>
                     <button
                       onClick={() => handleResolveConflict('NEW')}
                       className="w-full text-white/40 hover:text-white py-4 font-black uppercase text-[9px] tracking-[0.4em] transition-all"
                     >
-                      START FRESH
+                      FRESH COMMISSION
                     </button>
                   </div>
                 </div>
               </motion.div>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        {/* SQUAD SELECTION MODAL — pick playing members from full roster */}
-        <AnimatePresence>
-          {squadSelectionTeamId && (() => {
-            const key = squadSelectionTeamId === 'A' ? 'teamA' : 'teamB';
-            const teamObj = match.teams[key];
-            const fullRoster = teamObj?.squad || [];
-            return (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[10000] bg-black/95 flex items-center justify-center p-4 backdrop-blur-xl"
-              >
-                <motion.div
-                  initial={{ scale: 0.9, y: 40 }}
-                  animate={{ scale: 1, y: 0 }}
-                  className="w-full max-w-sm bg-[#0A0A0A] border border-white/10 rounded-[48px] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] max-h-[85vh] flex flex-col"
-                >
-                  <div className="p-8 border-b border-white/5 bg-white/[0.02] shrink-0">
-                    <div className="flex items-center space-x-3">
-                      <Users size={24} className="text-[#00F0FF]" />
-                      <h3 className="font-heading text-3xl tracking-tighter uppercase italic">SELECT SQUAD</h3>
-                    </div>
-                    <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-2">
-                      {teamObj?.name} · {selectedPlayerIds.size} of {fullRoster.length} selected
-                    </p>
-                  </div>
-                  <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-2">
-                    {fullRoster.map((player: any) => {
-                      const isSelected = selectedPlayerIds.has(player.id);
-                      return (
-                        <motion.button
-                          key={player.id}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => {
-                            setSelectedPlayerIds(prev => {
-                              const next = new Set(prev);
-                              if (next.has(player.id)) next.delete(player.id);
-                              else next.add(player.id);
-                              return next;
-                            });
-                          }}
-                          className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                            isSelected
-                              ? 'bg-[#00F0FF]/10 border-[#00F0FF]/40'
-                              : 'bg-white/[0.03] border-white/[0.06] hover:border-white/15'
-                          }`}
-                        >
-                          <div className="w-10 h-10 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: isSelected ? '#00F0FF' : 'rgba(255,255,255,0.1)' }}>
-                            <img src={getPlayerAvatar(player)} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className={`text-sm font-black uppercase truncate ${isSelected ? 'text-[#00F0FF]' : 'text-white'}`}>{player.name}</p>
-                            {player.role && <p className="text-[8px] text-white/30 uppercase tracking-wider">{player.role}</p>}
-                          </div>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                            isSelected ? 'bg-[#00F0FF] border-[#00F0FF]' : 'border-white/20'
-                          }`}>
-                            {isSelected && <Check size={14} className="text-black" />}
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                  <div className="p-6 border-t border-white/5 shrink-0 space-y-3">
-                    <button
-                      onClick={() => {
-                        // Select all
-                        setSelectedPlayerIds(new Set(fullRoster.map((p: any) => p.id)));
-                      }}
-                      className="w-full py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] text-white/50 hover:text-white transition-all"
-                    >
-                      Select All
-                    </button>
-                    <MotionButton
-                      onClick={() => {
-                        if (selectedPlayerIds.size < 2) return; // need at least 2
-                        // Filter squad to only selected players
-                        setMatch(m => {
-                          const k = squadSelectionTeamId === 'A' ? 'teamA' : 'teamB';
-                          const filteredSquad = (m.teams[k]?.squad || []).filter((p: any) => selectedPlayerIds.has(p.id));
-                          return {
-                            ...m,
-                            teams: { ...m.teams, [k]: { ...m.teams[k], squad: filteredSquad } }
-                          };
-                        });
-                        setSquadSelectionTeamId(null);
-                        setSelectedPlayerIds(new Set());
-                        // Always return to CONFIG — user continues setting up match rules
-                      }}
-                      disabled={selectedPlayerIds.size < 2}
-                      className={`w-full py-5 !rounded-[24px] font-black tracking-[0.3em] ${
-                        selectedPlayerIds.size >= 2
-                          ? 'bg-[#00F0FF] text-black'
-                          : 'bg-white/10 text-white/30 cursor-not-allowed'
-                      }`}
-                    >
-                      CONFIRM SQUAD ({selectedPlayerIds.size})
-                    </MotionButton>
-                  </div>
-                </motion.div>
-              </motion.div>
-            );
-          })()}
         </AnimatePresence>
 
         {/* TOSS SCREEN - 2-step: Who Won → Bat/Bowl → straight to Openers */}
