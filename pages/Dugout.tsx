@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords, Crown, ChevronRight, Radio,
   Play, BarChart3, Clock, Trophy, MapPin, Award,
-  Lightbulb
+  Lightbulb, Zap, Target, TrendingUp
 } from 'lucide-react';
 import MotionButton from '../components/MotionButton';
 import { useAuth } from '../AuthContext';
@@ -15,36 +15,48 @@ interface DugoutProps {
   onUpgrade?: () => void;
 }
 
-const containerVariants: any = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.1 } }
+const fadeIn: any = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 1, 0.5, 1] as any } }
 };
-const itemVariants: any = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as any } }
+const stagger: any = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.1 } }
 };
 
-// ─── CRICKET FACTS ──────────────────────────────────────────────────
-const CRICKET_FACTS = [
-  { stat: '100', label: 'International centuries by Sachin Tendulkar — the all-time record across all formats', category: 'Batting' },
-  { stat: '26', label: 'Balls taken by AB de Villiers for the fastest ODI century ever, against West Indies in 2015', category: 'Records' },
-  { stat: '400*', label: 'Brian Lara\'s unbeaten 400 — the highest individual Test score, set in 2004 vs England', category: 'Batting' },
-  { stat: '10/10', label: 'Anil Kumble took all 10 wickets in a Test innings vs Pakistan in 1999 — only the 2nd ever', category: 'Bowling' },
-  { stat: '264', label: 'Rohit Sharma\'s 264 vs Sri Lanka — the highest individual ODI score in history', category: 'Batting' },
-  { stat: '6×6', label: 'Yuvraj Singh hit 6 sixes in an over off Stuart Broad at the 2007 T20 World Cup', category: 'Records' },
-  { stat: '800', label: 'Test wickets by Muttiah Muralitharan — the most by any bowler in cricket history', category: 'Bowling' },
-  { stat: '183*', label: 'MS Dhoni smashed 183* vs Sri Lanka in 2005 — highest by an Indian wicketkeeper in ODIs', category: 'Batting' },
-  { stat: '1877', label: 'The first-ever cricket Test match was played between Australia and England in Melbourne', category: 'History' },
-  { stat: '49', label: 'Lowest Test total — South Africa bowled out for 49 by India at Johannesburg in 2024', category: 'Records' },
-  { stat: '5', label: 'Number of Cricket World Cup wins by Australia — the most by any nation in history', category: 'History' },
-  { stat: '99.94', label: 'Don Bradman\'s career Test average — widely considered the greatest statistical achievement in sport', category: 'Batting' },
-  { stat: '4/12', label: 'Bumrah\'s spell in the 2023 WC semifinal — conceded just 12 runs in 4 overs vs New Zealand', category: 'Bowling' },
-  { stat: '2011', label: 'India won the Cricket World Cup at home — Dhoni sealed it with a six at Wankhede Stadium', category: 'History' },
-  { stat: '56', label: 'Days — the longest Test match ever played. England vs South Africa, 1939, ended as a draw', category: 'History' },
+// ─── DATA ───────────────────────────────────────────────────────────
+const FACTS = [
+  { stat: '100', text: 'International centuries by Sachin Tendulkar — the all-time record across all formats', tag: 'Batting' },
+  { stat: '26', text: 'Balls taken by AB de Villiers for the fastest ODI century ever, vs West Indies (2015)', tag: 'Records' },
+  { stat: '400*', text: 'Brian Lara\'s unbeaten 400 — highest individual Test score, set in 2004 vs England', tag: 'Batting' },
+  { stat: '10/10', text: 'Anil Kumble took all 10 wickets in a Test innings vs Pakistan (1999) — only the 2nd ever', tag: 'Bowling' },
+  { stat: '264', text: 'Rohit Sharma\'s 264 vs Sri Lanka — highest individual ODI score in history', tag: 'Batting' },
+  { stat: '6×6', text: 'Yuvraj Singh hit 6 sixes in an over off Stuart Broad at the 2007 T20 World Cup', tag: 'Records' },
+  { stat: '800', text: 'Test wickets by Muttiah Muralitharan — the most by any bowler in cricket history', tag: 'Bowling' },
+  { stat: '183*', text: 'MS Dhoni smashed 183* vs Sri Lanka — highest by an Indian wicketkeeper in ODIs', tag: 'Batting' },
+  { stat: '99.94', text: 'Don Bradman\'s career Test average — the greatest statistical feat in any sport', tag: 'Batting' },
+  { stat: '49', text: 'Lowest Test total — South Africa bowled out for 49 by India at Johannesburg (2024)', tag: 'Records' },
+  { stat: '2011', text: 'India won the Cricket World Cup at home — Dhoni sealed it with a six at Wankhede', tag: 'History' },
+  { stat: '5', text: 'Cricket World Cup wins by Australia — the most by any nation in history', tag: 'History' },
+  { stat: '56', text: 'Days — the longest Test match ever. England vs South Africa, 1939. Ended as a draw', tag: 'History' },
+  { stat: '4/12', text: 'Bumrah conceded just 12 runs in 4 overs vs New Zealand in the 2023 WC semifinal', tag: 'Bowling' },
 ];
 
-// ─── TODAY'S MATCHES ────────────────────────────────────────────────
-const generateTodayMatches = () => {
+const TIPS = [
+  { title: 'Watch the Ball Early', tip: 'Pick up the ball from the bowler\'s hand. The earlier you see it, the more time you get to judge length.', tag: 'Batting' },
+  { title: 'Land on the Seam', tip: 'Focus on landing the ball on the seam. Even on flat pitches, a seam-up delivery can extract movement.', tag: 'Bowling' },
+  { title: 'Stay Side-On', tip: 'Keep your body side-on at the crease. It generates pace and natural outswing to right-handers.', tag: 'Bowling' },
+  { title: 'Soft Hands', tip: 'Relax your grip when defending. Soft hands absorb pace and prevent edges carrying to the cordon.', tag: 'Batting' },
+  { title: 'Walk In With the Bowler', tip: 'Start walking in as the bowler runs up. It keeps you alert and gives you a split-second edge.', tag: 'Fielding' },
+  { title: 'Play Under Your Eyes', tip: 'Keep your head still and play the ball under your eyes. Head falling over means balance gone.', tag: 'Batting' },
+  { title: 'Hit the Top of Off', tip: 'Bowl a good length on off stump consistently. Most dismissals come from this corridor.', tag: 'Bowling' },
+  { title: 'Rotate the Strike', tip: 'Singles keep the scoreboard ticking in limited overs. Rotate strike to keep pressure off.', tag: 'Batting' },
+  { title: 'Use the Crease', tip: 'Step across or back to create new angles. Using crease width makes you harder to bowl to.', tag: 'Batting' },
+  { title: 'Yorker Length', tip: 'Practice hitting the base of the stumps at the death. A good yorker is nearly unhittable.', tag: 'Bowling' },
+  { title: 'Read Conditions', tip: 'Check the pitch before the toss — cracks, grass, dampness. Conditions dictate bat or bowl first.', tag: 'Strategy' },
+];
+
+const generateMatches = () => {
   const teams = [
     { name: 'MI', full: 'Mumbai Indians', color: '#004BA0' },
     { name: 'CSK', full: 'Chennai Super Kings', color: '#FDB913' },
@@ -57,390 +69,329 @@ const generateTodayMatches = () => {
     { name: 'PBKS', full: 'Punjab Kings', color: '#DD1F2D' },
     { name: 'LSG', full: 'Lucknow Super Giants', color: '#A72056' },
   ];
-  const day = new Date().getDate();
-  const month = new Date().getMonth();
-  const seed = day + month * 31;
-  const pick = (arr: any[], offset: number) => arr[(seed + offset) % arr.length];
-  const t1 = pick(teams, 0); let t2 = pick(teams, 3);
-  if (t2.name === t1.name) t2 = pick(teams, 5);
-  const t3 = pick(teams, 7); let t4 = pick(teams, 9);
-  if (t4.name === t3.name) t4 = pick(teams, 11);
-  const venues = ['Wankhede, Mumbai', 'Chepauk, Chennai', 'Eden Gardens, Kolkata', 'Motera, Ahmedabad', 'Chinnaswamy, Bengaluru', 'Arun Jaitley, Delhi', 'Rajiv Gandhi, Hyderabad'];
+  const seed = new Date().getDate() + new Date().getMonth() * 31;
+  const p = (o: number) => teams[(seed + o) % teams.length];
+  const t1 = p(0); let t2 = p(3); if (t2.name === t1.name) t2 = p(5);
+  const t3 = p(7); let t4 = p(9); if (t4.name === t3.name) t4 = p(11);
+  const venues = ['Wankhede, Mumbai', 'Chepauk, Chennai', 'Eden Gardens, Kolkata', 'Motera, Ahmedabad', 'Chinnaswamy, Bengaluru'];
   return [
-    { team1: t1, team2: t2, time: '7:30 PM', venue: pick(venues, 1), status: 'upcoming' as const },
-    { team1: t3, team2: t4, time: '3:30 PM', venue: pick(venues, 4), status: 'completed' as const, result: `${t3.name} won by ${(seed % 7) + 2} wickets` },
+    { team1: t1, team2: t2, time: '7:30 PM', venue: venues[(seed + 1) % venues.length], live: false, done: false },
+    { team1: t3, team2: t4, time: '3:30 PM', venue: venues[(seed + 4) % venues.length], live: false, done: true, result: `${t3.name} won by ${(seed % 7) + 2} wickets` },
   ];
 };
 
-// ─── CRICKET TIPS ───────────────────────────────────────────────────
-const CRICKET_TIPS = [
-  { title: 'Watch the Ball Early', tip: 'Pick up the ball from the bowler\'s hand. The earlier you see it, the more time you get to judge length.', category: 'Batting' },
-  { title: 'Land on the Seam', tip: 'Focus on landing the ball on the seam consistently. Even on flat pitches, seam-up deliveries extract movement.', category: 'Bowling' },
-  { title: 'Stay Side-On', tip: 'Keep your body side-on at the crease. It generates pace and natural outswing to right-handers.', category: 'Bowling' },
-  { title: 'Soft Hands in Defence', tip: 'Relax your grip when defending. Soft hands absorb pace and prevent edges carrying to the cordon.', category: 'Batting' },
-  { title: 'Walk-In With the Bowler', tip: 'Start walking in as the bowler runs up. It keeps you alert and gives you a split-second advantage.', category: 'Fielding' },
-  { title: 'Play Under Your Eyes', tip: 'Keep your head still and play the ball under your eyes. If your head falls over, balance is gone.', category: 'Batting' },
-  { title: 'Hit the Top of Off', tip: 'Bowl a consistent good length on off stump. Most dismissals in cricket come from this corridor.', category: 'Bowling' },
-  { title: 'Rotate the Strike', tip: 'In limited overs, singles keep the scoreboard ticking. Rotate to keep pressure off yourself.', category: 'Batting' },
-  { title: 'Use the Crease', tip: 'Step across or back to create new angles. Using the crease width makes you harder to bowl to.', category: 'Batting' },
-  { title: 'Set a Yorker Length', tip: 'Practice hitting the base of the stumps at the death. A good yorker is nearly impossible to hit for six.', category: 'Bowling' },
-  { title: 'Read the Conditions', tip: 'Check the pitch before the toss — cracks, grass, dampness. Conditions dictate batting or bowling first.', category: 'Strategy' },
-  { title: 'Follow Through Fully', tip: 'Complete your bowling action after delivery. A full follow-through improves accuracy and reduces injury.', category: 'Bowling' },
-];
-
-// ─── STUMPS SVG ─────────────────────────────────────────────────────
-const StumpsSVG = () => (
-  <svg width="60" height="80" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute top-4 right-6 opacity-[0.04]">
-    <rect x="15" y="12" width="3" height="68" rx="1.5" fill="white"/>
-    <rect x="28" y="12" width="3" height="68" rx="1.5" fill="white"/>
-    <rect x="41" y="12" width="3" height="68" rx="1.5" fill="white"/>
-    <rect x="13" y="8" width="16" height="3" rx="1.5" fill="white"/>
-    <rect x="30" y="8" width="16" height="3" rx="1.5" fill="white"/>
-  </svg>
-);
+// ─── TAG COLORS ─────────────────────────────────────────────────────
+const tagCol = (t: string) => ({ Batting: '#00F0FF', Bowling: '#39FF14', Records: '#FFD600', History: '#BC13FE', Fielding: '#FF6B35', Strategy: '#FFD600' }[t] || '#00F0FF');
 
 const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
   const { userData } = useAuth();
+  const isLight = typeof document !== 'undefined' && document.documentElement?.dataset?.theme === 'light';
 
-  const careerStats = useMemo(() => {
-    const activePhone = userData?.phone || '';
-    const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
-    const profileData = globalVault[activePhone] || { history: [], teams: [] };
-    const history = profileData.history || [];
-    const totalRuns = history.reduce((acc: number, match: any) => acc + (parseInt(match.runs) || 0), 0);
-    const totalMatches = history.length;
-    const totalWickets = history.reduce((acc: number, match: any) => acc + (parseInt(match.wickets) || 0), 0);
-    const bestScore = history.reduce((best: number, match: any) => Math.max(best, parseInt(match.runs) || 0), 0);
-    return { totalRuns, totalMatches, totalWickets, bestScore };
+  // ── Career stats
+  const stats = useMemo(() => {
+    const phone = userData?.phone || '';
+    const vault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
+    const hist = (vault[phone] || { history: [] }).history || [];
+    return {
+      matches: hist.length,
+      runs: hist.reduce((a: number, m: any) => a + (parseInt(m.runs) || 0), 0),
+      wickets: hist.reduce((a: number, m: any) => a + (parseInt(m.wickets) || 0), 0),
+      best: hist.reduce((b: number, m: any) => Math.max(b, parseInt(m.runs) || 0), 0),
+    };
   }, [userData]);
 
-  const [cloudRank, setCloudRank] = useState<string | null>(null);
+  // ── Rank
+  const [rank, setRank] = useState<string | null>(null);
   useEffect(() => {
     if (!userData?.phone) return;
     fetchLeaderboard('career_runs', 100)
-      .then(leaders => {
-        const idx = leaders.findIndex(l => l.phone === userData.phone);
-        setCloudRank(idx >= 0 ? `#${idx + 1}` : careerStats.totalRuns > 0 ? '#-' : 'NEW');
-      })
-      .catch(() => setCloudRank(careerStats.totalRuns > 0 ? '#-' : 'NEW'));
+      .then(l => { const i = l.findIndex(x => x.phone === userData.phone); setRank(i >= 0 ? `#${i + 1}` : stats.runs > 0 ? '#-' : 'NEW'); })
+      .catch(() => setRank(stats.runs > 0 ? '#-' : 'NEW'));
   }, [userData?.phone]);
 
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
-  }, []);
+  // ── Greeting
+  const greeting = useMemo(() => { const h = new Date().getHours(); return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening'; }, []);
+  const name = userData?.name?.split(' ')[0] || 'Player';
 
-  const firstName = userData?.name?.split(' ')[0] || 'Player';
-
-  // Facts carousel
-  const [factIdx, setFactIdx] = useState(0);
+  // ── Facts carousel
+  const [fi, setFi] = useState(0);
   const facts = useMemo(() => {
-    const arr = [...CRICKET_FACTS];
-    const seed = new Date().getDate() + new Date().getMonth() * 31;
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = (seed * (i + 1) + 7) % (i + 1);
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
+    const arr = [...FACTS]; const s = new Date().getDate() + new Date().getMonth() * 31;
+    for (let i = arr.length - 1; i > 0; i--) { const j = (s * (i + 1) + 7) % (i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; }
     return arr;
   }, []);
-  useEffect(() => {
-    const t = setInterval(() => setFactIdx(p => (p + 1) % facts.length), 5000);
-    return () => clearInterval(t);
-  }, [facts.length]);
+  useEffect(() => { const t = setInterval(() => setFi(p => (p + 1) % facts.length), 5000); return () => clearInterval(t); }, [facts.length]);
+  const fact = facts[fi % facts.length];
 
-  const todayMatches = useMemo(() => generateTodayMatches(), []);
+  // ── Today's matches & tip
+  const matches = useMemo(() => generateMatches(), []);
+  const tip = useMemo(() => { const d = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000); return TIPS[d % TIPS.length]; }, []);
 
-  const todayTip = useMemo(() => {
-    const doy = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    return CRICKET_TIPS[doy % CRICKET_TIPS.length];
-  }, []);
-
-  const quickActions = [
-    { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, dot: '#00F0FF' },
-    { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, dot: '#39FF14' },
-    { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, dot: '#FF6B35' },
-    { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, dot: '#BC13FE' },
-  ];
-
-  const catColor = (c: string) => {
-    const m: Record<string, string> = { Batting: '#00F0FF', Bowling: '#39FF14', Records: '#FFD600', History: '#BC13FE', Fielding: '#FF6B35', Strategy: '#FFD600' };
-    return m[c] || '#00F0FF';
-  };
-
-  const currentFact = facts[factIdx % facts.length];
+  // ── Shared card class — works in both dark and light mode via glass-premium
+  const card = 'glass-premium rounded-2xl';
 
   return (
-    <motion.div
-      variants={containerVariants} initial="hidden" animate="visible"
-      className="max-w-6xl mx-auto px-6 py-8 space-y-0 pb-40 scroll-container"
-    >
-      {/* ═══════════════════════════════════════════════════════════
-          HERO — Editorial, typography-first. Zeldman: "Content
-          precedes design. Design in the absence of content is not
-          design, it's decoration."
-          ═══════════════════════════════════════════════════════════ */}
-      <motion.section variants={itemVariants} className="relative mb-8">
-        <StumpsSVG />
+    <motion.div variants={stagger} initial="hidden" animate="visible" className="max-w-6xl mx-auto px-4 py-5 space-y-4 pb-40 scroll-container">
 
-        {/* Greeting — understated, small, soft */}
-        <p className="text-[12px] font-medium text-white/35 tracking-[0.04em]">{greeting}</p>
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  HERO BANNER — Avatar, greeting, rank, Start Match CTA  ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn} className={`${card} p-5 relative overflow-hidden`}>
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/[0.04] via-transparent to-[#39FF14]/[0.02] pointer-events-none" />
 
-        {/* Name — the largest element on screen. Confident. */}
-        <h1 className="font-heading text-[42px] text-white leading-[1] tracking-tight uppercase mt-1">{firstName}</h1>
+        <div className="relative z-10">
+          {/* Top row: Avatar + name + rank */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#00F0FF]/30 shrink-0">
+                <img src={userData?.avatar} className="w-full h-full object-cover" alt="" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium opacity-50">{greeting}</p>
+                <h1 className="font-heading text-2xl tracking-tight uppercase leading-tight">{name}</h1>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[7px] font-bold opacity-30 uppercase tracking-[0.2em]">Rank</p>
+              <p className="font-heading text-2xl text-[#00F0FF] leading-tight">{rank ?? 'NEW'}</p>
+            </div>
+          </div>
 
-        {/* Accent underline — short, precise */}
-        <div className="w-10 h-[2px] bg-[#00F0FF]/60 rounded-full mt-3" />
-
-        {/* Rank — floating right, subtle */}
-        <div className="absolute top-0 right-0 text-right">
-          <p className="text-[7px] font-bold text-white/25 uppercase tracking-[0.2em]">Rank</p>
-          <p className="font-heading text-[28px] text-[#00F0FF] leading-[1] tracking-tight mt-0.5">{cloudRank ?? 'NEW'}</p>
-        </div>
-      </motion.section>
-
-      {/* ═══ STATS — Horizontal scorecard with hairline dividers ═══ */}
-      <motion.section variants={itemVariants} className="mb-8">
-        <div className="border-t border-b border-white/[0.06] py-4">
-          <div className="flex items-baseline justify-between">
+          {/* Stats row — 4 columns inside the hero card */}
+          <div className="grid grid-cols-4 gap-2 mb-5">
             {[
-              { val: careerStats.totalMatches, lbl: 'Matches', accent: false },
-              { val: careerStats.totalRuns.toLocaleString(), lbl: 'Runs', accent: false },
-              { val: careerStats.totalWickets, lbl: 'Wickets', accent: false },
-              { val: careerStats.bestScore, lbl: 'Best', accent: true },
-            ].map((s, i) => (
-              <React.Fragment key={s.lbl}>
-                {i > 0 && <div className="w-px h-8 bg-white/[0.06] self-center" />}
-                <div className="text-center flex-1">
-                  <p className={`font-numbers text-[26px] font-bold leading-none tracking-tight ${s.accent ? 'text-[#00F0FF]' : 'text-white'}`}>{s.val}</p>
-                  <p className="text-[7px] font-bold text-white/25 uppercase tracking-[0.15em] mt-2">{s.lbl}</p>
-                </div>
-              </React.Fragment>
+              { v: stats.matches, l: 'Matches', c: false },
+              { v: stats.runs.toLocaleString(), l: 'Runs', c: false },
+              { v: stats.wickets, l: 'Wickets', c: false },
+              { v: stats.best, l: 'Best', c: true },
+            ].map(s => (
+              <div key={s.l} className="text-center py-2 rounded-xl bg-white/[0.04] dark:bg-white/[0.04]" style={isLight ? { backgroundColor: 'rgba(0,0,0,0.03)' } : {}}>
+                <p className={`font-numbers text-xl font-bold leading-none ${s.c ? 'text-[#00F0FF]' : ''}`}>{s.v}</p>
+                <p className="text-[7px] font-bold opacity-30 uppercase tracking-[0.1em] mt-1">{s.l}</p>
+              </div>
             ))}
           </div>
-          {careerStats.totalMatches === 0 && (
-            <p className="text-[10px] text-white/20 text-center mt-3 pt-3 border-t border-white/[0.04]">Play your first match to see stats here</p>
+          {stats.matches === 0 && (
+            <p className="text-[10px] opacity-30 text-center mb-4">Play your first match to see stats here</p>
           )}
+
+          {/* CTA Button */}
+          <button
+            onClick={() => onNavigate('MATCH_CENTER')}
+            className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl bg-[#00F0FF] text-black font-black text-[11px] uppercase tracking-[0.15em] active:scale-[0.97] transition-transform"
+          >
+            <Swords size={16} strokeWidth={2.5} />
+            Start New Match
+          </button>
         </div>
       </motion.section>
 
-      {/* ═══ START MATCH — Single, confident CTA ═══ */}
-      <motion.section variants={itemVariants} className="mb-8">
-        <button
-          onClick={() => onNavigate('MATCH_CENTER')}
-          className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-white/[0.06] bg-white/[0.015] active:bg-white/[0.04] transition-all group active:scale-[0.98]"
-        >
-          <div>
-            <h2 className="text-[13px] font-black text-white uppercase tracking-[0.12em]">Start New Match</h2>
-            <p className="text-[9px] text-white/30 font-medium mt-1 tracking-wide">Score, analyze and share live</p>
-          </div>
-          <div className="w-8 h-8 rounded-full border border-[#00F0FF]/25 flex items-center justify-center group-hover:border-[#00F0FF]/50 transition-colors">
-            <ChevronRight size={14} className="text-[#00F0FF]/60" />
-          </div>
-        </button>
-      </motion.section>
-
-      {/* Follow Match — only when active */}
+      {/* Follow Match (only when active) */}
       {(() => {
         const fid = typeof localStorage !== 'undefined' ? localStorage.getItem('22Y_FOLLOWING_MATCH') : null;
         if (!fid) return null;
         return (
-          <motion.section variants={itemVariants} className="mb-8">
+          <motion.section variants={fadeIn}>
             <button
               onClick={() => onNavigate('FOLLOW_MATCH')}
-              className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-[#BC13FE]/20 bg-[#BC13FE]/[0.04] active:scale-[0.98] transition-all group"
+              className={`${card} w-full flex items-center justify-between px-5 py-4 active:scale-[0.98] transition-transform`}
+              style={{ borderColor: '#BC13FE30' }}
             >
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <Radio size={18} className="text-[#BC13FE]/70" />
-                  <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF003C] animate-pulse" />
+                  <Radio size={20} className="text-[#BC13FE]" />
+                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#FF003C] animate-pulse border-2 border-[#020617]" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-black text-white uppercase tracking-wider">Following a Match</p>
-                  <p className="text-[9px] text-white/25 mt-0.5">Tap to view live scorecard</p>
+                  <p className="text-[12px] font-black uppercase tracking-wider leading-none">Following a Match</p>
+                  <p className="text-[9px] opacity-40 mt-1">Tap to view live scorecard</p>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-[#BC13FE]/30" />
+              <ChevronRight size={16} className="opacity-30" />
             </button>
           </motion.section>
         );
       })()}
 
-      {/* ═══ DID YOU KNOW — Pull-quote, editorial ═══ */}
-      <motion.section variants={itemVariants} className="mb-8">
-        <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em] mb-3">Did You Know</p>
-
-        <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={factIdx}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.35 }}
-              className="px-5 py-5"
-            >
-              {/* The stat — massive, typographic centerpiece */}
-              <div className="flex items-start justify-between mb-3">
-                <p className="font-heading text-[36px] text-[#00F0FF] leading-[1] tracking-tight">{currentFact.stat}</p>
-                <span
-                  className="text-[7px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-full mt-1.5"
-                  style={{
-                    color: catColor(currentFact.category),
-                    backgroundColor: catColor(currentFact.category) + '10',
-                    border: `1px solid ${catColor(currentFact.category)}20`,
-                  }}
-                >{currentFact.category}</span>
-              </div>
-              <p className="text-[11px] text-white/40 leading-[1.6]">{currentFact.label}</p>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Progress dots */}
-          <div className="flex items-center justify-center gap-1.5 pb-4">
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  DID YOU KNOW — Fact carousel in its own card            ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn}>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em]">Did You Know</p>
+          <div className="flex gap-1">
             {facts.slice(0, 5).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setFactIdx(i)}
-                className="transition-all duration-300"
-                style={{
-                  width: i === factIdx % 5 ? 14 : 4,
-                  height: 3,
-                  borderRadius: 2,
-                  backgroundColor: i === factIdx % 5 ? '#00F0FF' : 'rgba(255,255,255,0.1)',
-                }}
+              <button key={i} onClick={() => setFi(i)} className="transition-all duration-300"
+                style={{ width: i === fi % 5 ? 14 : 5, height: 4, borderRadius: 2, backgroundColor: i === fi % 5 ? '#00F0FF' : (isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)') }}
               />
             ))}
           </div>
         </div>
+        <div className={`${card} overflow-hidden`}>
+          <AnimatePresence mode="wait">
+            <motion.div key={fi} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3 }}
+              className="p-5 flex gap-4 items-start"
+            >
+              {/* Big stat number */}
+              <div className="shrink-0 w-[72px] h-[72px] rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: isLight ? 'rgba(0,240,255,0.06)' : 'rgba(0,240,255,0.08)', border: `1px solid ${isLight ? 'rgba(0,240,255,0.12)' : 'rgba(0,240,255,0.15)'}` }}
+              >
+                <span className="font-heading text-[22px] text-[#00F0FF] leading-none">{fact.stat}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="inline-block text-[7px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mb-2"
+                  style={{ color: tagCol(fact.tag), backgroundColor: tagCol(fact.tag) + '12', border: `1px solid ${tagCol(fact.tag)}25` }}
+                >{fact.tag}</span>
+                <p className="text-[11px] opacity-55 leading-[1.55]">{fact.text}</p>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </motion.section>
 
-      {/* ═══ TODAY'S MATCHES — Editorial scorecard ═══ */}
-      <motion.section variants={itemVariants} className="mb-8">
-        <div className="flex items-baseline justify-between mb-3">
-          <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em]">Today's Matches</p>
-          <p className="text-[9px] text-white/15 font-medium">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  TODAY'S MATCHES — Proper match cards                    ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn}>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em]">Today's Matches</p>
+          <p className="text-[9px] opacity-25">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
         </div>
-
-        <div className="space-y-2">
-          {todayMatches.map((m, i) => (
-            <div key={i} className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-5 py-4">
-              {/* Status row */}
+        <div className="space-y-2.5">
+          {matches.map((m, i) => (
+            <div key={i} className={`${card} px-5 py-4`}>
+              {/* Status bar */}
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${m.status === 'upcoming' ? 'bg-[#FFD600]/60' : 'bg-white/15'}`} />
-                  <span className={`text-[7px] font-bold uppercase tracking-[0.12em] ${m.status === 'upcoming' ? 'text-[#FFD600]/60' : 'text-white/25'}`}>
-                    {m.status === 'upcoming' ? 'Upcoming' : 'Completed'}
-                  </span>
-                </div>
-                <span className="text-[9px] text-white/20 font-medium">{m.time}</span>
+                {!m.done ? (
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-[#FFD600] bg-[#FFD600]/10 border border-[#FFD600]/20 px-2.5 py-1 rounded-full">Upcoming</span>
+                ) : (
+                  <span className="text-[8px] font-bold uppercase tracking-wider opacity-35 bg-white/[0.05] border border-white/[0.08] px-2.5 py-1 rounded-full"
+                    style={isLight ? { backgroundColor: 'rgba(0,0,0,0.04)', borderColor: 'rgba(0,0,0,0.08)' } : {}}>Completed</span>
+                )}
+                <span className="text-[10px] opacity-30">{m.time}</span>
               </div>
 
-              {/* Teams — typographic, no boxes */}
-              <div className="flex items-baseline justify-between">
-                <div className="flex items-baseline gap-3">
-                  <span className="text-[18px] font-black text-white tracking-wide">{m.team1.name}</span>
-                  <span className="text-[10px] font-medium text-white/15">vs</span>
-                  <span className="text-[18px] font-black text-white tracking-wide">{m.team2.name}</span>
+              {/* Teams — with color badges */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 flex-1">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white"
+                    style={{ backgroundColor: m.team1.color + '25', border: `2px solid ${m.team1.color}40` }}>
+                    {m.team1.name}
+                  </div>
+                  <span className="text-[11px] font-bold opacity-20">vs</span>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white"
+                    style={{ backgroundColor: m.team2.color + '25', border: `2px solid ${m.team2.color}40` }}>
+                    {m.team2.name}
+                  </div>
                 </div>
-                <span className="text-[8px] text-white/15 font-medium">{m.venue}</span>
+                <p className="text-[9px] opacity-25 text-right">{m.venue}</p>
               </div>
 
-              {/* Result */}
-              {m.status === 'completed' && m.result && (
-                <p className="text-[9px] text-[#39FF14]/50 font-medium mt-2.5 pt-2.5 border-t border-white/[0.04]">{m.result}</p>
+              {m.done && m.result && (
+                <p className="text-[10px] text-[#39FF14] font-medium mt-3 pt-3 border-t border-white/[0.06] opacity-70"
+                  style={isLight ? { borderColor: 'rgba(0,0,0,0.06)' } : {}}>
+                  {m.result}
+                </p>
               )}
             </div>
           ))}
         </div>
       </motion.section>
 
-      {/* ═══ QUICK ACTIONS — Minimal grid, dot accents ═══ */}
-      <motion.section variants={itemVariants} className="mb-8">
-        <div className="grid grid-cols-2 gap-2">
-          {quickActions.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => onNavigate(a.id as any)}
-              className="rounded-xl border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] text-left group active:scale-[0.97] transition-all"
-            >
-              <div className="px-4 py-4">
-                {/* Accent dot instead of icon box */}
-                <div className="w-2 h-2 rounded-full mb-4" style={{ backgroundColor: a.dot, opacity: 0.5 }} />
-                <p className="text-[11px] font-black text-white uppercase tracking-[0.1em] leading-none">{a.label}</p>
-                <p className="text-[8px] text-white/20 font-medium mt-1.5">{a.desc}</p>
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  QUICK ACTIONS — 2x2 grid with icons                    ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn}>
+        <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em] mb-2 px-1">Quick Actions</p>
+        <div className="grid grid-cols-2 gap-2.5">
+          {[
+            { id: 'MATCH_CENTER', label: 'Start Match', desc: 'Score a new match', icon: Play, color: '#00F0FF' },
+            { id: 'PERFORMANCE', label: 'My Stats', desc: 'View performance', icon: BarChart3, color: '#39FF14' },
+            { id: 'HISTORY', label: 'Matches', desc: 'Match history', icon: Clock, color: '#FF6B35' },
+            { id: 'TOURNAMENTS', label: 'Tournaments', desc: 'Join & compete', icon: Trophy, color: '#BC13FE' },
+          ].map(a => (
+            <button key={a.id} onClick={() => onNavigate(a.id as any)}
+              className={`${card} text-left active:scale-[0.96] transition-transform`}>
+              <div className="p-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: a.color + '12', border: `1px solid ${a.color}25` }}>
+                  <a.icon size={17} style={{ color: a.color }} strokeWidth={2} />
+                </div>
+                <p className="text-[11px] font-black uppercase tracking-wider leading-none">{a.label}</p>
+                <p className="text-[8px] opacity-30 mt-1">{a.desc}</p>
               </div>
             </button>
           ))}
         </div>
       </motion.section>
 
-      {/* ═══ TIP OF THE DAY — Left-border accent, Zeldman pull-quote ═══ */}
-      <motion.section variants={itemVariants} className="mb-8">
-        <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em] mb-3">Tip of the Day</p>
-        <div className="flex">
-          {/* Left accent bar */}
-          <div className="w-[2px] rounded-full shrink-0 mr-4" style={{ backgroundColor: catColor(todayTip.category), opacity: 0.4 }} />
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <h4 className="text-[12px] font-black text-white uppercase tracking-wide leading-none">{todayTip.title}</h4>
-              <span
-                className="text-[6px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full"
-                style={{
-                  color: catColor(todayTip.category),
-                  backgroundColor: catColor(todayTip.category) + '10',
-                  border: `1px solid ${catColor(todayTip.category)}18`,
-                }}
-              >{todayTip.category}</span>
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  TIP OF THE DAY                                          ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn}>
+        <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em] mb-2 px-1">Tip of the Day</p>
+        <div className={`${card} p-5`} style={{ borderColor: tagCol(tip.tag) + '20' }}>
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: '#FFD600' + '12', border: `1px solid #FFD60025` }}>
+              <Lightbulb size={18} className="text-[#FFD600]" />
             </div>
-            <p className="text-[10px] text-white/30 leading-[1.7]">{todayTip.tip}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h4 className="text-[12px] font-black uppercase tracking-wide leading-none">{tip.title}</h4>
+                <span className="text-[7px] font-bold uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
+                  style={{ color: tagCol(tip.tag), backgroundColor: tagCol(tip.tag) + '10', border: `1px solid ${tagCol(tip.tag)}20` }}>
+                  {tip.tag}
+                </span>
+              </div>
+              <p className="text-[10px] opacity-40 leading-[1.65]">{tip.tip}</p>
+            </div>
           </div>
         </div>
       </motion.section>
 
-      {/* ═══ DISCOVER ═══ */}
-      <motion.section variants={itemVariants} className="space-y-2 mb-8">
-        <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.25em] mb-1">Discover</p>
-
-        <button
-          onClick={() => onNavigate('ARENA')}
-          className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] text-left group active:scale-[0.98] transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]/50" />
-            <div>
-              <p className="text-[10px] font-black text-white uppercase tracking-[0.1em]">Find Grounds</p>
-              <p className="text-[8px] text-white/20 mt-0.5">Cricket grounds near you</p>
-            </div>
-          </div>
-          <ChevronRight size={12} className="text-white/15" />
-        </button>
-
-        <button
-          onClick={() => onNavigate('PERFORMANCE')}
-          className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] text-left group active:scale-[0.98] transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#39FF14]/50" />
-            <div>
-              <p className="text-[10px] font-black text-white uppercase tracking-[0.1em]">Leaderboard</p>
-              <p className="text-[8px] text-white/20 mt-0.5">See where you rank among players</p>
-            </div>
-          </div>
-          <ChevronRight size={12} className="text-white/15" />
-        </button>
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  DISCOVER                                                ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn}>
+        <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em] mb-2 px-1">Discover</p>
+        <div className="space-y-2.5">
+          {[
+            { id: 'ARENA', label: 'Find Grounds', desc: 'Cricket grounds near you', icon: MapPin, color: '#00F0FF' },
+            { id: 'PERFORMANCE', label: 'Leaderboard', desc: 'See where you rank among players', icon: Award, color: '#39FF14' },
+          ].map(d => (
+            <button key={d.id} onClick={() => onNavigate(d.id as any)}
+              className={`${card} w-full flex items-center px-4 py-3.5 active:scale-[0.98] transition-transform text-left group`}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mr-3.5 shrink-0"
+                style={{ backgroundColor: d.color + '10', border: `1px solid ${d.color}20` }}>
+                <d.icon size={17} style={{ color: d.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-wider leading-none">{d.label}</p>
+                <p className="text-[8px] opacity-30 mt-1">{d.desc}</p>
+              </div>
+              <ChevronRight size={14} className="opacity-20 shrink-0" />
+            </button>
+          ))}
+        </div>
       </motion.section>
 
-      {/* ═══ UPGRADE ═══ */}
-      <motion.section variants={itemVariants}>
-        <div className="flex items-center justify-between px-5 py-4 rounded-xl border border-[#00F0FF]/10 bg-[#00F0FF]/[0.02]">
-          <div>
-            <h3 className="text-[12px] font-black text-white tracking-[0.1em] uppercase leading-none">Go Elite</h3>
-            <p className="text-[8px] font-medium text-white/25 mt-1.5">Unlock advanced stats & rankings</p>
+      {/* ╔═══════════════════════════════════════════════════════════╗
+          ║  GO ELITE                                                ║
+          ╚═══════════════════════════════════════════════════════════╝ */}
+      <motion.section variants={fadeIn}>
+        <div className={`${card} p-5 flex items-center justify-between`} style={{ borderColor: 'rgba(0,240,255,0.15)' }}>
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/20 flex items-center justify-center">
+              <Crown size={18} className="text-[#00F0FF]" />
+            </div>
+            <div>
+              <h3 className="text-[12px] font-black uppercase tracking-wider leading-none">Go Elite</h3>
+              <p className="text-[8px] opacity-30 mt-1">Unlock advanced stats & rankings</p>
+            </div>
           </div>
-          <MotionButton
-            onClick={onUpgrade}
-            className="bg-[#00F0FF] text-black !rounded-lg font-black text-[8px] !py-2 !px-4 tracking-[0.1em]"
-          >
+          <MotionButton onClick={onUpgrade} className="bg-[#00F0FF] text-black !rounded-xl font-black text-[8px] !py-2.5 !px-4 tracking-[0.1em]">
             UPGRADE
           </MotionButton>
         </div>
