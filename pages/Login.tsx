@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smartphone, RefreshCw, User, ChevronDown, CheckCircle2, ShieldCheck, MapPin, X } from 'lucide-react';
 import MotionButton from '../components/MotionButton';
-import { upsertPlayer, fetchPlayerByPhone, generatePlayerId, touchLastLogin } from '../lib/supabase';
+import { upsertPlayer, fetchPlayerByPhone, generatePlayerId, touchLastLogin, syncMatchToSupabase } from '../lib/supabase';
 import { sanitizePlayerName, sanitizePhone, sanitizeCity } from '../lib/sanitize';
 
 interface LoginProps {
@@ -94,40 +94,63 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
         console.log('[22Y-LOGIN] Saved merged vault to localStorage');
 
-        // Update last_login
-        await touchLastLogin(cleanPhone).catch(() => {});
+        // Sync merged local data back to cloud (so other devices can see it)
+        const mergedHistory = globalVault[cleanPhone].history || [];
+        if (mergedHistory.length > 0) {
+          console.log(`[22Y-LOGIN] Pushing ${mergedHistory.length} matches to cloud (sync on login)`);
+          syncMatchToSupabase(cleanPhone, { playerName: cleanName }, mergedHistory)
+            .then(ok => console.log(`[22Y-LOGIN] Sync on login: ${ok ? 'SUCCESS' : 'FAILED'}`))
+            .catch(err => console.error('[22Y-LOGIN] Sync on login error:', err));
+        } else {
+          // Update last_login even if no matches to sync
+          await touchLastLogin(cleanPhone).catch(() => {});
+        }
       } else {
-        // New player: create fresh vault + upsert to Supabase
-        console.log('[22Y-LOGIN] New player - creating fresh profile');
+        // New player (or player not found in cloud): check if local data exists
+        console.log('[22Y-LOGIN] Player not found in cloud - checking local data');
         if (!globalVault[cleanPhone]) {
           globalVault[cleanPhone] = { history: [], teams: [], name: cleanName, role, city: cleanCity };
           localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
         }
 
-        const playerId = generatePlayerId(cleanPhone);
-        try {
-          const result = await upsertPlayer({
-            player_id: playerId,
-            phone: cleanPhone,
-            name: cleanName.toUpperCase(),
-            city: cleanCity,
-            role,
-            avatar_url: avatarUrl,
-            matches_played: 0, career_runs: 0, balls_faced: 0,
-            innings_played: 0, not_outs: 0, total_fours: 0, total_sixes: 0,
-            batting_average: 0, strike_rate: 0,
-            total_wickets: 0, overs_bowled: 0, balls_bowled_raw: 0,
-            runs_conceded: 0, best_figures: '0/0', best_figures_wickets: 0,
-            best_figures_runs: 999, three_w_hauls: 0, five_w_hauls: 0,
-            bowling_average: 0, bowling_economy: 0,
-            total_catches: 0, run_outs: 0, stumpings: 0, fielding_impact: 0,
-            toss_wins: 0, matches_led: 0, captaincy_wins: 0,
-            elite_rank: 'Cadet', total_victories: 0, total_defeats: 0,
-            archive_vault: [],
-          });
-          console.log('[22Y-LOGIN] New player upsert result:', result ? 'success' : 'failed');
-        } catch (upsertErr) {
-          console.error('[22Y-LOGIN] New player upsert error:', upsertErr);
+        const localHistory = globalVault[cleanPhone].history || [];
+        if (localHistory.length > 0) {
+          // Has local data - sync it to the new cloud database
+          console.log(`[22Y-LOGIN] Found ${localHistory.length} local matches - syncing to cloud`);
+          try {
+            const syncOk = await syncMatchToSupabase(cleanPhone, { playerName: cleanName }, localHistory);
+            console.log(`[22Y-LOGIN] Local data sync: ${syncOk ? 'SUCCESS' : 'FAILED'}`);
+          } catch (syncErr) {
+            console.error('[22Y-LOGIN] Local data sync error:', syncErr);
+          }
+        } else {
+          // Truly new player with no history
+          console.log('[22Y-LOGIN] Truly new player - creating fresh profile');
+          const playerId = generatePlayerId(cleanPhone);
+          try {
+            const result = await upsertPlayer({
+              player_id: playerId,
+              phone: cleanPhone,
+              name: cleanName.toUpperCase(),
+              city: cleanCity,
+              role,
+              avatar_url: avatarUrl,
+              matches_played: 0, career_runs: 0, balls_faced: 0,
+              innings_played: 0, not_outs: 0, total_fours: 0, total_sixes: 0,
+              batting_average: 0, strike_rate: 0,
+              total_wickets: 0, overs_bowled: 0, balls_bowled_raw: 0,
+              runs_conceded: 0, best_figures: '0/0', best_figures_wickets: 0,
+              best_figures_runs: 999, three_w_hauls: 0, five_w_hauls: 0,
+              bowling_average: 0, bowling_economy: 0,
+              total_catches: 0, run_outs: 0, stumpings: 0, fielding_impact: 0,
+              toss_wins: 0, matches_led: 0, captaincy_wins: 0,
+              elite_rank: 'Cadet', total_victories: 0, total_defeats: 0,
+              archive_vault: [],
+            });
+            console.log('[22Y-LOGIN] New player upsert result:', result ? 'success' : 'failed');
+          } catch (upsertErr) {
+            console.error('[22Y-LOGIN] New player upsert error:', upsertErr);
+          }
         }
       }
 
