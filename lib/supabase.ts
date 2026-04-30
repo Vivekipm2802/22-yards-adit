@@ -298,7 +298,7 @@ export async function syncMatchToSupabase(
     const mergedHistory: any[] = [];
     // Local history takes priority (fresher data)
     for (const m of localHistory) {
-      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.ballsFaced}-${m.opponent}-${m.result}`;
       if (!seenIds.has(mid)) {
         seenIds.add(mid);
         mergedHistory.push(m);
@@ -306,7 +306,7 @@ export async function syncMatchToSupabase(
     }
     // Add any cloud-only matches not in local
     for (const m of cloudHistory) {
-      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.ballsFaced}-${m.opponent}-${m.result}`;
       if (!seenIds.has(mid)) {
         seenIds.add(mid);
         mergedHistory.push(m);
@@ -402,10 +402,11 @@ export async function fetchLeaderboard(sortBy: 'career_runs' | 'total_wickets' |
 
 // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Update last_login timestamp Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export async function touchLastLogin(phone: string): Promise<void> {
+  const cleanPhone = phone.replace(/[\s\-\+]/g, '').replace(/^(91|0)/, '').slice(-10);
   await supabase
     .from('players')
     .update({ last_login: new Date().toISOString() })
-    .eq('phone', phone);
+    .eq('phone', cleanPhone);
 }
 
 // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ DB: Push live match state (called after each ball for broadcast/transfer) Ã¢ÂÂ
