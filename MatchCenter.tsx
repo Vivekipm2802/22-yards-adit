@@ -777,6 +777,27 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   };
 
   const handleWicketAction = (type: string, runs = 0) => {
+    if (type === 'RETIRED OUT') {
+      setWicketWizard({ open: false });
+      // Retired Out: mark batsman as out, no ball bowled, no bowler wicket credit
+      setMatch(m => {
+        const battingTeamKey = m.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
+        const updatedBattingSquad = (m.teams[battingTeamKey]?.squad || []).map(p => {
+          if (p.id === m.crease.strikerId) {
+            return { ...p, isOut: true, wicketType: 'RETIRED OUT' };
+          }
+          return p;
+        });
+        return {
+          ...m,
+          teams: { ...m.teams, [battingTeamKey]: { ...m.teams[battingTeamKey], squad: updatedBattingSquad } },
+          crease: { ...m.crease, strikerId: null },
+        };
+      });
+      setTimeout(() => setSelectionTarget('NEW_BATSMAN'), 50);
+      return;
+    }
+
     if (type === 'CAUGHT' || type === 'RUN OUT') {
       setWicketWizard({ open: false, type: type });
       setSelectionTarget('FIELDER');
@@ -1376,6 +1397,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         case 'STUMPED': return `st ${fielderName || 'Keeper'} b ${bowlerName}`;
         case 'RUN OUT': return `run out (${fielderName || 'Fielder'})`;
         case 'HIT WICKET': return `hit wicket b ${bowlerName}`;
+        case 'RETIRED OUT': return 'retired out';
         default: return `out b ${bowlerName}`;
     }
   };
@@ -4860,6 +4882,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           { type: 'STUMPED', icon: '🏏' },
                           { type: 'RUN OUT', icon: '💨' },
                           { type: 'HIT WICKET', icon: '💥' },
+                          { type: 'RETIRED OUT', icon: '🚶' },
                         ].map((item) => (
                           <motion.button
                             key={item.type}
