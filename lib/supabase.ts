@@ -251,6 +251,10 @@ export async function syncMatchToSupabase(
   fullHistory: any[]
 ): Promise<boolean> {
   try {
+    // Normalize phone: strip spaces, +91, leading 0 — keep last 10 digits
+    const cleanPhone = phone.replace(/[\s\-\+]/g, '').replace(/^(91|0)/, '').slice(-10);
+    if (cleanPhone.length !== 10) return false;
+
     const statsUpdate = buildStatsFromHistory(fullHistory);
     const update: Partial<PlayerProfile> = {
       ...statsUpdate,
@@ -258,15 +262,35 @@ export async function syncMatchToSupabase(
       last_login: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    // Try update first
+    const { error, count } = await supabase
       .from('players')
       .update(update)
-      .eq('phone', phone);
+      .eq('phone', cleanPhone)
+      .select('phone', { count: 'exact', head: true });
 
     if (error) {
-      console.error('[Supabase] syncMatchToSupabase error:', error);
+      console.error('[Supabase] syncMatchToSupabase update error:', error);
       return false;
     }
+
+    // If no row was matched, the player hasn't signed up yet — create a minimal row
+    if (count === 0) {
+      const { error: upsertErr } = await supabase
+        .from('players')
+        .upsert({
+          player_id: generatePlayerId(cleanPhone),
+          phone: cleanPhone,
+          name: newMatchRecord.playerName || 'Unknown',
+          ...update,
+        }, { onConflict: 'phone' });
+
+      if (upsertErr) {
+        console.error('[Supabase] syncMatchToSupabase upsert fallback error:', upsertErr);
+        return false;
+      }
+    }
+
     return true;
   } catch (e) {
     console.error('[Supabase] syncMatchToSupabase exception:', e);
