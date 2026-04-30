@@ -132,11 +132,8 @@
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
         }
-        /* Kill any semi-transparent black bg in light mode headers/bars */
-        html[data-theme="light"] [class*="bg-black/"] {
-            background-color: #ffffff !important;
-            background: #ffffff !important;
-        }
+        /* Semi-transparent black bg in light mode — convert to light equivalents */
+        /* Individual bg-black/XX rules below handle specific opacities */
         html[data-theme="light"] body::after {
             background:
                 radial-gradient(circle at 0% 0%, rgba(0, 180, 200, 0.04) 0%, transparent 40%),
@@ -182,31 +179,48 @@
         html[data-theme="light"] .bg-\[\#1A1A1A\],
         html[data-theme="light"] .bg-\[\#111\] { background-color: #f1f5f9 !important; }
         html[data-theme="light"] .bg-black { background-color: #f8fafc !important; }
-        html[data-theme="light"] .bg-black\/50 { background-color: rgba(15,23,42,0.35) !important; }
-        html[data-theme="light"] .bg-black\/80 { background-color: rgba(15,23,42,0.55) !important; }
+        html[data-theme="light"] .bg-black\/30 { background-color: rgba(15,23,42,0.18) !important; }
         html[data-theme="light"] .bg-black\/40 { background-color: rgba(15,23,42,0.25) !important; }
-        html[data-theme="light"] .bg-black\/95 { background-color: rgba(15,23,42,0.7) !important; }
-        html[data-theme="light"] .bg-black\/90 { background-color: rgba(15,23,42,0.6) !important; }
+        html[data-theme="light"] .bg-black\/50 { background-color: rgba(15,23,42,0.35) !important; }
         html[data-theme="light"] .bg-black\/60 { background-color: rgba(15,23,42,0.4) !important; }
+        html[data-theme="light"] .bg-black\/70 { background-color: rgba(15,23,42,0.5) !important; }
+        html[data-theme="light"] .bg-black\/80 { background-color: rgba(15,23,42,0.55) !important; }
+        html[data-theme="light"] .bg-black\/90 { background-color: rgba(15,23,42,0.6) !important; }
+        html[data-theme="light"] .bg-black\/95 { background-color: rgba(15,23,42,0.7) !important; }
+        html[data-theme="light"] .bg-black\/97 { background-color: rgba(15,23,42,0.75) !important; }
         html[data-theme="light"] .bg-white\/5,
         html[data-theme="light"] .bg-white\/\[0\.02\],
         html[data-theme="light"] .bg-white\/\[0\.03\],
         html[data-theme="light"] .bg-white\/\[0\.04\] { background-color: rgba(15,23,42,0.04) !important; }
+        html[data-theme="light"] .bg-white\/\[0\.05\] { background-color: rgba(15,23,42,0.05) !important; }
+        html[data-theme="light"] .bg-white\/\[0\.06\] { background-color: rgba(15,23,42,0.06) !important; }
+        html[data-theme="light"] .bg-white\/\[0\.08\] { background-color: rgba(15,23,42,0.08) !important; }
+        html[data-theme="light"] .bg-white\/15 { background-color: rgba(15,23,42,0.12) !important; }
+        html[data-theme="light"] .bg-white\/20 { background-color: rgba(15,23,42,0.15) !important; }
+        html[data-theme="light"] .bg-white\/25 { background-color: rgba(15,23,42,0.18) !important; }
+        html[data-theme="light"] .bg-white\/30 { background-color: rgba(15,23,42,0.22) !important; }
 
         /* Text white --- dark (boosted for legibility on white tiles) */
         html[data-theme="light"] .text-white { color: #0f172a !important; }
+        html[data-theme="light"] .text-white\/90 { color: rgba(15,23,42,0.90) !important; }
         html[data-theme="light"] .text-white\/80 { color: rgba(15,23,42,0.85) !important; }
+        html[data-theme="light"] .text-white\/70 { color: rgba(15,23,42,0.75) !important; }
         html[data-theme="light"] .text-white\/60 { color: rgba(15,23,42,0.65) !important; }
-        html[data-theme="light"] .text-white\/40 { color: rgba(15,23,42,0.60) !important; }
-        html[data-theme="light"] .text-white\/30 { color: rgba(15,23,42,0.60) !important; }
-        html[data-theme="light"] .text-white\/20 { color: rgba(15,23,42,0.55) !important; }
-        html[data-theme="light"] .text-white\/10 { color: rgba(15,23,42,0.40) !important; }
+        html[data-theme="light"] .text-white\/50 { color: rgba(15,23,42,0.55) !important; }
+        html[data-theme="light"] .text-white\/40 { color: rgba(15,23,42,0.50) !important; }
+        html[data-theme="light"] .text-white\/30 { color: rgba(15,23,42,0.45) !important; }
+        html[data-theme="light"] .text-white\/25 { color: rgba(15,23,42,0.40) !important; }
+        html[data-theme="light"] .text-white\/20 { color: rgba(15,23,42,0.35) !important; }
+        html[data-theme="light"] .text-white\/10 { color: rgba(15,23,42,0.25) !important; }
 
         /* Borders white --- dark */
         html[data-theme="light"] .border-white\/5 { border-color: rgba(15,23,42,0.09) !important; }
         html[data-theme="light"] .border-white\/10 { border-color: rgba(15,23,42,0.13) !important; }
+        html[data-theme="light"] .border-white\/15 { border-color: rgba(15,23,42,0.16) !important; }
         html[data-theme="light"] .border-white\/20 { border-color: rgba(15,23,42,0.2) !important; }
+        html[data-theme="light"] .border-white\/25 { border-color: rgba(15,23,42,0.24) !important; }
         html[data-theme="light"] .border-white\/30 { border-color: rgba(15,23,42,0.28) !important; }
+        html[data-theme="light"] .border-white\/40 { border-color: rgba(15,23,42,0.35) !important; }
 
         /* Input fields in light mode */
         html[data-theme="light"] input,
@@ -430,11 +444,22 @@
             background-color: rgba(15,23,42,0.5) !important;
         }
 
-        /* Scorecard / fullscreen overlays — must stay opaque so content doesn't bleed through */
-        html[data-theme="light"] .fixed.inset-0.bg-black\/95,
-        html[data-theme="light"] .fixed.inset-0.z-\[5000\].bg-black\/95 {
-            background-color: rgba(255,255,255,0.97) !important;
-            background: rgba(255,255,255,0.97) !important;
+        /* Scorecard / fullscreen overlays — white translucent in light mode */
+        html[data-theme="light"] .fixed.inset-0.bg-black\/95 {
+            background-color: rgba(255,255,255,0.95) !important;
+            background: rgba(255,255,255,0.95) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+        }
+        html[data-theme="light"] .fixed.inset-0.bg-black\/90 {
+            background-color: rgba(255,255,255,0.92) !important;
+            background: rgba(255,255,255,0.92) !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+        }
+        html[data-theme="light"] .fixed.inset-0.bg-black\/80 {
+            background-color: rgba(255,255,255,0.88) !important;
+            background: rgba(255,255,255,0.88) !important;
             backdrop-filter: blur(8px) !important;
             -webkit-backdrop-filter: blur(8px) !important;
         }
@@ -446,19 +471,17 @@
             box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
         }
 
-        /* Squad editor / team modal: give the modal card a solid white bg with shadow */
-        html[data-theme="light"] .bg-\[\#0A0A0A\].border {
+        /* All dark modal cards — white bg with shadow in light mode */
+        html[data-theme="light"] .bg-\[\#0A0A0A\] {
             background-color: #ffffff !important;
             border-color: rgba(15,23,42,0.12) !important;
-            box-shadow: 0 25px 60px rgba(15,23,42,0.18), 0 4px 16px rgba(15,23,42,0.08) !important;
+            box-shadow: 0 25px 60px rgba(15,23,42,0.15), 0 4px 16px rgba(15,23,42,0.08) !important;
         }
 
         /* Input fields inside modals: visible white bg with clear border */
         html[data-theme="light"] .bg-white\/10 { background-color: rgba(15,23,42,0.06) !important; }
 
-        /* Missing text opacity variants */
-        html[data-theme="light"] .text-white\/50 { color: rgba(15,23,42,0.55) !important; }
-        html[data-theme="light"] .text-white\/25 { color: rgba(15,23,42,0.45) !important; }
+        /* (text-white/50 and /25 are now in the main text block above) */
 
         /* Placeholder overrides for modal inputs */
         html[data-theme="light"] .placeholder\:text-white\/40::placeholder { color: rgba(15,23,42,0.5) !important; }
@@ -478,10 +501,14 @@
         html[data-theme="light"] .hover\:bg-\[\#FF003C\]\/20:hover { background-color: rgba(204,16,16,0.12) !important; }
         html[data-theme="light"] .border-\[\#FF003C\]\/30 { border-color: rgba(204,16,16,0.3) !important; }
 
-        /* Hover bg states */
+        /* Hover & active bg states */
         html[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(15,23,42,0.05) !important; }
         html[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(15,23,42,0.08) !important; }
+        html[data-theme="light"] .hover\:bg-white\/15:hover { background-color: rgba(15,23,42,0.12) !important; }
+        html[data-theme="light"] .hover\:bg-white\/20:hover { background-color: rgba(15,23,42,0.15) !important; }
         html[data-theme="light"] .hover\:border-white\/20:hover { border-color: rgba(15,23,42,0.2) !important; }
+        html[data-theme="light"] .active\:bg-white\/10:active { background-color: rgba(15,23,42,0.1) !important; }
+        html[data-theme="light"] .active\:bg-white\/20:active { background-color: rgba(15,23,42,0.15) !important; }
 
         /* Shadow overrides for cyan/green buttons in modals */
         html[data-theme="light"] .shadow-\[0_4px_20px_rgba\(0\,240\,255\,0\.3\)\] { box-shadow: 0 4px 20px rgba(204,16,16,0.25) !important; }
@@ -516,8 +543,11 @@
         /* Ice mode main bg --- cool blue instead of deep navy */
         html[data-theme="light"] .bg-\[\#000a1a\] { background-color: #eff6ff !important; }
 
-        /* Fire/Ice mode ambient gradient overlays need toning down.
-           The overlays are inline styles so we target their parent container. */
+        /* Fire/Ice mode ambient gradient overlays — hide in light mode */
+        html[data-theme="light"] .bg-\[\#1a0500\] > .pointer-events-none[style],
+        html[data-theme="light"] .bg-\[\#000a1a\] > .pointer-events-none[style] {
+            opacity: 0 !important;
+        }
 
         /* --- Fire mode text colors --- */
         html[data-theme="light"] .text-\[\#80D8FF\] { color: #1565C0 !important; }
