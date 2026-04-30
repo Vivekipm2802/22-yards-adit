@@ -384,6 +384,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   // Squad selection: after merge, user picks which players play this match
   const [squadSelectionTeamId, setSquadSelectionTeamId] = useState<TeamID | null>(null);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+  const [squadSelectionSource, setSquadSelectionSource] = useState<'DRAWER' | 'CONFLICT'>('DRAWER');
 
   useEffect(() => {
     // Don't persist match state when we've handed off scoring to another device
@@ -752,6 +753,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           setSelectedPlayerIds(new Set(squad.map((p: any) => p.id)));
           return m; // no mutation, just reading
         });
+        setSquadSelectionSource('CONFLICT');
         setSquadSelectionTeamId(teamId);
       }, 50);
     } else {
@@ -3453,6 +3455,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                                             // Open squad selection if team has 3+ players
                                             if (resetSquad.length >= 3) {
                                               setSelectedPlayerIds(new Set(resetSquad.map((p: any) => p.id)));
+                                              setSquadSelectionSource('DRAWER');
                                               setSquadSelectionTeamId(teamDrawer.targetTeam);
                                             }
                                           }}
@@ -3809,11 +3812,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                             teams: { ...m.teams, [k]: { ...m.teams[k], squad: filteredSquad } }
                           };
                         });
+                        const source = squadSelectionSource;
                         setSquadSelectionTeamId(null);
                         setSelectedPlayerIds(new Set());
-                        // Now check if other team also needs conflict resolution, else go to toss
-                        // Re-run conflict check
-                        checkTeamConflicts();
+
+                        if (source === 'CONFLICT') {
+                          // Came from ADD TO TEAM conflict flow → check other team or proceed to toss
+                          setTimeout(() => checkTeamConflicts(), 100);
+                        }
+                        // source === 'DRAWER' → just close and return to CONFIG screen (do nothing extra)
                       }}
                       disabled={selectedPlayerIds.size < 2}
                       className={`w-full py-5 !rounded-[24px] font-black tracking-[0.3em] ${
