@@ -4283,7 +4283,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {/* ═══ SCORING KEYPAD — CricHeroes-style ═══ */}
               <div className="flex-1 flex flex-col px-2 py-1.5 gap-1.5 overflow-hidden">
                 {/* Primary runs: 0 1 2 3 */}
-                <div className="grid grid-cols-4 gap-1.5 flex-1">
+                <div className="grid grid-cols-4 gap-1.5" style={{ flex: '0.8' }}>
                   {[0, 1, 2, 3].map(r => (
                     <button
                       key={r}
@@ -4296,7 +4296,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   ))}
                 </div>
                 {/* Boundary + Extras: 4 6 WD NB */}
-                <div className="grid grid-cols-4 gap-1.5 flex-1">
+                <div className="grid grid-cols-4 gap-1.5" style={{ flex: '0.7' }}>
                   <button
                     type="button"
                     onClick={() => handleScore(4)}
@@ -4376,12 +4376,12 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               </div>
 
               {/* ═══ BOTTOM ACTION BAR ═══ */}
-              <div className="shrink-0 px-2 pb-2 pt-1 space-y-1">
+              <div className="shrink-0 px-2 pb-2 pt-1 space-y-1.5">
                 <div className="grid grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => setWicketWizard({ open: true })}
-                    className="col-span-2 h-[40px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-xl border border-[#FF003C]/60 active:scale-[0.95] transition-all select-none touch-manipulation text-sm tracking-wider"
+                    className="col-span-2 h-[44px] bg-[#FF003C] hover:bg-[#FF003C]/90 text-white font-black rounded-xl border border-[#FF003C]/60 active:scale-[0.95] transition-all select-none touch-manipulation text-sm tracking-wider"
                   >
                     WICKET
                   </button>
@@ -4393,7 +4393,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         crease: { ...m.crease, strikerId: m.crease.nonStrikerId, nonStrikerId: m.crease.strikerId }
                       }));
                     }}
-                    className="h-[40px] bg-[#4DB6AC]/15 hover:bg-[#4DB6AC]/25 text-[#4DB6AC] font-black rounded-xl border border-[#4DB6AC]/30 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
+                    className="h-[44px] bg-[#4DB6AC]/15 hover:bg-[#4DB6AC]/25 text-[#4DB6AC] font-black rounded-xl border border-[#4DB6AC]/30 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
                   >
                     SWAP
                   </button>
@@ -4401,7 +4401,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     type="button"
                     onClick={handleUndo}
                     disabled={!match.history || match.history.length === 0}
-                    className="h-[40px] bg-white/[0.06] hover:bg-white/12 disabled:opacity-25 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-xl border border-white/10 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
+                    className="h-[44px] bg-white/[0.06] hover:bg-white/12 disabled:opacity-25 disabled:cursor-not-allowed text-[#FF6D00] font-black rounded-xl border border-white/10 active:scale-[0.95] transition-all select-none touch-manipulation text-xs"
                   >
                     UNDO
                   </button>
@@ -4409,7 +4409,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                 <button
                   type="button"
                   onClick={() => setShowScorecardPreview(true)}
-                  className={`w-full h-[34px] font-black rounded-lg border active:scale-[0.98] transition-all select-none touch-manipulation text-[11px] flex items-center justify-center gap-1.5 ${
+                  className={`w-full h-[38px] font-black rounded-lg border active:scale-[0.98] transition-all select-none touch-manipulation text-xs flex items-center justify-center gap-1.5 ${
                     fireMode
                       ? 'bg-[#FF6D00]/15 text-[#FF6D00] border-[#FF6D00]/30'
                       : iceMode
