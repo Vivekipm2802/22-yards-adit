@@ -426,7 +426,7 @@ const App: React.FC = () => {
       <div className="h-[100dvh] w-full bg-[#020617] text-white flex flex-col overflow-hidden relative font-sans">
         {/* Top Navigation - safe-area-inset-top handles iPhone Dynamic Island / notch */}
         <div
-          className="border-b border-white/5 shrink-0 bg-black/50 backdrop-blur-xl z-[100]"
+          className="border-b border-white/5 shrink-0 z-[100]"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
           <div className="h-16 px-6 flex items-center justify-between">
@@ -488,7 +488,7 @@ const App: React.FC = () => {
 
         {/* Bottom Tab Bar */}
         {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && activePage !== 'FOLLOW_MATCH' && (
-          <div className="bg-black/90 backdrop-blur-2xl border-t-2 border-white/25 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
+          <div className="bg-[#020617] border-t border-white/10 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
             {navItems.map((item) => {
               const isActive = activePage === item.id;
               return (
