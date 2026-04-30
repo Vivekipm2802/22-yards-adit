@@ -1,14 +1,21 @@
 // @ts-nocheck
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords, Crown, ChevronRight, Radio,
   Play, BarChart3, Clock, Trophy, MapPin, Award,
-  Lightbulb, Zap, Target, TrendingUp
+  Lightbulb, Zap, Target, TrendingUp, Wifi, WifiOff
 } from 'lucide-react';
 import MotionButton from '../components/MotionButton';
 import { useAuth } from '../AuthContext';
 import { fetchLeaderboard } from '../lib/supabase';
+
+// ─── CRICKET API CONFIG ────────────────────────────────────────────
+// Sign up free at https://cricketdata.org to get your API key.
+// Replace the empty string below with your key (GUID format).
+const CRIC_API_KEY = '';
+const CRIC_API_BASE = 'https://api.cricapi.com/v1';
+const POLL_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
 interface DugoutProps {
   onNavigate: (page: 'DUGOUT' | 'MATCH_CENTER' | 'PERFORMANCE' | 'ARENA' | 'HISTORY' | 'TOURNAMENTS' | 'FOLLOW_MATCH') => void;
@@ -24,7 +31,7 @@ const stagger: any = {
   visible: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.1 } }
 };
 
-// ─── DATA ───────────────────────────────────────────────────────────
+// ─── STATIC DATA ───────────────────────────────────────────────────
 const FACTS = [
   { stat: '100', text: 'International centuries by Sachin Tendulkar — the all-time record across all formats', tag: 'Batting' },
   { stat: '26', text: 'Balls taken by AB de Villiers for the fastest ODI century ever, vs West Indies (2015)', tag: 'Records' },
@@ -56,33 +63,87 @@ const TIPS = [
   { title: 'Read Conditions', tip: 'Check the pitch before the toss — cracks, grass, dampness. Conditions dictate bat or bowl first.', tag: 'Strategy' },
 ];
 
-const generateMatches = () => {
+// ─── IPL TEAM METADATA ─────────────────────────────────────────────
+const IPL_TEAMS: Record<string, { abbr: string; color: string }> = {
+  'Mumbai Indians': { abbr: 'MI', color: '#004BA0' },
+  'Chennai Super Kings': { abbr: 'CSK', color: '#FDB913' },
+  'Royal Challengers Bengaluru': { abbr: 'RCB', color: '#EC1C24' },
+  'Royal Challengers Bangalore': { abbr: 'RCB', color: '#EC1C24' },
+  'Kolkata Knight Riders': { abbr: 'KKR', color: '#3A225D' },
+  'Delhi Capitals': { abbr: 'DC', color: '#17479E' },
+  'Sunrisers Hyderabad': { abbr: 'SRH', color: '#F26522' },
+  'Gujarat Titans': { abbr: 'GT', color: '#1C1C2B' },
+  'Rajasthan Royals': { abbr: 'RR', color: '#EA1A85' },
+  'Punjab Kings': { abbr: 'PBKS', color: '#DD1F2D' },
+  'Lucknow Super Giants': { abbr: 'LSG', color: '#A72056' },
+};
+
+// ─── HELPERS ────────────────────────────────────────────────────────
+const getTeamMeta = (name: string) => {
+  // Check IPL teams first
+  for (const [full, meta] of Object.entries(IPL_TEAMS)) {
+    if (name.toLowerCase().includes(full.toLowerCase()) || full.toLowerCase().includes(name.toLowerCase())) {
+      return { abbr: meta.abbr, color: meta.color, full };
+    }
+  }
+  // Abbreviate country/team names
+  const abbr = name.length > 5 ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 4) : name.toUpperCase();
+  return { abbr, color: '#6366F1', full: name };
+};
+
+// Priority: IPL > International > T20 League > Other
+const matchPriority = (m: any): number => {
+  const type = (m.matchType || '').toLowerCase();
+  const name = (m.name || m.series_id || '').toLowerCase();
+  if (name.includes('indian premier league') || name.includes('ipl')) return 0;
+  if (type === 'test' || type === 'odi' || type === 't20i') return 1;
+  if (name.includes('big bash') || name.includes('psl') || name.includes('cpl') || name.includes('bbl')) return 2;
+  return 3;
+};
+
+interface LiveMatch {
+  id: string;
+  team1: { name: string; abbr: string; color: string; score?: string };
+  team2: { name: string; abbr: string; color: string; score?: string };
+  status: 'upcoming' | 'live' | 'completed';
+  statusText: string;
+  venue: string;
+  time: string;
+  result?: string;
+  matchType: string;
+}
+
+// ─── FALLBACK: Simulated matches when API unavailable ──────────────
+const generateFallbackMatches = (): LiveMatch[] => {
   const teams = [
-    { name: 'MI', full: 'Mumbai Indians', color: '#004BA0' },
-    { name: 'CSK', full: 'Chennai Super Kings', color: '#FDB913' },
-    { name: 'RCB', full: 'Royal Challengers', color: '#EC1C24' },
-    { name: 'KKR', full: 'Kolkata Knight Riders', color: '#3A225D' },
-    { name: 'DC', full: 'Delhi Capitals', color: '#17479E' },
-    { name: 'SRH', full: 'Sunrisers Hyderabad', color: '#F26522' },
-    { name: 'GT', full: 'Gujarat Titans', color: '#1C1C2B' },
-    { name: 'RR', full: 'Rajasthan Royals', color: '#EA1A85' },
-    { name: 'PBKS', full: 'Punjab Kings', color: '#DD1F2D' },
-    { name: 'LSG', full: 'Lucknow Super Giants', color: '#A72056' },
+    { name: 'Mumbai Indians', abbr: 'MI', color: '#004BA0' },
+    { name: 'Chennai Super Kings', abbr: 'CSK', color: '#FDB913' },
+    { name: 'Royal Challengers', abbr: 'RCB', color: '#EC1C24' },
+    { name: 'Kolkata Knight Riders', abbr: 'KKR', color: '#3A225D' },
+    { name: 'Delhi Capitals', abbr: 'DC', color: '#17479E' },
+    { name: 'Sunrisers Hyderabad', abbr: 'SRH', color: '#F26522' },
+    { name: 'Gujarat Titans', abbr: 'GT', color: '#1C1C2B' },
+    { name: 'Rajasthan Royals', abbr: 'RR', color: '#EA1A85' },
+    { name: 'Punjab Kings', abbr: 'PBKS', color: '#DD1F2D' },
+    { name: 'Lucknow Super Giants', abbr: 'LSG', color: '#A72056' },
   ];
   const seed = new Date().getDate() + new Date().getMonth() * 31;
   const p = (o: number) => teams[(seed + o) % teams.length];
-  const t1 = p(0); let t2 = p(3); if (t2.name === t1.name) t2 = p(5);
-  const t3 = p(7); let t4 = p(9); if (t4.name === t3.name) t4 = p(11);
+  const t1 = p(0); let t2 = p(3); if (t2.abbr === t1.abbr) t2 = p(5);
+  const t3 = p(7); let t4 = p(9); if (t4.abbr === t3.abbr) t4 = p(11);
   const venues = ['Wankhede, Mumbai', 'Chepauk, Chennai', 'Eden Gardens, Kolkata', 'Motera, Ahmedabad', 'Chinnaswamy, Bengaluru'];
   return [
-    { team1: t1, team2: t2, time: '7:30 PM', venue: venues[(seed + 1) % venues.length], live: false, done: false },
-    { team1: t3, team2: t4, time: '3:30 PM', venue: venues[(seed + 4) % venues.length], live: false, done: true, result: `${t3.name} won by ${(seed % 7) + 2} wickets` },
+    { id: 'f1', team1: t1, team2: t2, status: 'upcoming', statusText: 'Upcoming', time: '7:30 PM', venue: venues[(seed + 1) % venues.length], matchType: 'IPL' },
+    { id: 'f2', team1: t3, team2: t4, status: 'completed', statusText: 'Completed', time: '3:30 PM', venue: venues[(seed + 4) % venues.length], matchType: 'IPL', result: `${t3.abbr} won by ${(seed % 7) + 2} wickets` },
   ];
 };
 
 // ─── TAG COLORS ─────────────────────────────────────────────────────
 const tagCol = (t: string) => ({ Batting: '#00F0FF', Bowling: '#39FF14', Records: '#FFD600', History: '#BC13FE', Fielding: '#FF6B35', Strategy: '#FFD600' }[t] || '#00F0FF');
 
+// ═══════════════════════════════════════════════════════════════════
+// COMPONENT
+// ═══════════════════════════════════════════════════════════════════
 const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
   const { userData } = useAuth();
   const isLight = typeof document !== 'undefined' && document.documentElement?.dataset?.theme === 'light';
@@ -123,9 +184,132 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
   useEffect(() => { const t = setInterval(() => setFi(p => (p + 1) % facts.length), 5000); return () => clearInterval(t); }, [facts.length]);
   const fact = facts[fi % facts.length];
 
-  // ── Today's matches & tip
-  const matches = useMemo(() => generateMatches(), []);
+  // ── Tip of the day
   const tip = useMemo(() => { const d = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000); return TIPS[d % TIPS.length]; }, []);
+
+  // ═══════════════════════════════════════════════════════════════
+  // LIVE CRICKET DATA — Fetches from CricAPI with 3-min polling
+  // ═══════════════════════════════════════════════════════════════
+  const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [isLiveData, setIsLiveData] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [hasLiveMatch, setHasLiveMatch] = useState(false);
+
+  const parseApiMatches = useCallback((data: any[]): LiveMatch[] => {
+    if (!data || !Array.isArray(data)) return [];
+
+    const parsed: LiveMatch[] = data
+      .filter(m => m.teamInfo && m.teamInfo.length >= 2)
+      .map(m => {
+        const t1name = m.teamInfo[0]?.name || m.teams?.[0] || 'Team A';
+        const t2name = m.teamInfo[1]?.name || m.teams?.[1] || 'Team B';
+        const t1meta = getTeamMeta(t1name);
+        const t2meta = getTeamMeta(t2name);
+
+        // Parse scores from the score array
+        let t1score = '';
+        let t2score = '';
+        if (m.score && Array.isArray(m.score)) {
+          m.score.forEach((s: any) => {
+            const inningsStr = `${s.r || 0}/${s.w || 0} (${s.o || 0})`;
+            if (s.inning?.toLowerCase().includes(t1name.toLowerCase().split(' ')[0])) {
+              t1score = t1score ? `${t1score} & ${inningsStr}` : inningsStr;
+            } else if (s.inning?.toLowerCase().includes(t2name.toLowerCase().split(' ')[0])) {
+              t2score = t2score ? `${t2score} & ${inningsStr}` : inningsStr;
+            }
+          });
+        }
+
+        // Determine match status
+        let status: 'upcoming' | 'live' | 'completed' = 'upcoming';
+        if (m.matchStarted && !m.matchEnded) status = 'live';
+        else if (m.matchEnded) status = 'completed';
+
+        // Status text
+        let statusText = 'Upcoming';
+        if (status === 'live') statusText = m.status || 'Live';
+        else if (status === 'completed') statusText = 'Completed';
+
+        // Parse time
+        let time = '';
+        if (m.dateTimeGMT) {
+          try {
+            const dt = new Date(m.dateTimeGMT);
+            time = dt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+          } catch { time = ''; }
+        }
+
+        // Match type label
+        let matchType = (m.matchType || '').toUpperCase();
+        const seriesName = (m.name || '').toLowerCase();
+        if (seriesName.includes('ipl') || seriesName.includes('indian premier league')) matchType = 'IPL';
+
+        return {
+          id: m.id || Math.random().toString(),
+          team1: { name: t1name, abbr: t1meta.abbr, color: t1meta.color, score: t1score || undefined },
+          team2: { name: t2name, abbr: t2meta.abbr, color: t2meta.color, score: t2score || undefined },
+          status,
+          statusText,
+          venue: m.venue || '',
+          time,
+          result: status === 'completed' ? (m.status || '') : undefined,
+          matchType,
+          _priority: matchPriority(m),
+        } as LiveMatch & { _priority: number };
+      });
+
+    // Sort by priority: IPL first, then international, then others
+    // Within each priority: live > upcoming > completed
+    const statusOrder = { live: 0, upcoming: 1, completed: 2 };
+    parsed.sort((a: any, b: any) => {
+      if (a._priority !== b._priority) return a._priority - b._priority;
+      return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+    });
+
+    // Return top 4 matches
+    return parsed.slice(0, 4).map(({ _priority, ...rest }: any) => rest);
+  }, []);
+
+  const fetchLiveMatches = useCallback(async () => {
+    if (!CRIC_API_KEY) {
+      setMatches(generateFallbackMatches());
+      setIsLiveData(false);
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${CRIC_API_BASE}/currentMatches?apikey=${CRIC_API_KEY}&offset=0`);
+      if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+      const json = await resp.json();
+
+      if (json.status !== 'success' || !json.data) {
+        throw new Error(json.info || 'API error');
+      }
+
+      const parsed = parseApiMatches(json.data);
+      if (parsed.length > 0) {
+        setMatches(parsed);
+        setIsLiveData(true);
+        setLastUpdated(new Date());
+        setHasLiveMatch(parsed.some(m => m.status === 'live'));
+      } else {
+        // No matches from API — use fallback
+        setMatches(generateFallbackMatches());
+        setIsLiveData(false);
+      }
+    } catch (err) {
+      console.warn('[22Yards] Cricket API fetch failed, using fallback:', err);
+      setMatches(generateFallbackMatches());
+      setIsLiveData(false);
+    }
+  }, [parseApiMatches]);
+
+  // Initial fetch + polling
+  useEffect(() => {
+    fetchLiveMatches();
+    const interval = setInterval(fetchLiveMatches, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchLiveMatches]);
 
   // ── Shared card class — works in both dark and light mode via glass-premium
   const card = 'glass-premium rounded-2xl';
@@ -251,44 +435,93 @@ const Dugout: React.FC<DugoutProps> = ({ onNavigate, onUpgrade }) => {
       </motion.section>
 
       {/* ╔═══════════════════════════════════════════════════════════╗
-          ║  TODAY'S MATCHES — Proper match cards                    ║
+          ║  TODAY'S MATCHES — Live data with 3-min polling          ║
           ╚═══════════════════════════════════════════════════════════╝ */}
       <motion.section variants={fadeIn}>
         <div className="flex items-center justify-between mb-2 px-1">
-          <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em]">Today's Matches</p>
-          <p className="text-[9px] opacity-25">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[9px] font-bold opacity-35 uppercase tracking-[0.2em]">
+              {isLiveData ? "Live Matches" : "Today's Matches"}
+            </p>
+            {isLiveData ? (
+              <span className="flex items-center gap-1 text-[7px] font-bold text-[#39FF14] opacity-60">
+                <Wifi size={8} /> LIVE
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[7px] font-bold opacity-20">
+                <WifiOff size={8} /> DEMO
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {lastUpdated && isLiveData && (
+              <p className="text-[7px] opacity-20">
+                Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </p>
+            )}
+            <p className="text-[9px] opacity-25">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+          </div>
         </div>
         <div className="space-y-2.5">
           {matches.map((m, i) => (
-            <div key={i} className={`${card} px-5 py-4`}>
+            <div key={m.id || i} className={`${card} px-5 py-4`}>
               {/* Status bar */}
               <div className="flex items-center justify-between mb-3">
-                {!m.done ? (
+                {m.status === 'live' ? (
+                  <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-[#FF003C]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF003C] animate-pulse" />
+                    <span className="bg-[#FF003C]/10 border border-[#FF003C]/20 px-2.5 py-1 rounded-full">Live</span>
+                  </span>
+                ) : m.status === 'upcoming' ? (
                   <span className="text-[8px] font-bold uppercase tracking-wider text-[#FFD600] bg-[#FFD600]/10 border border-[#FFD600]/20 px-2.5 py-1 rounded-full">Upcoming</span>
                 ) : (
                   <span className="text-[8px] font-bold uppercase tracking-wider opacity-35 bg-white/[0.05] border border-white/[0.08] px-2.5 py-1 rounded-full"
                     style={isLight ? { backgroundColor: 'rgba(0,0,0,0.04)', borderColor: 'rgba(0,0,0,0.08)' } : {}}>Completed</span>
                 )}
-                <span className="text-[10px] opacity-30">{m.time}</span>
+                <div className="flex items-center gap-2">
+                  {m.matchType && (
+                    <span className="text-[7px] font-bold opacity-20 uppercase">{m.matchType}</span>
+                  )}
+                  <span className="text-[10px] opacity-30">{m.time}</span>
+                </div>
               </div>
 
-              {/* Teams — with color badges */}
+              {/* Teams — with color badges and live scores */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2.5 flex-1">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white"
-                    style={{ backgroundColor: m.team1.color + '25', border: `2px solid ${m.team1.color}40` }}>
-                    {m.team1.name}
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white"
+                      style={{ backgroundColor: m.team1.color + '25', border: `2px solid ${m.team1.color}40` }}>
+                      {m.team1.abbr}
+                    </div>
+                    {m.team1.score && (
+                      <p className="text-[9px] font-bold text-[#00F0FF]">{m.team1.score}</p>
+                    )}
                   </div>
                   <span className="text-[11px] font-bold opacity-20">vs</span>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white"
-                    style={{ backgroundColor: m.team2.color + '25', border: `2px solid ${m.team2.color}40` }}>
-                    {m.team2.name}
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black text-white"
+                      style={{ backgroundColor: m.team2.color + '25', border: `2px solid ${m.team2.color}40` }}>
+                      {m.team2.abbr}
+                    </div>
+                    {m.team2.score && (
+                      <p className="text-[9px] font-bold text-[#00F0FF]">{m.team2.score}</p>
+                    )}
                   </div>
                 </div>
-                <p className="text-[9px] opacity-25 text-right">{m.venue}</p>
+                <p className="text-[9px] opacity-25 text-right max-w-[120px] truncate">{m.venue}</p>
               </div>
 
-              {m.done && m.result && (
+              {/* Live status text */}
+              {m.status === 'live' && m.statusText && m.statusText !== 'Live' && (
+                <p className="text-[10px] text-[#FFD600] font-medium mt-3 pt-3 border-t border-white/[0.06] opacity-80"
+                  style={isLight ? { borderColor: 'rgba(0,0,0,0.06)' } : {}}>
+                  {m.statusText}
+                </p>
+              )}
+
+              {/* Completed result */}
+              {m.status === 'completed' && m.result && (
                 <p className="text-[10px] text-[#39FF14] font-medium mt-3 pt-3 border-t border-white/[0.06] opacity-70"
                   style={isLight ? { borderColor: 'rgba(0,0,0,0.06)' } : {}}>
                   {m.result}
