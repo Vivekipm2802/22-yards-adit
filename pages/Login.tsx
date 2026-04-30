@@ -52,13 +52,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     };
 
     try {
-      // Ã¢ÂÂÃ¢ÂÂ Step 1: Check if player exists in Supabase Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+      // Step 1: Check if player exists in Supabase
+      console.log(`[22Y-LOGIN] Attempting login for phone=${cleanPhone}`);
       let existingProfile = null;
       try {
         existingProfile = await fetchPlayerByPhone(cleanPhone);
-      } catch (_) { /* offline fallback */ }
+        console.log(`[22Y-LOGIN] fetchPlayerByPhone result: ${existingProfile ? `found, runs=${existingProfile.career_runs}, vault=${(existingProfile.archive_vault||[]).length}` : 'NOT FOUND'}`);
+      } catch (fetchErr) {
+        console.error('[22Y-LOGIN] fetchPlayerByPhone exception:', fetchErr);
+      }
 
-      // Ã¢ÂÂÃ¢ÂÂ Step 2: Sync vault from Supabase into localStorage Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+      // Step 2: Sync vault from Supabase into localStorage
       const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
 
       if (existingProfile) {
@@ -66,10 +70,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         if (!globalVault[cleanPhone]) {
           globalVault[cleanPhone] = { history: [], teams: [], name: cleanName, role, city: cleanCity };
         }
-        if (existingProfile.archive_vault && existingProfile.archive_vault.length > 0) {
+        if (existingProfile.archive_vault && Array.isArray(existingProfile.archive_vault) && existingProfile.archive_vault.length > 0) {
           const localHist = globalVault[cleanPhone].history || [];
           const cloudHist = existingProfile.archive_vault;
-          // Merge: dedup by match ID, keep both local and cloud matches
+          console.log(`[22Y-LOGIN] Merging: ${localHist.length} local + ${cloudHist.length} cloud matches`);
           const seenIds = new Set<string>();
           const merged: any[] = [];
           for (const m of cloudHist) {
@@ -81,45 +85,57 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             if (!seenIds.has(mid)) { seenIds.add(mid); merged.push(m); }
           }
           globalVault[cleanPhone].history = merged;
+          console.log(`[22Y-LOGIN] Merged result: ${merged.length} unique matches`);
+        } else {
+          console.log('[22Y-LOGIN] No cloud archive_vault data to merge');
         }
+        // Also store cloud profile reference for Performance/Archive pages
+        globalVault[cleanPhone].cloudProfile = existingProfile;
         localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
+        console.log('[22Y-LOGIN] Saved merged vault to localStorage');
 
         // Update last_login
         await touchLastLogin(cleanPhone).catch(() => {});
       } else {
         // New player: create fresh vault + upsert to Supabase
+        console.log('[22Y-LOGIN] New player - creating fresh profile');
         if (!globalVault[cleanPhone]) {
           globalVault[cleanPhone] = { history: [], teams: [], name: cleanName, role, city: cleanCity };
           localStorage.setItem('22YARDS_GLOBAL_VAULT', JSON.stringify(globalVault));
         }
 
         const playerId = generatePlayerId(cleanPhone);
-        await upsertPlayer({
-          player_id: playerId,
-          phone: cleanPhone,
-          name: cleanName.toUpperCase(),
-          city: cleanCity,
-          role,
-          avatar_url: avatarUrl,
-          matches_played: 0, career_runs: 0, balls_faced: 0,
-          innings_played: 0, not_outs: 0, total_fours: 0, total_sixes: 0,
-          batting_average: 0, strike_rate: 0,
-          total_wickets: 0, overs_bowled: 0, balls_bowled_raw: 0,
-          runs_conceded: 0, best_figures: '0/0', best_figures_wickets: 0,
-          best_figures_runs: 999, three_w_hauls: 0, five_w_hauls: 0,
-          bowling_average: 0, bowling_economy: 0,
-          total_catches: 0, run_outs: 0, stumpings: 0, fielding_impact: 0,
-          toss_wins: 0, matches_led: 0, captaincy_wins: 0,
-          elite_rank: 'Cadet', total_victories: 0, total_defeats: 0,
-          archive_vault: [],
-        }).catch(() => {});
+        try {
+          const result = await upsertPlayer({
+            player_id: playerId,
+            phone: cleanPhone,
+            name: cleanName.toUpperCase(),
+            city: cleanCity,
+            role,
+            avatar_url: avatarUrl,
+            matches_played: 0, career_runs: 0, balls_faced: 0,
+            innings_played: 0, not_outs: 0, total_fours: 0, total_sixes: 0,
+            batting_average: 0, strike_rate: 0,
+            total_wickets: 0, overs_bowled: 0, balls_bowled_raw: 0,
+            runs_conceded: 0, best_figures: '0/0', best_figures_wickets: 0,
+            best_figures_runs: 999, three_w_hauls: 0, five_w_hauls: 0,
+            bowling_average: 0, bowling_economy: 0,
+            total_catches: 0, run_outs: 0, stumpings: 0, fielding_impact: 0,
+            toss_wins: 0, matches_led: 0, captaincy_wins: 0,
+            elite_rank: 'Cadet', total_victories: 0, total_defeats: 0,
+            archive_vault: [],
+          });
+          console.log('[22Y-LOGIN] New player upsert result:', result ? 'success' : 'failed');
+        } catch (upsertErr) {
+          console.error('[22Y-LOGIN] New player upsert error:', upsertErr);
+        }
       }
 
       localStorage.setItem('22YARDS_USER_DATA', JSON.stringify(userData));
       setFinalUserData(userData);
       setIsSuccess(true);
     } catch (error) {
-      console.error("Auth Failure:", error);
+      console.error("[22Y-LOGIN] Auth Failure:", error);
       localStorage.setItem('22YARDS_USER_DATA', JSON.stringify(userData));
       onLogin(userData);
     } finally {
