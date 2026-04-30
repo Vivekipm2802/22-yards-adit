@@ -796,7 +796,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     // Block scoring if innings is already over (overs exhausted or all out)
     const battingTeamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
     const squadSize = (match.teams[battingTeamKey]?.squad || []).length;
-    const allOutWickets = Math.max(1, squadSize - 1);
+    const allOutWickets = Math.max(1, Math.min(squadSize - 1, 10));
     const totalOversCompleted = Math.floor(match.liveScore.balls / 6);
     const ballsInCurrentOver = match.liveScore.balls % 6;
     if (match.liveScore.wickets >= allOutWickets) return;
@@ -849,7 +849,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         });
         const newWickets = m.liveScore.wickets + 1;
         const squadSize = (m.teams[battingTeamKey]?.squad || []).length;
-        const allOutWickets = Math.max(1, squadSize - 1);
+        const allOutWickets = Math.max(1, Math.min(squadSize - 1, 10));
 
         // Check if all out after retired out
         if (newWickets >= allOutWickets) {
@@ -1370,7 +1370,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       // --- INNINGS TRANSITION ---
       const totalOvers = Math.floor(newLiveScore.balls / 6);
       const battingSquadSize = (m.teams[battingTeamKey]?.squad || []).length;
-      const allOutWickets = Math.max(1, battingSquadSize - 1);
+      const allOutWickets = Math.max(1, Math.min(battingSquadSize - 1, 10));
       const _innEffectiveOvers = m.currentInnings === 1
         ? (m.config.reducedOvers1 || m.config.overs)
         : (m.config.reducedOvers2 || m.config.overs);
@@ -5212,7 +5212,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       setSelectionTarget(null);
                       const battingTeamKey = match.teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
                       const squadSize = (match.teams[battingTeamKey]?.squad || []).length;
-                      const allOutWickets = Math.max(1, squadSize - 1);
+                      const allOutWickets = Math.max(1, Math.min(squadSize - 1, 10));
                       setMatch(m => {
                         if (m.status === 'COMPLETED' || m.status === 'INNINGS_BREAK') return m;
                         const newLiveScore = { ...m.liveScore, wickets: allOutWickets };
