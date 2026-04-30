@@ -248,34 +248,63 @@ export async function upsertPlayer(profile: Partial<PlayerProfile> & { phone: st
 export async function syncMatchToSupabase(
   phone: string,
   newMatchRecord: any,
-  fullHistory: any[]
+  localHistory: any[]
 ): Promise<boolean> {
   try {
     // Normalize phone: strip spaces, +91, leading 0 — keep last 10 digits
     const cleanPhone = phone.replace(/[\s\-\+]/g, '').replace(/^(91|0)/, '').slice(-10);
     if (cleanPhone.length !== 10) return false;
 
-    const statsUpdate = buildStatsFromHistory(fullHistory);
+    // Step 1: Fetch existing cloud vault so we MERGE, never overwrite
+    let cloudHistory: any[] = [];
+    try {
+      const { data: existing } = await supabase
+        .from('players')
+        .select('archive_vault')
+        .eq('phone', cleanPhone)
+        .single();
+      if (existing?.archive_vault && Array.isArray(existing.archive_vault)) {
+        cloudHistory = existing.archive_vault;
+      }
+    } catch (_) { /* no existing row — that's fine */ }
+
+    // Step 2: Merge local + cloud history, dedup by match ID
+    const seenIds = new Set<string>();
+    const mergedHistory: any[] = [];
+    // Local history takes priority (fresher data)
+    for (const m of localHistory) {
+      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+      if (!seenIds.has(mid)) {
+        seenIds.add(mid);
+        mergedHistory.push(m);
+      }
+    }
+    // Add any cloud-only matches not in local
+    for (const m of cloudHistory) {
+      const mid = m.id || m.matchId || `${m.date}-${m.runs}-${m.opponent}`;
+      if (!seenIds.has(mid)) {
+        seenIds.add(mid);
+        mergedHistory.push(m);
+      }
+    }
+
+    // Step 3: Build stats from the FULL merged history
+    const statsUpdate = buildStatsFromHistory(mergedHistory);
     const update: Partial<PlayerProfile> = {
       ...statsUpdate,
-      archive_vault: fullHistory,
+      archive_vault: mergedHistory,
       last_login: new Date().toISOString(),
     };
 
-    // Try update first
-    const { error, count } = await supabase
+    // Step 4: Try update first
+    const { error } = await supabase
       .from('players')
       .update(update)
-      .eq('phone', cleanPhone)
-      .select('phone', { count: 'exact', head: true });
+      .eq('phone', cleanPhone);
 
     if (error) {
       console.error('[Supabase] syncMatchToSupabase update error:', error);
-      return false;
-    }
-
-    // If no row was matched, the player hasn't signed up yet — create a minimal row
-    if (count === 0) {
+      // Fallback: upsert if row doesn't exist yet
       const { error: upsertErr } = await supabase
         .from('players')
         .upsert({
