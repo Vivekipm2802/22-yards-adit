@@ -373,13 +373,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [selectedVaultPlayer, setSelectedVaultPlayer] = useState<{id: string, name: string, phone: string} | null>(null);
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
 
-  const [squadConflict, setSquadConflict] = useState<{
-    open: boolean;
-    teamId: TeamID;
-    name: string;
-    existingSquad: any[];
-    archivedTeamId: string;
-  } | null>(null);
 
   useEffect(() => {
     // Don't persist match state when we've handed off scoring to another device
@@ -667,56 +660,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     return [...(match.teams.teamA?.squad || []), ...(match.teams.teamB?.squad || [])].find(p => p.id === id) || null;
   };
 
-  const checkTeamConflicts = () => {
-    if (!userData?.phone) { setMatch(m => ({ ...m, toss: { winnerId: null, decision: null } })); setStatus('TOSS_FLIP'); return; }
-
-    const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
-    const userVault = globalVault[userData.phone] || { teams: [] };
-    const archivedTeams = userVault.teams || [];
-
-    const isUserInA = (match.teams.teamA.squad || []).some(p => p.phone === userData.phone);
-    const isUserInB = (match.teams.teamB.squad || []).some(p => p.phone === userData.phone);
-
-    if (isUserInA && !match.teams.teamA.resolutionHandled) {
-      const conflictA = archivedTeams.find(t => t.name.toUpperCase() === match.teams.teamA.name.toUpperCase());
-      if (conflictA) {
-        setSquadConflict({ open: true, teamId: 'A', name: match.teams.teamA.name, existingSquad: conflictA.players || conflictA.squad || [], archivedTeamId: conflictA.id });
-        return;
-      }
-    }
-
-    if (isUserInB && !match.teams.teamB.resolutionHandled) {
-      const conflictB = archivedTeams.find(t => t.name.toUpperCase() === match.teams.teamB.name.toUpperCase());
-      if (conflictB) {
-        setSquadConflict({ open: true, teamId: 'B', name: match.teams.teamB.name, existingSquad: conflictB.players || conflictB.squad || [], archivedTeamId: conflictB.id });
-        return;
-      }
-    }
-
-    setMatch(m => ({ ...m, toss: { winnerId: null, decision: null } }));
-    setStatus('TOSS_FLIP');
-  };
-
-  const handleResolveConflict = (resolveType: 'EXISTING' | 'NEW') => {
-    if (!squadConflict) return;
-
-    setMatch(m => {
-      const key = squadConflict.teamId === 'A' ? 'teamA' : 'teamB';
-      return {
-        ...m,
-        teams: {
-          ...m.teams,
-          [key]: {
-            ...m.teams[key],
-            resolutionMode: resolveType,
-            resolutionHandled: true,
-            linkedArchivedId: resolveType === 'EXISTING' ? squadConflict.archivedTeamId : null
-          }
-        }
-      };
-    });
-
-    setSquadConflict(null);
+  const proceedToToss = () => {
     setMatch(m => ({ ...m, toss: { winnerId: null, decision: null } }));
     setStatus('TOSS_FLIP');
   };
@@ -3597,7 +3541,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                   >
                     <MotionButton
                       disabled={!isConfigValid()}
-                      onClick={checkTeamConflicts}
+                      onClick={proceedToToss}
                       className={`flex-1 py-5 !rounded-[20px] font-black uppercase tracking-[0.2em] text-sm transition-all ${
                         isConfigValid() ? 'bg-[#39FF14] text-black shadow-[0_8px_30px_rgba(57,255,20,0.3)]' : 'bg-white/5 text-white/25'
                       }`}
@@ -3611,71 +3555,6 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           </div>
         )}
 
-        {/* SQUAD CONFLICT MODAL */}
-        <AnimatePresence>
-          {squadConflict && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[10000] bg-black/95 flex items-center justify-center p-6 backdrop-blur-xl"
-            >
-              <motion.div
-                initial={{ scale: 0.9, y: 40 }}
-                animate={{ scale: 1, y: 0 }}
-                className="w-full max-w-sm bg-[#0A0A0A] border border-white/10 rounded-[48px] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]"
-              >
-                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                  <div className="flex items-center space-x-3">
-                    <ShieldAlert size={24} className="text-[#FFD600]" />
-                    <h3 className="font-heading text-4xl tracking-tighter uppercase italic">SQUAD RECON</h3>
-                  </div>
-                </div>
-                <div className="p-10 space-y-8">
-                  <div className="space-y-4 text-center">
-                    <p className="text-[11px] font-black text-[#00F0FF] uppercase tracking-[0.4em]">Conflict Detected</p>
-                    <h4 className="font-heading text-5xl uppercase leading-none text-white italic">{squadConflict.name}</h4>
-                    <p className="text-[10px] font-black text-white/40 uppercase leading-relaxed tracking-widest">
-                      THIS TEAM ALREADY EXISTS IN YOUR CAREER ARCHIVE
-                    </p>
-                  </div>
-                  <div className="p-5 bg-white/5 rounded-3xl border border-white/10 space-y-4">
-                    <div className="flex justify-between items-center px-2">
-                      <span className="text-[8px] font-black text-white/40 uppercase tracking-[0.3em]">Archived Roster</span>
-                      <span className="text-[9px] font-black text-[#39FF14] uppercase">{(squadConflict.existingSquad || []).length} PERSONNEL</span>
-                    </div>
-                    <div className="flex -space-x-3 justify-center overflow-hidden py-2">
-                      {(squadConflict.existingSquad || []).slice(0, 5).map((p, i) => (
-                        <div key={i} className="w-10 h-10 rounded-full border-2 border-black bg-[#111] overflow-hidden">
-                          <img src={getPlayerAvatar(p)} className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                      {squadConflict.existingSquad.length > 5 && (
-                        <div className="w-10 h-10 rounded-full border-2 border-black bg-[#111] flex items-center justify-center text-[10px] font-black text-white/40">
-                          +{squadConflict.existingSquad.length - 5}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col space-y-3">
-                    <MotionButton
-                      onClick={() => handleResolveConflict('EXISTING')}
-                      className="w-full bg-[#00F0FF] text-black py-5 !rounded-[24px] font-black tracking-[0.3em]"
-                    >
-                      ARCHIVE LINKAGE
-                    </MotionButton>
-                    <button
-                      onClick={() => handleResolveConflict('NEW')}
-                      className="w-full text-white/40 hover:text-white py-4 font-black uppercase text-[9px] tracking-[0.4em] transition-all"
-                    >
-                      FRESH COMMISSION
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* TOSS SCREEN - 2-step: Who Won → Bat/Bowl → straight to Openers */}
         {status === 'TOSS_FLIP' && (
