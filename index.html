@@ -1011,26 +1011,104 @@
     html[data-theme="light"] .fixed.inset-0.z-\[5500\] .bg-\[\#FFD600\] { background-color: #FFD600 !important; }
     html[data-theme="light"] .fixed.inset-0.z-\[5500\] .super-over-header { background-color: #0A0A0A !important; }
 
-    /* Match Tied screen (z-[5000] with "Match Tied!" heading) */
+    /* ══════════════════════════════════════════════════════════════════
+       z-[5000] POPUPS — Light mode overrides for scoring popups:
+       Wicket Wizard, Fielder Selection, New Batsman, Next Bowler,
+       DLS Modal, Add Player, Leave Confirm, etc.
+       (Note: Match Tied uses z-[6000], Super Over uses z-[5500])
+       ══════════════════════════════════════════════════════════════════ */
+
+    /* Overlay background → white translucent */
     html[data-theme="light"] .fixed.inset-0.z-\[5000\].bg-black\/95 {
-        background-color: rgba(0,0,0,0.95) !important;
-        background: rgba(0,0,0,0.95) !important;
+        background-color: rgba(255,255,255,0.95) !important;
+        background: rgba(255,255,255,0.95) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
     }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\].bg-black\/90 {
+        background-color: rgba(255,255,255,0.92) !important;
+        background: rgba(255,255,255,0.92) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\].bg-black\/80 {
+        background-color: rgba(255,255,255,0.88) !important;
+        background: rgba(255,255,255,0.88) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+
+    /* Inner card → white with shadow */
     html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-\[\#0A0A0A\] {
-        background-color: #0A0A0A !important;
+        background-color: #ffffff !important;
+        border-color: rgba(15,23,42,0.12) !important;
+        box-shadow: 0 25px 60px rgba(15,23,42,0.15), 0 4px 16px rgba(15,23,42,0.08) !important;
     }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white { color: #ffffff !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/40 { color: rgba(255,255,255,0.4) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-black { color: #000000 !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/10 { background-color: rgba(255,255,255,0.1) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#FFD600\] { color: #FFD600 !important; }
+
+    /* Text colors → dark */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white { color: #0f172a !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/90 { color: rgba(15,23,42,0.9) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/80 { color: rgba(15,23,42,0.8) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/70 { color: rgba(15,23,42,0.7) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/60 { color: rgba(15,23,42,0.6) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/50 { color: rgba(15,23,42,0.5) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/40 { color: rgba(15,23,42,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-white\/25 { color: rgba(15,23,42,0.25) !important; }
+
+    /* Borders → slate */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .border-white\/5 { border-color: rgba(15,23,42,0.06) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .border-white\/10 { border-color: rgba(15,23,42,0.12) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .border-white\/20 { border-color: rgba(15,23,42,0.15) !important; }
+
+    /* Button / tile backgrounds → visible light fills */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/5 { background-color: rgba(15,23,42,0.04) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/10 { background-color: rgba(15,23,42,0.06) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/20 { background-color: rgba(15,23,42,0.08) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/\[0\.02\] { background-color: rgba(15,23,42,0.02) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/\[0\.06\] { background-color: rgba(15,23,42,0.04) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/\[0\.08\] { background-color: rgba(15,23,42,0.05) !important; }
+
+    /* Hover/active states */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .hover\:bg-white\/10:hover { background-color: rgba(15,23,42,0.08) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .hover\:bg-white\/15:hover { background-color: rgba(15,23,42,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .hover\:border-\[\#FF003C\]\/40:hover { border-color: rgba(255,0,60,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .hover\:border-\[\#BC13FE\]\/40:hover { border-color: rgba(188,19,254,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .hover\:border-\[\#00F0FF\]\/40:hover { border-color: rgba(0,240,255,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .hover\:border-\[\#FFD600\]\/40:hover { border-color: rgba(255,214,0,0.4) !important; }
+
+    /* Handle bar in bottom sheets */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-white\/20 { background-color: rgba(15,23,42,0.15) !important; }
+
+    /* Accent colors stay vivid */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#FFD600\] { color: #d4a900 !important; }
     html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#FF003C\] { color: #FF003C !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#00F0FF\] { color: #00F0FF !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#39FF14\] { color: #39FF14 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#00F0FF\] { color: #00b8c4 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#39FF14\] { color: #1ea30e !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#BC13FE\] { color: #9b10d1 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#FF6D00\] { color: #e06000 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .text-\[\#7C3AED\] { color: #7C3AED !important; }
+
+    /* Progress bars inside bowler cards */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-\[\#BC13FE\] { background-color: #BC13FE !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-\[\#FF003C\] { background-color: #FF003C !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .bg-\[\#FFD600\] { background-color: #FFD600 !important; }
+
+    /* Disabled bowler opacity */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .opacity-40 { opacity: 0.35 !important; }
+
+    /* Gradient buttons (DLS modal, etc.) keep their gradients */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .from-\[\#FFD600\] { --tw-gradient-from: #FFD600 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] .to-\[\#FF6D00\] { --tw-gradient-to: #FF6D00 !important; }
+
+    /* Input fields inside popups */
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] input {
+        background-color: rgba(15,23,42,0.04) !important;
+        color: #0f172a !important;
+        border-color: rgba(15,23,42,0.15) !important;
+    }
+    html[data-theme="light"] .fixed.inset-0.z-\[5000\] input::placeholder {
+        color: rgba(15,23,42,0.4) !important;
+    }
 
     </style>
 </head>
