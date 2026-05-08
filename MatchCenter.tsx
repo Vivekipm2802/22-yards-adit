@@ -2034,6 +2034,28 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     }
   };
 
+  // Polls until qrVideoRef is in the DOM, then attaches the stream and starts the scan loop.
+  const attachStreamWhenReady = (stream: MediaStream, attempts: number = 0) => {
+    if (!qrStreamRef.current || qrStreamRef.current !== stream) return;
+    if (qrVideoRef.current) {
+      const v = qrVideoRef.current;
+      try { v.srcObject = stream; } catch {}
+      v.muted = true;
+      const playPromise = v.play();
+      if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+      scanQRFrame();
+      return;
+    }
+    if (attempts > 60) {
+      setQrScanStatus('ERROR');
+      setQrScanError('Scanner UI failed to render. Close and try again.');
+      try { stream.getTracks().forEach(t => t.stop()); } catch {}
+      qrStreamRef.current = null;
+      return;
+    }
+    requestAnimationFrame(() => attachStreamWhenReady(stream, attempts + 1));
+  };
+
   const describeCameraError = (err: any): string => {
     if (!err) return 'Unknown camera error.';
     const name = err.name || '';
@@ -2064,15 +2086,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     try {
       const stream = await acquireCameraStream();
       qrStreamRef.current = stream;
-      // Wait for the video element to be available in DOM
-      setTimeout(() => {
-        if (qrVideoRef.current) {
-          qrVideoRef.current.srcObject = stream;
-          qrVideoRef.current.play();
-          // Start scanning loop
-          scanQRFrame();
-        }
-      }, 300);
+      attachStreamWhenReady(stream);
     } catch (err) {
       setQrScanStatus('ERROR');
       setQrScanError(describeCameraError(err));
@@ -2211,13 +2225,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     try {
       const stream = await acquireCameraStream();
       qrStreamRef.current = stream;
-      setTimeout(() => {
-        if (qrVideoRef.current) {
-          qrVideoRef.current.srcObject = stream;
-          qrVideoRef.current.play();
-          scanQRFrame();
-        }
-      }, 300);
+      attachStreamWhenReady(stream);
     } catch (err) {
       setQrScanStatus('ERROR');
       setQrScanError(describeCameraError(err));
@@ -7605,7 +7613,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
               {/* Scanner viewport */}
               <div className="px-5 pb-2">
                 <div className="relative w-full aspect-square rounded-[20px] bg-black overflow-hidden">
-                  <video ref={qrVideoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay playsInline />
+                  <video ref={qrVideoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay playsInline muted />
 
                   {/* Corner brackets instead of full border */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
