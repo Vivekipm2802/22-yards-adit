@@ -371,6 +371,8 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [playerDropdownList, setPlayerDropdownList] = useState<Array<{id: string, name: string, phone: string}>>([]);
   const [selectedVaultPlayer, setSelectedVaultPlayer] = useState<{id: string, name: string, phone: string} | null>(null);
   const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
+  // Tracks which input field's dropdown should be visible (so we only show one at a time, not stacked duplicates)
+  const [activeDropdownSource, setActiveDropdownSource] = useState<'NAME' | 'PHONE' | null>(null);
 
   const [squadConflict, setSquadConflict] = useState<{
     open: boolean;
@@ -2067,6 +2069,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     setPhoneQuery(player.phone || '');
     setShowPlayerDropdown(false);
     setPlayerDropdownList([]);
+    setActiveDropdownSource(null);
   };
 
   const handleClearVaultPlayer = () => {
@@ -6784,23 +6787,24 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       onChange={(e) => {
                         const v = e.target.value.toUpperCase();
                         setNewName(v);
-                        // If user starts typing again after selecting from vault, drop the vault association
                         if (selectedVaultPlayer) setSelectedVaultPlayer(null);
                         const results = filterVaultPlayers(v);
                         setPlayerDropdownList(results);
                         setShowPlayerDropdown(results.length > 0);
+                        setActiveDropdownSource('NAME');
                       }}
                       onFocus={() => {
+                        setActiveDropdownSource('NAME');
                         if (newName) {
                           const results = filterVaultPlayers(newName);
                           setPlayerDropdownList(results);
                           setShowPlayerDropdown(results.length > 0);
                         }
                       }}
-                      onBlur={() => { setTimeout(() => setShowPlayerDropdown(false), 150); }}
+                      onBlur={() => { setTimeout(() => { setShowPlayerDropdown(false); setActiveDropdownSource(null); }, 150); }}
                       className="w-full px-3 py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                     />
-                    {showPlayerDropdown && playerDropdownList.length > 0 && (
+                    {showPlayerDropdown && playerDropdownList.length > 0 && activeDropdownSource === 'NAME' && (
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -6834,19 +6838,21 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       const results = filterVaultPlayers(v);
                       setPlayerDropdownList(results);
                       setShowPlayerDropdown(results.length > 0);
+                      setActiveDropdownSource('PHONE');
                     }}
                     onFocus={() => {
+                      setActiveDropdownSource('PHONE');
                       if (phoneQuery) {
                         const results = filterVaultPlayers(phoneQuery);
                         setPlayerDropdownList(results);
                         setShowPlayerDropdown(results.length > 0);
                       }
                     }}
-                    onBlur={() => { setTimeout(() => setShowPlayerDropdown(false), 150); }}
+                    onBlur={() => { setTimeout(() => { setShowPlayerDropdown(false); setActiveDropdownSource(null); }, 150); }}
                     maxLength={10}
                     className="w-full px-3 py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                   />
-                  {showPlayerDropdown && playerDropdownList.length > 0 && (
+                  {showPlayerDropdown && playerDropdownList.length > 0 && activeDropdownSource === 'PHONE' && (
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
