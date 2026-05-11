@@ -1738,10 +1738,21 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const handleEnlistNewPlayer = () => {
     if (!editingTeamId || !newName.trim()) return;
     const key = editingTeamId === 'A' ? 'teamA' : 'teamB';
+    // If a vault player was selected, carry over role / batting style / bowling style if known
+    const vaultExtras = selectedVaultPlayer && (
+      (selectedVaultPlayer as any).role ||
+      (selectedVaultPlayer as any).battingStyle ||
+      (selectedVaultPlayer as any).bowlingStyle
+    ) ? {
+      role: (selectedVaultPlayer as any).role,
+      battingStyle: (selectedVaultPlayer as any).battingStyle,
+      bowlingStyle: (selectedVaultPlayer as any).bowlingStyle,
+    } : {};
     const newPlayer = {
       id: generatePlayerId(phoneQuery || `${Date.now()}`),
       name: newName.trim(),
       phone: phoneQuery,
+      ...vaultExtras,
       isCaptain: false,
       isWicketKeeper: false,
       runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false,
@@ -2001,11 +2012,61 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     return (match.teams[key]?.squad || []).some(p => p.isWicketKeeper);
   };
 
+  // Pull every unique player ever added across all matches/teams stored in this device's local vault.
+  // Dedupes by phone (fallback: lowercased name). Returns the saved details so we can re-hydrate them on selection.
+  const getVaultPlayers = (): Array<{id: string; name: string; phone: string; role?: string; battingStyle?: string; bowlingStyle?: string;}> => {
+    try {
+      const globalVault = JSON.parse(localStorage.getItem('22YARDS_GLOBAL_VAULT') || '{}');
+      const seen = new Set<string>();
+      const out: Array<any> = [];
+      Object.values(globalVault).forEach((userVault: any) => {
+        (userVault?.teams || []).forEach((team: any) => {
+          (team?.players || team?.squad || []).forEach((p: any) => {
+            const phone = (p?.phone || '').toString().trim();
+            const name = (p?.name || '').toString().trim();
+            if (!name && !phone) return;
+            const key = phone || name.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push({
+              id: p.id || `v_${Math.random().toString(36).slice(2, 10)}`,
+              name,
+              phone,
+              role: p.role,
+              battingStyle: p.battingStyle,
+              bowlingStyle: p.bowlingStyle,
+            });
+          });
+        });
+      });
+      return out;
+    } catch { return []; }
+  };
+
+  // Filter vault players by typed query. Matches by name prefix, name initials, name substring, or phone prefix.
+  const filterVaultPlayers = (query: string) => {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return [];
+    const all = getVaultPlayers();
+    const isDigits = /^\d+$/.test(q);
+    return all.filter(p => {
+      const name = (p.name || '').toLowerCase();
+      const phone = (p.phone || '').replace(/\D/g, '');
+      if (name.startsWith(q)) return true;
+      const initials = name.split(/\s+/).map((w: string) => w[0] || '').join('');
+      if (initials.startsWith(q)) return true;
+      if (name.includes(q)) return true;
+      if (isDigits && phone.startsWith(q)) return true;
+      return false;
+    }).slice(0, 8);
+  };
+
   const handleSelectVaultPlayer = (player: any) => {
     setSelectedVaultPlayer(player);
-    setNewName(player.name);
+    setNewName((player.name || '').toUpperCase());
     setPhoneQuery(player.phone || '');
     setShowPlayerDropdown(false);
+    setPlayerDropdownList([]);
   };
 
   const handleClearVaultPlayer = () => {
@@ -6720,7 +6781,23 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       type="text"
                       placeholder="Player name"
                       value={newName}
-                      onChange={(e) => setNewName(e.target.value.toUpperCase())}
+                      onChange={(e) => {
+                        const v = e.target.value.toUpperCase();
+                        setNewName(v);
+                        // If user starts typing again after selecting from vault, drop the vault association
+                        if (selectedVaultPlayer) setSelectedVaultPlayer(null);
+                        const results = filterVaultPlayers(v);
+                        setPlayerDropdownList(results);
+                        setShowPlayerDropdown(results.length > 0);
+                      }}
+                      onFocus={() => {
+                        if (newName) {
+                          const results = filterVaultPlayers(newName);
+                          setPlayerDropdownList(results);
+                          setShowPlayerDropdown(results.length > 0);
+                        }
+                      }}
+                      onBlur={() => { setTimeout(() => setShowPlayerDropdown(false), 150); }}
                       className="w-full px-3 py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                     />
                     {showPlayerDropdown && playerDropdownList.length > 0 && (
@@ -6744,15 +6821,52 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                       </motion.div>
                     )}
                   </div>
+                  <div className="relative">
                   <input
                     type="tel"
                     inputMode="numeric"
                     placeholder="Phone (10 digits)"
                     value={phoneQuery}
-                    onChange={(e) => setPhoneQuery(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhoneQuery(v);
+                      if (selectedVaultPlayer) setSelectedVaultPlayer(null);
+                      const results = filterVaultPlayers(v);
+                      setPlayerDropdownList(results);
+                      setShowPlayerDropdown(results.length > 0);
+                    }}
+                    onFocus={() => {
+                      if (phoneQuery) {
+                        const results = filterVaultPlayers(phoneQuery);
+                        setPlayerDropdownList(results);
+                        setShowPlayerDropdown(results.length > 0);
+                      }
+                    }}
+                    onBlur={() => { setTimeout(() => setShowPlayerDropdown(false), 150); }}
                     maxLength={10}
                     className="w-full px-3 py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[13px] text-white placeholder:text-white/40 outline-none"
                   />
+                  {showPlayerDropdown && playerDropdownList.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full left-0 right-0 mt-2 max-h-48 overflow-y-auto bg-[#1A1A1A] border border-white/20 rounded-[12px] z-50 shadow-2xl"
+                    >
+                      {playerDropdownList.map((p) => (
+                        <motion.button
+                          key={p.id}
+                          whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                          onClick={() => handleSelectVaultPlayer(p)}
+                          className="w-full px-3 py-2 text-left text-[12px] text-white hover:bg-white/10 transition-all border-b border-white/5 last:border-b-0"
+                        >
+                          <p className="font-black">{p.name}</p>
+                          <p className="text-[10px] text-white/40">{p.phone}</p>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                  </div>
                   <button
                     onClick={startQRScanner}
                     className="w-full py-3 min-h-[34px] rounded-[12px] bg-white/10 border border-white/20 text-[12px] font-black text-[#00F0FF] uppercase hover:bg-white/15 transition-all flex items-center justify-center gap-2"
