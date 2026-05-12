@@ -1919,7 +1919,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       } else {
         // Super Over tied — ask the scorer whether to play another SO or declare tie (informal games)
         const playAnother = window.confirm(
-          `Super Over #${finalState.superOverNumber} tied at ${finalState.team1Score.runs}-${finalState.team1Score.runs}.\n\n` +
+          `Super Over #${finalState.superOverNumber} tied at ${finalState.team1Score.runs}-${finalState.team2Score.runs}.\n\n` +
           `Per ICC rules, another Super Over must be played until one team wins.\n\n` +
           `OK = Play another Super Over\nCancel = End match as a tie (informal)`
         );
@@ -7537,11 +7537,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         className="h-14 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] font-numbers text-xl font-black">
                         6
                       </motion.button>
-                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(1, false, 'WD')}
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(0, false, 'WD')}
                         className="h-14 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-numbers text-sm font-black">
                         WD
                       </motion.button>
-                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(1, false, 'NB')}
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => recordSuperOverBall(0, false, 'NB')}
                         className="h-14 rounded-xl bg-[#FFD600]/10 border border-[#FFD600]/30 text-[#FFD600] font-numbers text-sm font-black">
                         NB
                       </motion.button>
