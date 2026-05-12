@@ -112,9 +112,31 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [match, setMatch] = useState<MatchState>(() => {
     const saved = localStorage.getItem('22YARDS_ACTIVE_MATCH');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.status === 'COMPLETED') return createInitialState();
-      return parsed;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.status === 'COMPLETED') return createInitialState();
+        // Defensive merge: a resume URL or stale write may leave required fields missing.
+        // Fill any holes from createInitialState() so render code can safely read match.toss.x, match.config.x, match.teams.x without crashing.
+        const defaults = createInitialState();
+        return {
+          ...defaults,
+          ...parsed,
+          toss:    { ...defaults.toss,    ...(parsed?.toss    || {}) },
+          config:  { ...defaults.config,  ...(parsed?.config  || {}) },
+          liveScore: { ...defaults.liveScore, ...(parsed?.liveScore || {}) },
+          crease:  { ...defaults.crease,  ...(parsed?.crease  || {}) },
+          teams:   {
+            ...defaults.teams,
+            ...(parsed?.teams || {}),
+            teamA: { ...defaults.teams.teamA, ...((parsed?.teams || {}).teamA || {}) },
+            teamB: { ...defaults.teams.teamB, ...((parsed?.teams || {}).teamB || {}) },
+          },
+          history: Array.isArray(parsed?.history) ? parsed.history : [],
+        } as MatchState;
+      } catch (e) {
+        console.warn('[22Y-MC] Failed to restore saved match — starting fresh:', e);
+        return createInitialState();
+      }
     }
     return createInitialState();
   });
