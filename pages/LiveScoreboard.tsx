@@ -137,6 +137,21 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
   );
 
   const { liveScore, teams, config, currentInnings, history, crease, status } = matchState;
+
+  /* ââ defensive guard: if the live row in the DB is missing the teams object (incomplete
+       push, stale row, or a row inserted by a non-app client), don't crash — show a
+       graceful "waiting for data" state instead. */
+  if (!teams || typeof teams !== 'object') {
+    return (
+      <div className="h-screen bg-[#050505] flex flex-col items-center justify-center space-y-4 p-8 text-center">
+        <Activity size={48} className="text-white/10 animate-pulse" />
+        <h3 className="font-heading text-4xl uppercase italic text-white/30">Waiting for match data…</h3>
+        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">The scorer's app will push the next ball shortly</p>
+        <button onClick={() => refresh(true)} className="mt-4 px-6 py-3 bg-[#CC1010]/10 border border-[#CC1010]/30 rounded-xl text-[#CC1010] text-[10px] font-black uppercase tracking-widest hover:bg-[#CC1010]/20">Refresh</button>
+      </div>
+    );
+  }
+
   const battingKey  = teams.battingTeamId === 'A' ? 'teamA' : 'teamB';
   const bowlingKey  = teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB';
   const battingTeam = teams[battingKey];
