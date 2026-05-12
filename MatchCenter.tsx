@@ -125,10 +125,10 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   // YouTube Live Streaming state
   const [showYouTubeModal, setShowYouTubeModal] = useState(false);
   const [liveStreamConfig, setLiveStreamConfig] = useState<LiveStreamConfig>({
-    youtubeStreamUrl: match.config.youtubeStreamUrl,
-    youtubeEmbedUrl: match.config.youtubeEmbedUrl,
-    rtmpUrl: match.config.rtmpUrl,
-    streamKey: match.config.streamKey,
+    youtubeStreamUrl: match.config?.youtubeStreamUrl,
+    youtubeEmbedUrl: match.config?.youtubeEmbedUrl,
+    rtmpUrl: match.config?.rtmpUrl,
+    streamKey: match.config?.streamKey,
     isStreaming: false,
   });
   const [showCameraRecorder, setShowCameraRecorder] = useState(false);
