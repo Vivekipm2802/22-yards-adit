@@ -98,7 +98,7 @@ export function generatePlayerId(phone: string): string {
     a = ((a << 5) - a) + b.charCodeAt(0);
     return a & a;
   }, 0);
-  return `22Y-${Math.abs(hash % 9999).toString().padStart(4, '0')}-${String.fromCharCode(65 + (Math.abs(hash) % 26))}`;
+  return `22Y-${Math.abs(hash % 999999).toString().padStart(6, '0')}-${String.fromCharCode(65 + (Math.abs(hash) % 26))}`;
 }
 
 // Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ Helper: Compute Elite Rank Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
