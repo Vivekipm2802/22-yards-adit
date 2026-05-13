@@ -349,9 +349,25 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
   const [dlsReducedOvers, setDlsReducedOvers] = useState<number>(0);
   const [dlsActive, setDlsActive] = useState(false);
 
-  // Super Over state
-  const [superOverState, setSuperOverState] = useState<SuperOverState | null>(null);
-  const [superOverPhase, setSuperOverPhase] = useState<string | null>(null); // 'SETUP_TEAM1' | 'BATTING_TEAM1' | etc
+  // Super Over state — rehydrate from match.superOver on mount so SUPER_OVER status doesn't blank-screen after a reload/resume
+  const [superOverState, setSuperOverState] = useState<SuperOverState | null>(() => {
+    try {
+      const saved = localStorage.getItem('22YARDS_ACTIVE_MATCH');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed?.status === 'COMPLETED') return null;
+      return parsed?.superOver || null;
+    } catch (e) { return null; }
+  });
+  const [superOverPhase, setSuperOverPhase] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem('22YARDS_ACTIVE_MATCH');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed?.status === 'COMPLETED') return null;
+      return parsed?.superOver?.phase || null;
+    } catch (e) { return null; }
+  }); // 'SETUP_TEAM1' | 'BATTING_TEAM1' | etc
   const [soSelectedBatsmen, setSoSelectedBatsmen] = useState<string[]>([]);
   const [soSelectedBowler, setSoSelectedBowler] = useState<string | null>(null);
   const [showSuperOverPrompt, setShowSuperOverPrompt] = useState(false);
