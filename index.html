@@ -964,22 +964,43 @@
        These are full-screen overlays that should always stay dark.
        ══════════════════════════════════════════════════════════════════ */
 
-    /* Super Over prompt (Match Tied popup) */
+    /* z-[6000] overlays — Match-Tied popup + Transfer / Spectator modals — theme-aware */
     html[data-theme="light"] .fixed.inset-0.z-\[6000\] {
-        background-color: rgba(0,0,0,0.95) !important;
+        background-color: rgba(248,250,252,0.96) !important;
     }
     html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#0A0A0A\] {
-        background-color: #0A0A0A !important;
+        background-color: #ffffff !important;
     }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white { color: #ffffff !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/50 { color: rgba(255,255,255,0.5) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/60 { color: rgba(255,255,255,0.6) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-black { color: #000000 !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#FFD600\]\/30 { border-color: rgba(255,214,0,0.3) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#FFD600\]\/10 { background-color: rgba(255,214,0,0.1) !important; }
-    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#FFD600\] { color: #FFD600 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-black\/40 { background-color: rgba(15,23,42,0.05) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white { color: #0f172a !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/70 { color: rgba(15,23,42,0.78) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/60 { color: rgba(15,23,42,0.70) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/50 { color: rgba(15,23,42,0.60) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/40 { color: rgba(15,23,42,0.55) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-white\/30 { color: rgba(15,23,42,0.50) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-black { color: #0f172a !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-white\/5 { border-color: rgba(15,23,42,0.08) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-white\/10 { border-color: rgba(15,23,42,0.12) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-white\/5 { background-color: rgba(15,23,42,0.04) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-white\/10 { background-color: rgba(15,23,42,0.08) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#FFD600\]\/30 { border-color: rgba(181,137,0,0.35) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#FFD600\]\/10 { background-color: rgba(255,214,0,0.15) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#FFD600\] { color: #B58900 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#FFD600\]\/70 { color: rgba(181,137,0,0.78) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#FFD600\]\/60 { color: rgba(181,137,0,0.7) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#00F0FF\] { color: #0891b2 !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#00F0FF\]\/70 { color: rgba(8,145,178,0.8) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#00F0FF\]\/60 { color: rgba(8,145,178,0.7) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#00F0FF\]\/5 { background-color: rgba(8,145,178,0.06) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#00F0FF\]\/10 { background-color: rgba(8,145,178,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#00F0FF\]\/10 { border-color: rgba(8,145,178,0.18) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#00F0FF\]\/20 { border-color: rgba(8,145,178,0.28) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#00F0FF\]\/30 { border-color: rgba(8,145,178,0.4) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#BC13FE\] { color: #9333ea !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .text-\[\#BC13FE\]\/70 { color: rgba(147,51,234,0.8) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#BC13FE\]\/5 { background-color: rgba(147,51,234,0.06) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .bg-\[\#BC13FE\]\/10 { background-color: rgba(147,51,234,0.1) !important; }
+    html[data-theme="light"] .fixed.inset-0.z-\[6000\] .border-\[\#BC13FE\]\/10 { border-color: rgba(147,51,234,0.18) !important; }
 
     /* Super Over full screen (z-5500) — theme-aware */
     html[data-theme="light"] .fixed.inset-0.z-\[5500\] {
