@@ -338,7 +338,7 @@ export function transitionSuperOverPhase(state: SuperOverState): SuperOverState 
 
   switch (state.phase) {
     case 'SETUP_TEAM1':
-      if (state.team1Batsmen.length === 3 && state.team1Bowler) {
+      if (state.team1Batsmen.length >= 2 && state.team1Bowler) {
         newState.phase = 'BATTING_TEAM1';
       }
       break;
@@ -348,7 +348,7 @@ export function transitionSuperOverPhase(state: SuperOverState): SuperOverState 
       break;
 
     case 'BREAK':
-      if (state.team2Batsmen.length === 3 && state.team2Bowler) {
+      if (state.team2Batsmen.length >= 2 && state.team2Bowler) {
         newState.phase = 'BATTING_TEAM2';
       } else {
         newState.phase = 'SETUP_TEAM2';
@@ -356,7 +356,7 @@ export function transitionSuperOverPhase(state: SuperOverState): SuperOverState 
       break;
 
     case 'SETUP_TEAM2':
-      if (state.team2Batsmen.length === 3 && state.team2Bowler) {
+      if (state.team2Batsmen.length >= 2 && state.team2Bowler) {
         newState.phase = 'BATTING_TEAM2';
       }
       break;
