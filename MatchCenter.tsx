@@ -611,7 +611,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       event: 'score_update',
       payload: match,
     });
-  }, [match.liveScore.balls, match.liveScore.wickets, match.currentInnings, status]);
+  }, [match.liveScore.balls, match.liveScore.wickets, match.currentInnings, status, match.crease?.strikerId, match.crease?.nonStrikerId, match.crease?.bowlerId, (match.history || []).length]);
 
   useEffect(() => {
     if (status === 'SUMMARY' && winnerTeam) {
@@ -846,9 +846,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
           });
           return { ...m, teams: { ...m.teams, [bKey]: { ...m.teams[bKey], squad: updatedBowlingSquad } } };
         });
+        const wasNB_A = pendingExtra === 'NB';
         commitBall(0, pendingExtra || undefined, true, 'STUMPED', wk.id);
         setPendingExtra(null);
-        if (isFreeHit) setIsFreeHit(false);
+        if (wasNB_A) setIsFreeHit(true);
+        else if (isFreeHit) setIsFreeHit(false);
       } else {
         setWicketWizard({ open: false, type: 'STUMPED' });
         setSelectionTarget('FIELDER');
@@ -857,9 +859,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
     }
 
     setWicketWizard({ open: false });
+    const wasNB_B = pendingExtra === 'NB';
     commitBall(runs, pendingExtra || undefined, true, type);
     setPendingExtra(null);
-    if (isFreeHit) setIsFreeHit(false);
+    if (wasNB_B) setIsFreeHit(true);
+    else if (isFreeHit) setIsFreeHit(false);
   };
 
   const handleFielderSelected = (fielderId: PlayerID) => {
@@ -877,9 +881,11 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       });
       return { ...m, teams: { ...m.teams, [bowlingKey]: { ...m.teams[bowlingKey], squad: updatedBowlingSquad } } };
     });
+    const wasNB_C = pendingExtra === 'NB';
     commitBall(0, pendingExtra || undefined, true, wType, fielderId);
     setPendingExtra(null);
-    if (isFreeHit) setIsFreeHit(false);
+    if (wasNB_C) setIsFreeHit(true);
+    else if (isFreeHit) setIsFreeHit(false);
   };
 
   const handleUndo = () => {
@@ -1159,8 +1165,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       Object.values(globalVault).forEach((userVault: any) => {
         if (userVault?.teams) {
           userVault.teams.forEach((t: any) => {
-            if (t.name && !allTeams.some(existing => existing.name.toUpperCase() === t.name.toUpperCase())) {
-              allTeams.push({ name: t.name, logo: t.logo, squad: t.players || t.squad || [] });
+            if (!t.name) return;
+            const incomingSquad = t.players || t.squad || [];
+            const idx = allTeams.findIndex(existing => existing.name.toUpperCase() === t.name.toUpperCase());
+            if (idx < 0) {
+              allTeams.push({ name: t.name, logo: t.logo, squad: incomingSquad });
+            } else if (incomingSquad.length > allTeams[idx].squad.length) {
+              // Prefer the entry with the larger / non-empty squad
+              allTeams[idx] = { name: t.name, logo: t.logo || allTeams[idx].logo, squad: incomingSquad };
             }
           });
         }
@@ -1905,7 +1917,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
       const batsmen = currentTeam === 1 ? newState.team1Batsmen : newState.team2Batsmen;
       const history = currentTeam === 1 ? newState.team1History : newState.team2History;
       const outBatsmen = history.filter(b => b.wicket).map(b => b.strikerId);
-      const nextBatsman = batsmen.find(b => !outBatsmen.includes(b) && b !== newState.crease.nonStrikerId);
+      const nextBatsman = batsmen.find(b => !outBatsmen.includes(b) && b !== newState.crease.nonStrikerId && b !== newState.crease.strikerId);
       if (nextBatsman) {
         newState.crease.strikerId = nextBatsman;
       }
@@ -7519,7 +7531,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                     <span className="text-[#00F0FF] font-black">⚡ {strikerName}</span>
                   </div>
                   <div className="text-[10px] text-white/40">{nonStrikerName}</div>
-                  <div className="text-[10px] text-[#FF003C]">🏐 {bowlerName}</div>
+                  <div className="text-[10px] text-[#FF003C]">🎯 {bowlerName}</div>
                 </div>
 
                 {/* Ball history */}
