@@ -300,7 +300,12 @@ export function updateSuperOverAfterBall(
 
   // Update score
   score.runs += ballEvent.runs;
-  score.balls++;
+  // Only count as a legal ball if it's NOT a wide or no-ball.
+  // Super Over rule: each team faces 6 LEGAL deliveries.
+  const isLegalBall = ballEvent.type !== 'WD' && ballEvent.type !== 'NB';
+  if (isLegalBall) {
+    score.balls++;
+  }
 
   // Handle wicket
   if (ballEvent.wicket) {
