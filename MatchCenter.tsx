@@ -1931,7 +1931,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
         const winnerName = result.winner;
         setWinnerTeam({ name: winnerName, id: result.winnerId, margin: `${result.margin} (${result.method})` });
         setMatch(m => ({ ...m, status: 'COMPLETED', superOver: finalState }));
-        setTimeout(() => setStatus('SUMMARY'), 2000);
+        /* auto-route removed — user clicks 'View Summary' on celebration screen */
       } else {
         // Super Over tied — ask the scorer whether to play another SO or declare tie (informal games)
         const playAnother = window.confirm(
@@ -7480,7 +7480,7 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
 
             // Target for team 2
             const target2 = teamNum === 2 ? superOverState.team1Score.runs + 1 : null;
-            const needFromBalls = target2 ? `Need ${target2 - score.runs} from ${6 - score.balls} balls` : null;
+            const needFromBalls = (target2 && score.runs < target2) ? `Need ${target2 - score.runs} from ${6 - score.balls} balls` : null;
 
             return (
               <div className="flex-1 overflow-auto p-5 space-y-4">
@@ -7613,33 +7613,104 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
             </div>
           )}
 
-          {/* RESULT PHASE */}
-          {superOverPhase === 'RESULT' && superOverState.result && (
-            <div className="flex-1 flex items-center justify-center p-8">
+          {/* RESULT PHASE — Celebration with MVP + Exit / Summary / New Match */}
+          {superOverPhase === 'RESULT' && superOverState.result && (() => {
+            const winnerIdResolved = superOverState.result.winnerId;
+            const winnerIsTeam1 = winnerIdResolved === superOverState.team1Id;
+            const winnerHistory = winnerIsTeam1 ? superOverState.team1History : superOverState.team2History;
+            const allSquad = [...(match.teams.teamA?.squad || []), ...(match.teams.teamB?.squad || [])];
+            const team1Name = match.teams[superOverState.team1Id === 'A' ? 'teamA' : 'teamB']?.name || 'Team 1';
+            const team2Name = match.teams[superOverState.team2Id === 'A' ? 'teamA' : 'teamB']?.name || 'Team 2';
+            // Player of the Super Over = top scorer in winning team's innings
+            const scorerMap: Record<string, number> = {};
+            const ballsMap: Record<string, number> = {};
+            (winnerHistory || []).forEach((b: any) => {
+              if (b.type !== 'WD' && b.type !== 'NB' && b.strikerId) {
+                scorerMap[b.strikerId] = (scorerMap[b.strikerId] || 0) + (b.runsScored || 0);
+                ballsMap[b.strikerId] = (ballsMap[b.strikerId] || 0) + 1;
+              }
+            });
+            const mvpId = Object.keys(scorerMap).sort((a, b) => scorerMap[b] - scorerMap[a])[0];
+            const mvp = mvpId ? allSquad.find(p => p.id === mvpId) : null;
+            const mvpRuns = mvpId ? scorerMap[mvpId] : 0;
+            const mvpBalls = mvpId ? (ballsMap[mvpId] || 0) : 0;
+            const mvpInitial = (mvp?.name || 'P').charAt(0).toUpperCase();
+            return (
+            <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', damping: 15 }}
-                className="text-center space-y-6 max-w-sm"
+                transition={{ type: 'spring', damping: 14 }}
+                className="text-center space-y-5 max-w-md w-full"
               >
-                <Trophy size={48} className="text-[#FFD600] mx-auto" />
-                <h2 className="font-heading text-4xl uppercase italic text-[#39FF14]">{superOverState.result.winner}</h2>
-                <p className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">{superOverState.result.margin}</p>
-                <p className="text-[9px] text-white/30 font-bold">via {superOverState.result.method}</p>
-
-                <div className="flex gap-4">
-                  <div className="flex-1 p-4 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
-                    <p className="text-[8px] text-white/30 font-black uppercase">{match.teams[superOverState.team1Id === 'A' ? 'teamA' : 'teamB']?.name}</p>
-                    <p className="font-numbers text-5xl font-black text-white">{superOverState.team1Score.runs}/{superOverState.team1Score.wickets}</p>
+                <motion.div
+                  animate={{ rotate: [0, -8, 8, -8, 0], scale: [1, 1.12, 1] }}
+                  transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.8 }}
+                >
+                  <Trophy size={64} className="text-[#FFD600] mx-auto drop-shadow-[0_0_24px_rgba(255,214,0,0.55)]" />
+                </motion.div>
+                <div className="space-y-1">
+                  <p className="text-[9px] text-white/40 font-black uppercase tracking-[0.3em]">Super Over Champion</p>
+                  <h2 className="font-heading text-5xl uppercase italic text-[#39FF14]">{superOverState.result.winner}</h2>
+                  <p className="text-[11px] text-white font-bold">{superOverState.result.margin}</p>
+                  <p className="text-[9px] text-white/30 font-bold">via {superOverState.result.method}</p>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1 p-3 rounded-[14px] bg-white/5 border border-white/10 space-y-1">
+                    <p className="text-[8px] text-white/30 font-black uppercase">{team1Name}</p>
+                    <p className="font-numbers text-3xl font-black text-white">{superOverState.team1Score.runs}/{superOverState.team1Score.wickets}</p>
                   </div>
-                  <div className="flex-1 p-4 rounded-[16px] bg-white/5 border border-white/10 space-y-1">
-                    <p className="text-[8px] text-white/30 font-black uppercase">{match.teams[superOverState.team2Id === 'A' ? 'teamA' : 'teamB']?.name}</p>
-                    <p className="font-numbers text-5xl font-black text-white">{superOverState.team2Score.runs}/{superOverState.team2Score.wickets}</p>
+                  <div className="flex-1 p-3 rounded-[14px] bg-white/5 border border-white/10 space-y-1">
+                    <p className="text-[8px] text-white/30 font-black uppercase">{team2Name}</p>
+                    <p className="font-numbers text-3xl font-black text-white">{superOverState.team2Score.runs}/{superOverState.team2Score.wickets}</p>
                   </div>
+                </div>
+                {mvp && (
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="p-4 rounded-[18px] bg-gradient-to-br from-[#FFD600]/15 to-[#FF003C]/10 border border-[#FFD600]/30 space-y-3"
+                  >
+                    <p className="text-[9px] text-[#FFD600] font-black uppercase tracking-[0.25em]">★ Player of the Super Over</p>
+                    <div className="flex items-center gap-3 justify-center">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FFD600] to-[#FF003C] flex items-center justify-center font-heading text-2xl font-black text-black shadow-[0_0_20px_rgba(255,214,0,0.4)]">
+                        {mvpInitial}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-heading text-base uppercase italic text-white leading-tight">{mvp.name || 'Player'}</p>
+                        <p className="font-numbers text-xl font-black text-[#39FF14] leading-tight">{mvpRuns}<span className="text-white/40 text-xs font-bold"> ({mvpBalls})</span></p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => { localStorage.removeItem('22YARDS_ACTIVE_MATCH'); onBack(); }}
+                    className="flex-1 py-4 rounded-[16px] bg-white/5 border border-white/10 text-white/70 font-black text-[10px] uppercase tracking-[0.18em]"
+                  >
+                    Exit
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setStatus('SUMMARY')}
+                    className="flex-1 py-4 rounded-[16px] bg-white/10 border border-white/20 text-white font-black text-[10px] uppercase tracking-[0.18em]"
+                  >
+                    View Summary
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => { localStorage.removeItem('22YARDS_ACTIVE_MATCH'); localStorage.removeItem('22Y_FOLLOWING_MATCH'); window.location.reload(); }}
+                    className="flex-1 py-4 rounded-[16px] bg-[#39FF14] text-black font-black text-[10px] uppercase tracking-[0.18em] shadow-[0_0_24px_rgba(57,255,20,0.35)]"
+                  >
+                    New Match
+                  </motion.button>
                 </div>
               </motion.div>
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
