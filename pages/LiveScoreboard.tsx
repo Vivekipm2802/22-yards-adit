@@ -196,7 +196,7 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
   };
 
   /* inn-1 setting team (for display in inn-2) */
-  const inn1BowlingKey = teams.battingTeamId === 'A' ? 'teamA' : 'teamB'; // in inn-2, bowlingTeam batted in inn-1
+  const inn1BowlingKey = teams.bowlingTeamId === 'A' ? 'teamA' : 'teamB'; // in inn-2, bowlingTeam batted in inn-1
   const inn1TeamName   = currentInnings === 2
     ? (teams[inn1BowlingKey]?.name ?? '')
     : '';
@@ -443,10 +443,10 @@ const LiveScoreboard: React.FC<{ matchId: string }> = ({ matchId }) => {
               </p>
               <p className="text-[7px] font-black text-white/30 uppercase tracking-widest mt-1">CRR</p>
             </div>
-            {currentInnings === 2 && config?.target && config.overs * 6 - liveScore.balls > 0 && (
+            {currentInnings === 2 && config?.target && (((config.reducedOvers2 ?? config.overs) * 6) - liveScore.balls) > 0 && (
               <div className="p-4 bg-[#121212] border border-white/5 rounded-2xl text-center">
                 <p className="font-numbers text-2xl font-black text-[#CC1010]">
-                  {((config.target - liveScore.runs) / ((config.overs * 6 - liveScore.balls) / 6)).toFixed(2)}
+                  {((config.target - liveScore.runs) / ((((config.reducedOvers2 ?? config.overs)) * 6 - liveScore.balls) / 6)).toFixed(2)}
                 </p>
                 <p className="text-[7px] font-black text-white/30 uppercase tracking-widest mt-1">RRR</p>
               </div>
