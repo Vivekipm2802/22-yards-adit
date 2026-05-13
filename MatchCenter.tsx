@@ -5994,14 +5994,14 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-6"
                       >
-                        {/* Innings 1 */}
+                        {/* Innings 1 — Batting */}
                         <div className="space-y-3">
-                          <button className="w-full p-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/20 text-left">
-                            <p className="text-[11px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name}</p>
+                          <div className="w-full p-3 rounded-[16px] bg-[#00F0FF]/10 border border-[#00F0FF]/20">
+                            <p className="text-[11px] font-black text-[#00F0FF] uppercase">{getTeamObj(innings1TeamId).name} — Batting</p>
                             <p className="text-[9px] text-white/40 mt-1">{countingRuns.inn1}/{match.config.innings1Wickets || 0}</p>
-                          </button>
+                          </div>
                           <div className="space-y-2">
-                            {(getTeamObj(innings1TeamId).squad || []).map((player) => (
+                            {(getTeamObj(innings1TeamId).squad || []).filter(p => (p.balls || 0) > 0 || (p.runs || 0) > 0 || p.isOut).map((player) => (
                               <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
                                 <div className="flex justify-between items-start mb-1">
                                   <div>
@@ -6019,14 +6019,30 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           </div>
                         </div>
 
-                        {/* Innings 2 */}
-                        <div className="space-y-3">
-                          <button className="w-full p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/20 text-left">
-                            <p className="text-[11px] font-black text-[#39FF14] uppercase">{getTeamObj(innings2TeamId).name}</p>
+                        {/* Innings 1 — Bowling (by Team 2) */}
+                        <div className="space-y-2">
+                          <h4 className="text-[10px] font-black text-[#FF6D00] uppercase">{getTeamObj(innings2TeamId).name} — Bowling</h4>
+                          {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                            <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 text-[8px]">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-black text-white">{player.name}</p>
+                                  <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov</p>
+                                </div>
+                                <p className="font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Innings 2 — Batting */}
+                        <div className="space-y-3 pt-4 border-t border-white/10">
+                          <div className="w-full p-3 rounded-[16px] bg-[#39FF14]/10 border border-[#39FF14]/20">
+                            <p className="text-[11px] font-black text-[#39FF14] uppercase">{getTeamObj(innings2TeamId).name} — Batting</p>
                             <p className="text-[9px] text-white/40 mt-1">{countingRuns.inn2}/{match.liveScore.wickets || 0}</p>
-                          </button>
+                          </div>
                           <div className="space-y-2">
-                            {(getTeamObj(innings2TeamId).squad || []).map((player) => (
+                            {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.balls || 0) > 0 || (p.runs || 0) > 0 || p.isOut).map((player) => (
                               <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10">
                                 <div className="flex justify-between items-start mb-1">
                                   <div>
@@ -6044,15 +6060,15 @@ const MatchCenter: React.FC<{ onBack: () => void; onNavigate?: (page: string) =>
                           </div>
                         </div>
 
-                        {/* Bowlers Section */}
-                        <div className="space-y-3 pt-4 border-t border-white/10">
-                          <h4 className="text-[10px] font-black text-[#00F0FF] uppercase">Bowling</h4>
-                          {(getTeamObj(innings2TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
+                        {/* Innings 2 — Bowling (by Team 1) */}
+                        <div className="space-y-2">
+                          <h4 className="text-[10px] font-black text-[#FF6D00] uppercase">{getTeamObj(innings1TeamId).name} — Bowling</h4>
+                          {(getTeamObj(innings1TeamId).squad || []).filter(p => (p.wickets || 0) > 0 || (p.balls_bowled || 0) > 0).map((player) => (
                             <div key={player.id} className="p-3 rounded-[16px] bg-white/5 border border-white/10 text-[8px]">
                               <div className="flex justify-between items-center">
                                 <div>
                                   <p className="font-black text-white">{player.name}</p>
-                                  <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6}</p>
+                                  <p className="text-white/40">{Math.floor((player.balls_bowled || 0) / 6)}.{(player.balls_bowled || 0) % 6} ov</p>
                                 </div>
                                 <p className="font-numbers text-[#FF6D00]">{player.wickets || 0}-{player.runs_conceded || 0}</p>
                               </div>
