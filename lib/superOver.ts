@@ -315,6 +315,16 @@ export function updateSuperOverAfterBall(
   // Add to history
   history.push(ballEvent);
 
+  // Team 2 reached/exceeded target → end innings immediately for clean UX
+  if (currentTeamNumber === 2) {
+    const target = newState.team1Score.runs + 1;
+    if (score.runs >= target) {
+      newState.phase = 'RESULT';
+      newState.currentBatting = 0 as any;
+      return newState;
+    }
+  }
+
   // Check if innings should end
   if (shouldEndSuperOverInnings(score)) {
     // Move to next phase
