@@ -423,7 +423,7 @@ const App: React.FC = () => {
 
   return (
     <AuthContext.Provider value={{ userData, login: handleLogin, logout: handleLogout }}>
-      <div className="h-[100dvh] w-full bg-[#020617] text-white flex flex-col overflow-hidden relative font-sans">
+      <div className={`h-[100dvh] w-full flex flex-col overflow-hidden relative font-sans ${isDark ? 'bg-[#020617] text-white' : 'bg-[#f0f4f8] text-[#0f172a]'}`}>
         {/* Top Navigation - safe-area-inset-top handles iPhone Dynamic Island / notch */}
         <div
           className="border-b border-white/5 shrink-0 z-[100]"
@@ -488,7 +488,7 @@ const App: React.FC = () => {
 
         {/* Bottom Tab Bar */}
         {activePage !== 'MATCH_CENTER' && activePage !== 'PROFILE' && activePage !== 'FOLLOW_MATCH' && (
-          <div className="bg-[#020617] border-t border-white/10 flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
+          <div className={`border-t flex items-center justify-around px-4 z-[90] shrink-0 bottom-tab-bar ${isDark ? 'bg-[#020617] border-white/10' : 'bg-white border-[#0f172a]/10'}`} style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))', minHeight: '5rem' }}>
             {navItems.map((item) => {
               const isActive = activePage === item.id;
               return (
