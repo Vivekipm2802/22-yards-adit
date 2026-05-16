@@ -1,0 +1,14 @@
+# robots.txt for 22YARDS
+# Allow all well-behaved crawlers
+
+User-agent: *
+Allow: /
+
+# Don't waste crawler time on resume/spectator/transfer URLs
+Disallow: /*?resume=
+Disallow: /*?spectate=
+Disallow: /*?watch=
+Disallow: /*?transfer=
+Disallow: /*?transfer_id=
+
+Sitemap: https://22yards.gurumantra.info/sitemap.xml
